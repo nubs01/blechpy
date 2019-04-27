@@ -1,6 +1,8 @@
 import os
 import easygui as eg
 import numpy as np
+import pandas as pd
+from blechpy.dio import rawIO
 
 clustering_params = {'Max Number of Clusters':7,
                     'Max Number of Iterations':1000,
@@ -24,11 +26,20 @@ bandpass_params = {'Lower freq cutoff':300,
 spike_snapshot = {'Time before spike':.5,
                     'Time after spike':1} # in ms
 
+clust_param_order = ['Max Number of Clusters','Max Number of Iterations',
+                    'Convergence Criterion','GM random restarts']
+data_param_order = ['V_cutoff for disconnected headstage',
+                    'Max rate of cutoff breach per second',
+                    'Max allowed seconds with a breach',
+                    'Intra-cluster waveform amp SD cutoff']
+band_param_order = ['Lower freq cutoff','Upper freq cutoff']
+spike_snap_order = ['Time before spike (ms)','Time after spike (ms)']
 
 def parse_amplifier_files(file_dir):
     '''
     parses the filenames of amp-*-*.dat files in file_dir and returns port and
     channel numbers
+    for 'one file per channel' recordings
     '''
     file_list = os.listdir(file_dir)
     ports = []
@@ -49,6 +60,7 @@ def parse_amplifier_files(file_dir):
 def parse_board_files(file_dir):
     '''
     parses board-*-*.dat files and returns lists of DIN and DOUT channels
+    for 'one file per channel' type recordings
     '''
     file_list = os.listdir(file_dir)
     DIN = []
@@ -61,6 +73,7 @@ def parse_board_files(file_dir):
             elif tmp[1] == 'DOUT':
                 DOUT.append(int(tmp[2]))
     return DIN,DOUT
+
 
 def get_ports(file_dir):
     '''
@@ -85,7 +98,7 @@ def get_sampling_rate(file_dir):
     uses info.rhd in file_dir to get sampling rate of the data
     '''
     sampling_rate = np.fromfile(os.path.join(file_dir,'info.rhd'), dtype = np.dtype('float32'))
-    sampling_rate = int(sampling_rate[2])   
+    sampling_rate = int(sampling_rate[2])
     return sampling_rate
 
 def get_din_channels(file_dir):
@@ -95,8 +108,9 @@ def get_din_channels(file_dir):
     DIN,DOUT = parse_board_files(file_dir)
     return DIN
 
-def get_CAR_params(file_dir,num_groups,EMG_port=None,EMG_ch=None):
+def get_CAR_params(file_dir,electrode_mapping,num_groups):
     '''
+    BROKEN: Use electrode number instead of ports and channels
     Returns a dict containing standard params for common average referencing
     Each dict field with fields, num groups, ports, channels, emg port and emg
     channels
@@ -105,8 +119,6 @@ def get_CAR_params(file_dir,num_groups,EMG_port=None,EMG_ch=None):
     groups, setting to a number will allow choice of channels for each group
     unilateral: 1 CAR group, all channels on port
     bilateral: 2 CAR groups, [0-7,24-31] & [8-23], assumes same port for both
-    Can also provide EMG_port and EMG_ch(list or single channel) if used, to
-    exclude from list
     '''
     if num_groups=='bilateral':
         num_groups = 2
@@ -119,53 +131,44 @@ def get_CAR_params(file_dir,num_groups,EMG_port=None,EMG_ch=None):
     else:
         raise ValueError('Num groups must be an integer >0 or a string bilateral or unlateral')
 
-    ports,channels = parse_amplifier_files(file_dir)
-    if len(ports)>1:
-        car_ports = []
-        for i in range(num_groups):
-            tmp = select_from_list('Choose port for CAR group %i: ' % i,'Multiple Ports Found',ports)
-            if tmp is None:
-                return None
-            car_ports.append(tmp)
-    else:
-        car_ports = [ports[0] for p in range(num_groups)]
-
+    electrodes = electrode_mapping['Electrode'].tolist()
+    car_electrodes = []
     if implant_type=='bilateral':
-        car_channels = []
-        port_idx = [ports.index(x) for x in car_ports]
-        g1 = [*range(8),*[x+24 for x in range(8)]]
-        g2 = [x+8 for x in range(16)]
-        # check is files for any channels are missing
-        g1_check = any([x not in channels[port_idx[0]] for x in g1])
-        g2_check = any([x not in channels[port_idx[1]] for x in g2]) 
-        if  g1_check or g2_check:
-            raise LookupError('Missing some amp files for 32ch bilateral recording')
-        car_channels = [g1,g2]
+        g1 = electrodes[:8]
+        g2 = elecctrodes[-8:]
+        car_electrodes = [g1,g2]
     elif implant_type=='unilateral':
-        car_channels = channels
+        car_electrodes.append(electrodes)
     else:
-        car_channels = []
-        for i,p in enumerate(car_ports,start=0):
-            idx = ports.index(p)
-            tmp = select_from_list('Choose CAR channels on port %s for CAR group %i: ' % (p,i),
-                                    'Choose channels',channels[idx],multi_select=True)
+        select_list = []
+        for idx,row in electrode_mapping.iterrows():
+            select_list.append(', '.join([str(x) for x in row]))
+        for i in range(num_groups):
+            tmp = select_from_list('Choose CAR electrodes for group %i: [Electrode, Port, Channel]' % i,
+                                    'Group %i Electrodes' % i,select_list,multi_select=True)
             if tmp is None:
-                return None
-            car_channels.append(tmp)
+                raise ValueError('Must select electrodes for CAR groups')
+            car_electrodes.append([int(x.split(',')[0]) for x in tmp])
 
-    # Exclude emg channels from lists
-    if not isinstance(EMG_ch,list):
-        EMG_ch = [EMG_ch]
-    if EMG_ch is not None and EMG_port in car_ports:
-        idx = [i for i,x in enumerate(car_ports) if x==EMG_port]
-        for i,p in enumerate(car_ports):
-            if p==EMG_port:
-                car_channels[i] = [x for x  in car_channels[i] if x not in EMG_ch]
-
-    out = {'num groups':num_groups,'ports':car_ports,'channels':car_channels,
-            'emg port':EMG_port,'emg channels':EMG_ch}
+    out = {'num groups':num_groups,'car_electrodes':car_electrodes}
     return out
-                
+
+def write_params(file_name,params):
+    '''
+    Writes parameters into a file for use by blech_process.py
+    '''
+    if not file_name.endswith('.params'):
+        file_name += '.params'
+    with open(file_name,'w') as f:
+        for c in clust_param_order:
+            print(params['clustering_params'][c],file=f)
+        for c in data_params_order:
+            print(params['data_params'][c],file=f)
+        for c in band_param_order:
+            print(params['bandpass_params'][c],file=f)
+        for c in spike_snap_order:
+            print(params['spike_snapshot'][c],file=f)
+
 
 def select_from_list(prompt,title,items,multi_select=False):
     '''
@@ -178,3 +181,23 @@ def select_from_list(prompt,title,items,multi_select=False):
         choice = eg.multchoicebox(prompt,title,items,None)
 
     return choice
+
+def flatten_channels(ports,channels,emg_port=None,emg_channels=None):
+    '''
+    takes all channels and all ports and make array of electrode numbers from 0 to N
+    excludes emg_channels is given
+    returns electrode mapping (pandas dataframe), emg mapping (pandas dataframe)
+    '''
+    mapping = []
+    emg_map = [(emp_port,c) for c in emg_channels]
+    for p,c in zip(ports,channels):
+        if p==emg_port:
+            emg_count = len([c.pop(c.index(x)) for x in emg_channels])
+        tmp_map = [(p,x) for x in c]
+        mapping.extend(tmp_map)
+    map_df = pd.DataFrame(mapping,columns=['Port','Channel'])
+    map_df = map_df.reset_index(drop=False).rename(columns={'index':'Electrode'})
+
+    emg_df = pd.DataFrame(emg_map,columns=['Port','Channel'])
+    emg_df = emg_df.reset_index(drop=False).rename(columns={'index':'EMG'})
+    return map_df, emg_df

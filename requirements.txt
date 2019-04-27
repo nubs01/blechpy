@@ -1,0 +1,7 @@
+easygui
+tables
+numpy
+datashader
+scipy
+seaborn
+scikit-learn
