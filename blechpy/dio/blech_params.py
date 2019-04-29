@@ -1,8 +1,9 @@
-import os
+import os, time
 import easygui as eg
 import numpy as np
 import pandas as pd
 from blechpy.dio import rawIO
+from blechpy.data_print import data_print as dp
 
 clustering_params = {'Max Number of Clusters':7,
                     'Max Number of Iterations':1000,
@@ -34,6 +35,17 @@ data_param_order = ['V_cutoff for disconnected headstage',
                     'Intra-cluster waveform amp SD cutoff']
 band_param_order = ['Lower freq cutoff','Upper freq cutoff']
 spike_snap_order = ['Time before spike (ms)','Time after spike (ms)']
+
+def Timer(heading):
+    def real_timer(func):
+        def wrapper(*args,**kwargs):
+            start = time.time()
+            print('')
+            print('----------\n%s\n----------' % heading)
+            func(*args,**kwargs)
+            print('Done! Elapsed Time: %1.2f' % (time.time()-start))
+        return wrapper
+    return real_timer
 
 def parse_amplifier_files(file_dir):
     '''
@@ -120,6 +132,7 @@ def get_din_channels(file_dir):
     DIN,DOUT = parse_board_files(file_dir)
     return DIN
 
+@Timer('Collecting parameters for common average referencing')
 def get_CAR_params(file_dir,electrode_mapping,num_groups):
     '''
     BROKEN: Use electrode number instead of ports and channels
@@ -165,12 +178,15 @@ def get_CAR_params(file_dir,electrode_mapping,num_groups):
     out = {'num groups':num_groups,'car_electrodes':car_electrodes}
     return out
 
+@Timer('Writing Clustering Parameters to .params File')
 def write_params(file_name,params):
     '''
     Writes parameters into a file for use by blech_process.py
     '''
     if not file_name.endswith('.params'):
         file_name += '.params'
+    print('File: ' + file_name)
+    dp.print_dict(params)
     with open(file_name,'w') as f:
         for c in clust_param_order:
             print(params['clustering_params'][c],file=f)

@@ -206,8 +206,10 @@ class dataset(object):
         self.param_file = os.path.join(data_dir,self.data_name+'.params')
         dio.params.write_params(self.param_file,self.clust_params)
 
+        # Set file for clusting log
         self.clustering_log = os.path.join(data_dir,'results.log')
 
+        # update status
         self.process_status['extract_data'] = True
 
     def blech_clust_run(self):
