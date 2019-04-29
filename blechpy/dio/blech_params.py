@@ -23,11 +23,11 @@ data_params = {'clean':{'V_cutoff for disconnected headstage':1500,
 bandpass_params = {'Lower freq cutoff':300,
                     'Upper freq cutoff':3000} # in Hz
 
-spike_snapshot = {'Time before spike':.5,
-                    'Time after spike':1} # in ms
+spike_snapshot = {'Time before spike (ms)':.5,
+                    'Time after spike (ms)':1} # in ms
 
 clust_param_order = ['Max Number of Clusters','Max Number of Iterations',
-                    'Convergence Criterion','GM random restarts']
+                    'Convergence Criterion','GMM random restarts']
 data_param_order = ['V_cutoff for disconnected headstage',
                     'Max rate of cutoff breach per second',
                     'Max allowed seconds with a breach',
@@ -40,6 +40,8 @@ def parse_amplifier_files(file_dir):
     parses the filenames of amp-*-*.dat files in file_dir and returns port and
     channel numbers
     for 'one file per channel' recordings
+
+    deprecated: get ports and channels from rawIO.read_recording_info instead
     '''
     file_list = os.listdir(file_dir)
     ports = []
@@ -61,6 +63,8 @@ def parse_board_files(file_dir):
     '''
     parses board-*-*.dat files and returns lists of DIN and DOUT channels
     for 'one file per channel' type recordings
+
+    deprecated: get DIN and DOUT from rawIO.read_recording_info instead
     '''
     file_list = os.listdir(file_dir)
     DIN = []
@@ -78,6 +82,8 @@ def parse_board_files(file_dir):
 def get_ports(file_dir):
     '''
     reads the data files in file_dir and returns a list of amplifier ports
+
+    deprecated: get ports and channels from rawIO.read_recording_info instead
     '''
     ports,ch = parse_amplifier_files(file_dir)
     return ports
@@ -85,6 +91,8 @@ def get_ports(file_dir):
 def get_channels_on_port(file_dir,port):
     '''
     reads files in file_dir to determine which amplifier channels are on port
+
+    deprecated: get ports and channels from rawIO.read_recording_info instead
     '''
     ports,ch = parse_amplifier_files(file_dir)
     try:
@@ -96,6 +104,8 @@ def get_channels_on_port(file_dir,port):
 def get_sampling_rate(file_dir):
     '''
     uses info.rhd in file_dir to get sampling rate of the data
+
+    deprecated: get ports and channels from rawIO.read_recording_info instead
     '''
     sampling_rate = np.fromfile(os.path.join(file_dir,'info.rhd'), dtype = np.dtype('float32'))
     sampling_rate = int(sampling_rate[2])
@@ -104,6 +114,8 @@ def get_sampling_rate(file_dir):
 def get_din_channels(file_dir):
     '''
     returns a list of DIN channels read from filenames in file_dir
+
+    deprecated: get ports and channels from rawIO.read_recording_info instead
     '''
     DIN,DOUT = parse_board_files(file_dir)
     return DIN
@@ -162,7 +174,7 @@ def write_params(file_name,params):
     with open(file_name,'w') as f:
         for c in clust_param_order:
             print(params['clustering_params'][c],file=f)
-        for c in data_params_order:
+        for c in data_param_order:
             print(params['data_params'][c],file=f)
         for c in band_param_order:
             print(params['bandpass_params'][c],file=f)
@@ -183,21 +195,46 @@ def select_from_list(prompt,title,items,multi_select=False):
     return choice
 
 def flatten_channels(ports,channels,emg_port=None,emg_channels=None):
+    '''takes all ports and all channels and makes a dataframe mapping ports and
+    channels to electrode numbers from 0 to N
+    excludes emg_channels if given
+
+    Parameters
+    ----------
+    ports : list, list of port names, length equal to channels
+    channels : list, list of channels number, corresponding to elements of ports
+    emg_port : str (optional), prefix of port with EMG channel. Default is None
+    emg_channels: list (optional), list of channels on emg_port used for emg
+
+    Returns
+    -------
+    electrode_mapping : pandas.DataFrame, 
+                        3 columns: Electrode, Port and Channel
+    emg_mapping : pandas.DataFrame,
+                    3 columns: EMG, Port, and Channel
+
+    Throws
+    ------
+    ValueError : if length of ports is not equal to length of channels
     '''
-    takes all channels and all ports and make array of electrode numbers from 0 to N
-    excludes emg_channels is given
-    returns electrode mapping (pandas dataframe), emg mapping (pandas dataframe)
-    '''
-    mapping = []
-    emg_map = [(emp_port,c) for c in emg_channels]
-    for p,c in zip(ports,channels):
-        if p==emg_port:
-            emg_count = len([c.pop(c.index(x)) for x in emg_channels])
-        tmp_map = [(p,x) for x in c]
-        mapping.extend(tmp_map)
-    map_df = pd.DataFrame(mapping,columns=['Port','Channel'])
+    el_map = []
+    em_map = []
+    ports = ports.copy()
+    channels = channels.copy()
+    to_pop = []
+    for idx,p in enumerate(zip(ports,channels)):
+        if p[0]==emg_port and p[1] in emg_channels:
+            em_map.append(p)
+        else:
+            el_map.append(p)
+
+    map_df = pd.DataFrame(el_map,columns=['Port','Channel'])
+    map_df.sort_values(by=['Port','Channel'],ascending=True,inplace=True)
+    map_df.reset_index(drop=True,inplace=True)
     map_df = map_df.reset_index(drop=False).rename(columns={'index':'Electrode'})
 
-    emg_df = pd.DataFrame(emg_map,columns=['Port','Channel'])
+    emg_df = pd.DataFrame(em_map,columns=['Port','Channel'])
+    emg_df.sort_values(by=['Port','Channel'],ascending=True,inplace=True)
+    emg_df.reset_index(drop=True,inplace=True)
     emg_df = emg_df.reset_index(drop=False).rename(columns={'index':'EMG'})
     return map_df, emg_df

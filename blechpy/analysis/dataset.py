@@ -2,39 +2,65 @@ import easygui as eg
 from  blechpy import dio
 import datetime as dt
 from blechpy.data_print import data_print as dp
+import pickle, os, shutil
 
 
 
 class dataset(object):
-    '''
-    Stores information related to an intan recording directory and allows
+    '''Stores information related to an intan recording directory and allows
     running of basic analysis script
     Only works for 'one file per channel' recording type
+
+    Parameters
+    ----------
+    file_dir : str (optional), directory of intan recording data, if left blank
+                               a filechooser will popup
     '''
+
     def __init__(self,file_dir=None):
-        '''
-        Initialize dataset object from file_dir, grabs basename from name of
+        '''Initialize dataset object from file_dir, grabs basename from name of
         directory and initializes basic analysis parameters
+
+        Parameters
+        ----------
+        file_dir : str (optional), file directory for intan recording data
+
+        Throws
+        ------
+        ValueError : if file_dir is not provided and no directory is chosen
+                     when prompted
+        NotADirectoryError : if file_dir does not exist
         '''
+        # Get file directory is not given
         if file_dir is None:
             file_dir = eg.diropenbox(title='Select dataset directory')
             if file_dir is None:
                 raise ValueError('Dataset cannot be initialized without a directory')
+
+        if not os.path.isdir(file_dir):
+            raise NotADirectoryError('Could not find folder %s' % file_dir)
+
+        # Get basename of dataset from as name of file_dir
         tmp = os.path.basename(file_dir)
         if tmp=='':
             file_dir = file_dir[:-1]
             tmp = os.path.basename(file_dir)
         self.data_name = tmp
         self.data_dir = file_dir
+
+        # Make paths for analysis log file, dataset object savefile and hdf5
         self.log_file = os.path.join(file_dir,'%s_analysis.log' % tmp)
         self.save_file = os.path.join(file_dir,'%s_dataset.p' % tmp)
-        h5_name = dio.params.get_h5_filename(file_dir)
+        h5_name = dio.h5io.get_h5_filename(file_dir)
         if h5_name is None:
             h5_file = os.path.join(file_dir,'%s.h5' % tmp)
         else:
             h5_file = os.path.join(file_dir,h5_name)
         self.h5_file = h5_file
+
         self.dataset_creation_date = dt.datetime.today()
+        
+        # Initialize default parameters
         self.initParams()
 
     def initParams(self,data_quality='clean',emg_port=None,emg_channels=None):
@@ -47,12 +73,15 @@ class dataset(object):
         electrodes are cutoff early
         '''
 
-        # Get default parameters for blech_clust
+        # Get parameters from info.rhd
         file_dir = self.data_dir
-        self.file_type = 'one file per channel'
-        ports,channels = dio.params.parse_amp_files(file_dir)
-        DIN = dio.params.get_din_channels(file_dir)
-        sampling_rate = dio.params.get_sampling_rate(file_dir)
+        rec_info = dio.rawIO.read_rec_info(file_dir)
+        ports = rec_info.pop('ports')
+        channels = rec_info.pop('channels')
+        sampling_rate = rec_info['amplifier_sampling_rate']
+        self.rec_info = rec_info
+
+        # Get default parameters for blech_clust
         clustering_params = dio.params.clustering_params
         data_params = dio.params.data_params[data_quality]
         bandpass_params = dio.params.bandpass_params
@@ -63,49 +92,57 @@ class dataset(object):
             q = eg.ynbox('Do you have an EMG?','EMG')
             if q:
                 emg_port = dio.params.select_from_list('Select EMG Port:','EMG Port',ports)
-                tmp_idx = ports.index(emg_port)
                 emg_channels = dio.params.select_from_list('Select EMG Channels:',
-                                                            'EMG Channels',channels[tmp_idx],
+                                                            'EMG Channels',
+                                                            [y for x,y in zip(ports,channels) if x==emg_port],
                                                             multi_select=True)
-        if emg_port is not  None:
-            tmp_idx = ports.index(emg_port)
-            trash = [channels[tmp_idx].pop(x) for x in emg_channels]
 
-        electrode_mapping, emg_mapping = dio.params.flatten_channels(ports,channels,
+        electrode_mapping,emg_mapping = dio.params.flatten_channels(ports,channels,
                                                                     emg_port=emg_port,
                                                                     emg_channels=emg_channels)
         self.electrode_mapping = electrode_mapping
         self.emg_mapping = emg_mapping
 
         self.clust_params = {'file_dir':file_dir,'data_quality':data_quality,
-                             'DIN':DIN,'sampling_rate':sampling_rate,
-                             'emg_port':emg_port,'emg_channels':emg_channels,
+                             'sampling_rate':sampling_rate,
                              'clustering_params':clustering_params,
                              'data_params':data_params,'bandpass_params':bandpass_params,
                              'spike_snapshot':spike_snapshot}
 
         # Outline standard processing pipeline and status check
-        self.processing_steps = ['blech_clust_setup','common_avg_reference','blech_clust',,
-                                'blech_post_process']
+        self.processing_steps = ['extract_data','common_avg_reference','blech_clust',
+                                'blech_post_process','mark_units','gather_unit_plots',
+                                'units_similarity','make_unit_arrays','make_psth',
+                                'palatability_calculate','palatability_plot',
+                                'overlay_psth']
         self.process_status = dict.fromkeys(self.processing_steps,False)
 
     def __str__(self):
-        '''
-        print all information about dataset
+        '''Put all information about dataset in string format
+
+        Returns
+        -------
+        str : representation of dataset object
         '''
         out = [self.data_name]
         out.append('Data directory:  '+self.data_dir)
         out.append('Object creation date: ' + self.dataset_creation_date.strftime('%m/%d/%y'))
+        out.append('Dataset Save File: ' + self.save_file)
         if hasattr(self,'raw_h5_file'):
             out.append('Deleted Raw h5 file: '+self.raw_h5_file)
         out.append('h5 File: '+self.h5_file)
-        out.append('Recording File Type: '+self.file_type)
         out.append('')
 
         out.append('--------------------')
         out.append('Processing Status')
         out.append('--------------------')
         out.append(dp.print_dict(self.process_status))
+        out.append('')
+
+        out.append('--------------------')
+        out.append('Recording Info')
+        out.append('--------------------')
+        out.append(dp.print_dict(self.rec_info))
         out.append('')
 
         out.append('--------------------')
@@ -121,42 +158,57 @@ class dataset(object):
         out.append('')
 
         out.append('--------------------')
-        out.append('Parameters')
+        out.append('Clustering Parameters')
         out.append('--------------------')
-        out.append(dp.print_dict(self.params))
+        out.append(dp.print_dict(self.clust_params))
         out.append('')
+
         return '\n'.join(out)
 
-    def blech_clust_setup(self,data_quality='clean'):
+    def save(self):
+        '''Saves dataset object to dataset.p file in recording directory
+        '''
+        with open(self.save_file,'wb') as f:
+            pickle.dump(self,f)
+            print('Saved dataset processing metadata to %s' % self.save_file)
+
+    def extract_data(self,data_quality='clean'):
         '''
         Creates empty hdf5 store for data and makes directories for processed data
         '''
-        if self.file_type != 'one file per channel':
-            raise ValueError('As of now, only "one file per channel" recording type is supported')
+        if self.rec_info['file_type'] is None:
+            raise ValueError('Unsupported recording type. Cannot extract yet.')
 
         # Check if they are OK with the parameters that will be used
 
         # Create h5 file
         fn = dio.h5io.create_empty_data_h5(self.h5_file)
 
-        # Create folders for saving things
+        # Create folders for saving things within recording dir
         data_dir = self.data_dir
         directories = ['spike_waveforms','spike_times','clustering_results',
                         'Plots','memory_monitor_clustering']
         for d in directories:
-            os.mkdir(os.path.join(data_dir,d))
+            tmp_dir = os.path.join(data_dir,d)
+            if os.path.exists(tmp_dir):
+                shutil.rmtree(tmp_dir)
+            os.mkdir(tmp_dir)
 
         # Create arrays for raw data in hdf5 store
-        dio.h5io.create_hdf_arrays(self.h5_file,self.electrode_mapping,self.emg_mapping)
+        dio.h5io.create_hdf_arrays(self.h5_file,self.rec_info, \
+                                    self.electrode_mapping,self.emg_mapping)
 
         # Read in data to arrays
-        dio.h5io.read_files_into_arrays(self.h5_file,self.electrode_mapping,self.emg_mapping)
+        dio.h5io.read_files_into_arrays(self.h5_file,self.rec_info, \
+                                        self.electrode_mapping,self.emg_mapping)
 
         # Write parameters into .params file
         self.param_file = os.path.join(data_dir,self.data_name+'.params')
         dio.params.write_params(self.param_file,self.clust_params)
 
         self.clustering_log = os.path.join(data_dir,'results.log')
+
+        self.process_status['extract_data'] = True
 
     def blech_clust_run(self):
         '''

@@ -1,6 +1,10 @@
 import numpy as np
-import os
+import os, re
 from blechpy.dio import load_intan_rhd_format
+import easygui as eg
+
+support_rec_types = {'one file per channel':'amp-\S-\d*\.dat',
+                     'one file per signal type':'amplifier\.dat'}
 
 def read_rec_info(file_dir):
     '''Reads the info.rhd file to get relevant parameters.
@@ -21,21 +25,38 @@ def read_rec_info(file_dir):
     info_file = os.path.join(file_dir,'info.rhd')
     if not os.path.isfile(info_file):
         raise FileNotFoundError('info.rhd file not found in %s' % file_dir)
+    out = {}
     info = load_intan_rhd_format.read_data(info_file)
-    amp_ch = info['amplifier_channels']
-    dig_in = info['board_dig_in_channels']
-    ports,channels = zip(*[(x['port_prefix'],x['native_order']) for x in amp_ch])
-    din_ports,din = zip(*[(x['port_number'],x['native_order']) for x in dig_in if x['port_prefix']=='DIN'])
+
     freq_params = info['frequency_parameters']
     notch_freq = freq_params['notch_filter_frequency']
     amp_fs = freq_params['amplifier_sample_rate']
     dig_in_fs = freq_params['board_dig_in_sample_rate']
     out = {'amplifier_sampling_rate':amp_fs,
             'dig_in_sampling_rate':dig_in_fs,
-            'notch_filter':notch_freq,
-            'dig_in':din,'dig_in_port_nums':din_ports,
-            'ports':ports,
-            'channels':channels}
+            'notch_filter':notch_freq}
+
+    amp_ch = info['amplifier_channels']
+    ports = [x['port_prefix'] for x in amp_ch]
+    channels = [x['native_order'] for x in amp_ch]
+    
+    out['ports'] = ports
+    out['channels'] = channels
+    out['num_channels'] = len(channels)
+
+    if info.get('board_dig_in_channels'):
+        dig_in = info['board_dig_in_channels']
+        din = [x['native_order'] for x in dig_in]
+        out['dig_in'] = din
+    
+    if info.get('board_dig_out_channels'):
+        dig_out = info['board_dig_out_channels']
+        dout = [x['native_order'] for x in dig_out]
+        out['dig_out'] = dout
+
+
+    out['file_type'] = get_recording_filetype(file_dir)
+    
     return out
 
 def read_time_dat(file_dir,sampling_rate=None):
@@ -76,7 +97,7 @@ def read_amplifier_dat(file_dir,num_channels=None):
     ----------
     file_dir: str, path to recording directory
     num_channels: int (optional), number of channels in recording, if not
-                                  provided info is taken from info.rhd
+                                  provided, info is taken from info.rhd
 
     Returns
     -------
@@ -100,13 +121,14 @@ def read_amplifier_dat(file_dir,num_channels=None):
     amp_dat = amp_dat.reshape(num_channels,-1,order='F')
     return amp_dat
 
-def read_digitalin_dat(file_dir,rec_info=None):
+def read_digital_dat(file_dir,dig_channels=None,dig_type='in'):
     '''Reads digitalin.dat from intan recording with file_type 'one file per signal type'
 
     Parameters
     ----------
     file_dir : str, file directory for recording data
-    rec_info : dict (optional), rec_info dict returned from read_rec_info
+    dig_channels : list (optional), digital channel numbers to get
+    dig_type : {'in','out'}, type of digital signal to get (default 'in')
 
     Returns
     -------
@@ -117,18 +139,72 @@ def read_digitalin_dat(file_dir,rec_info=None):
     ------
     FileNotFoundError : if digitalin.dat is not in file_dir
     '''
-    if rec_info is None:
+    if dig_channels is None:
         rec_info = read_rec_info(file_dir)
-
-    dig_in = rec_info['dig_in']
-    dig_in_file = os.path.join(file_dir,'digitalin.dat')
-    if not os.path.isfile(dig_in_file):
-        raise FileNotFoundError('digitalin.dat not found at %s' % dig_in_file)
-    file_dat = np.fromfile(dig_in_file,dtype=np.dtype('int16'))
+        dig_channels = rec_info['dig_%s' % dig_type]
+    dat_file = os.path.join(file_dir,'digital%s.dat' % dig_type)
+    if not os.path.isfile(dat_file):
+        raise FileNotFoundError('No file found at %s' % dig_in_file)
+    file_dat = np.fromfile(dat_file,dtype=np.dtype('int16'))
     chan_dat = []
-    for din in dig_in:
-        tmp_dat = (file_dat&pow(2,din)>0).astype(np.dtype('uint16'))
+    for ch in dig_channels:
+        tmp_dat = (file_dat&pow(2,ch)>0).astype(np.dtype('uint16'))
         chan_dat.append(tmp_dat)
     out = np.array(chan_dat)
     return out
     
+
+def read_one_channel_file(file_name):
+    '''Reads a single amp or din channel file created by an intan 'one file per
+    channel' recording
+
+    Parameters
+    ----------
+    file_name : str, absolute path to file to read data from 
+
+    Returns
+    -------
+    numpy.ndarray : int16, 1D array of data from amp file
+
+    Throws
+    ------
+    FileNotFoundError : if file_name is not found
+    '''
+    if not os.path.isfile(file_name):
+        raise FileNotFoundError('Could not locate file %s' % file_name)
+
+    chan_dat = np.fromfile(file_name,dtype=np.dtype('int16'))
+    return chan_dat
+
+def get_recording_filetype(file_dir):
+    '''Check Intan recording directory to determine type of recording and thus
+    extraction method to use. Asks user to confirm, and manually correct if
+    incorrect
+
+    Parameters
+    ----------
+    file_dir : str, recording directory to check
+
+    Returns
+    -------
+    str : file_type of recording
+    '''
+    file_list = os.listdir(file_dir)
+    file_type = None
+    for k,v in support_rec_types.items():
+        regex = re.compile(v)
+        if any([True for x in file_list if regex.match(x) is not None]):
+            file_type = k
+    if file_type is None:
+        msg = '\n   '.join(['unsupported recording type. Supported types are:',
+                                    *list(support_rec_types.keys())])
+    else:
+        msg = '\"'+file_type+'\"'
+    check = eg.ynbox('Detected recording type is '+msg+'\nIs this correct?','Recording Type')
+    if check:
+        return file_type
+    else:
+        choice = eg.choicebox('Select correct recording type','Select Recording Type',
+                              list(support_rec_types.keys()))
+        return choice
+

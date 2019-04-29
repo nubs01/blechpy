@@ -54,7 +54,7 @@ def print_dict(dic,tabs=0):
             v_str = '\n'+print_dict(v,tabs+1)
         elif isinstance(v,list):
             v_str = [print_dict(x,tabs) for x in v]
-            v_str = '\n'+''.join(v_str)
+            v_str = '\n'+', '.join(v_str)
             v_str = v_str.replace('\n','\n    ')
         elif isinstance(v,dt.datetime):
             if v.hour==0 and v.minute==0:
