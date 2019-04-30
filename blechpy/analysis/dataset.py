@@ -1,10 +1,26 @@
-import easygui as eg
+import easygui as eg, pandas as pd
 from  blechpy import dio
 import datetime as dt
 from blechpy.data_print import data_print as dp
-import pickle, os, shutil
+import pickle, os, shutil, sys
 
-
+def Logger(heading):
+    def real_logger(func):
+        def wrapper(*args,**kwargs):
+            old_out = sys.stdout
+            sys.stdout.write(heading+'...')
+            sys.stdout.flush()
+            if hasattr(args[0],'log_file'):
+                log_file = args[0].log_file
+                with open(log_file,'a') as f:
+                    sys.stdout = f
+                    func(*args,**kwargs)
+                    sys.stdout = old_out
+            else:
+                func(*args,**kwargs)
+            print('Done!')
+        return wrapper
+    return real_logger
 
 class dataset(object):
     '''Stores information related to an intan recording directory and allows
@@ -49,7 +65,7 @@ class dataset(object):
         self.data_dir = file_dir
 
         # Make paths for analysis log file, dataset object savefile and hdf5
-        self.log_file = os.path.join(file_dir,'%s_analysis.log' % tmp)
+        self.log_file = os.path.join(file_dir,'%s_processing.log' % tmp)
         self.save_file = os.path.join(file_dir,'%s_dataset.p' % tmp)
         h5_name = dio.h5io.get_h5_filename(file_dir)
         if h5_name is None:
@@ -63,6 +79,7 @@ class dataset(object):
         # Initialize default parameters
         self.initParams()
 
+    @Logger('Initializing Parameters')
     def initParams(self,data_quality='clean',emg_port=None,emg_channels=None):
         '''
         Initializes basic default analysis parameters that can be customized
@@ -103,6 +120,21 @@ class dataset(object):
         self.electrode_mapping = electrode_mapping
         self.emg_mapping = emg_mapping
 
+        # Get digital input names
+        if self.rec_info.get('dig_in'):
+            dig_in_names = eg.multenterbox('Give names for digital inputs:','Digital Input Names',
+                                            ['digital in %i' % x for x in self.rec_info['dig_in']])
+            self.dig_in_mapping = pd.DataFrame([(x,y) for x,y in  zip(self.rec_info['dig_in'],dig_in_names)],
+                                                columns=['dig_in','name'])
+
+        # Get digital output names
+        if self.rec_info.get('dig_out'):
+            dig_out_names = eg.multenterbox('Give names for digital outputs:','Digital Output Names',
+                                            ['digital out %i' % x for x in self.rec_info['dig_out']])
+            self.dig_out_mapping = pd.DataFrame([(x,y) for x,y in  zip(self.rec_info['dig_out'],dig_out_names)],
+                                                columns=['dig_out','name'])
+
+
         self.clust_params = {'file_dir':file_dir,'data_quality':data_quality,
                              'sampling_rate':sampling_rate,
                              'clustering_params':clustering_params,
@@ -110,7 +142,7 @@ class dataset(object):
                              'spike_snapshot':spike_snapshot}
 
         # Outline standard processing pipeline and status check
-        self.processing_steps = ['extract_data','common_avg_reference','blech_clust',
+        self.processing_steps = ['extract_data','create_trial_list','common_avg_reference','blech_clust',
                                 'blech_post_process','mark_units','gather_unit_plots',
                                 'units_similarity','make_unit_arrays','make_psth',
                                 'palatability_calculate','palatability_plot',
@@ -172,15 +204,30 @@ class dataset(object):
             pickle.dump(self,f)
             print('Saved dataset processing metadata to %s' % self.save_file)
 
+    @Logger('Extracting Data')
     def extract_data(self,data_quality='clean'):
-        '''
-        Creates empty hdf5 store for data and makes directories for processed data
+        '''Create hdf5 store for data and read in Intan .dat files. Also create
+        subfolders for processing outputs
+
+        Parameters
+        ----------
+        data_quality: {'clean','noisy'} (optional)
+            Specifies quality of data for default clustering parameters
+            associated. Should generally first process with clean (default)
+            parameters and then try noisy after running blech_clust and
+            checking if too many electrodes as cutoff too early
+
         '''
         if self.rec_info['file_type'] is None:
             raise ValueError('Unsupported recording type. Cannot extract yet.')
 
         # Check if they are OK with the parameters that will be used
+        q = eg.ynbox(dp.print_dict(self.clust_params)+'\n Are these parameters OK?',
+                        'Check Extraction and Clustering Parameters')
+        if not q:
+            return
 
+        print('\nExtract Intan Data\n--------------------')
         # Create h5 file
         fn = dio.h5io.create_empty_data_h5(self.h5_file)
 
@@ -212,6 +259,9 @@ class dataset(object):
         # update status
         self.process_status['extract_data'] = True
 
+        print('\nData Extraction Complete\n--------------------')
+
+    @Logger('Running blech_clust')
     def blech_clust_run(self):
         '''
         Run blech_process on each electrode using GNU parallel
@@ -230,5 +280,22 @@ class dataset(object):
         process_call.extend([str(x) for x in electrodes])
         subprocess.call(process_call,env=my_env)
 
+    @Logger('Common average referencing')
     def common_average_reference(self):
-        pass
+       pass 
+
+    @Logger('Create Trial Lists')
+    def create_trial_list(self):
+        if not self.process_status['extract_data']:
+            eg.exceptionbox('Must extract data before creating trial list','Data Not Extracted')
+            return
+        if self.rec_info.get('dig_in'):
+            in_list = dio.h5io.create_trial_table(self.h5_file,self.dig_in_mapping,'in')
+        else:
+            print('No digital input data found')
+        if self.rec_info.get('dig_out'):
+            out_list = dio.h5io.create_trial_table(self.h5_file,self.dig_out_mapping,'out')
+        else:
+            print('No digital output data found')
+        self.process_status['create_trial_list'] = True
+

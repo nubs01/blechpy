@@ -27,7 +27,7 @@ def read_rec_info(file_dir):
     if not os.path.isfile(info_file):
         raise FileNotFoundError('info.rhd file not found in %s' % file_dir)
     out = {}
-    print('Reading info.rhd info...')
+    print('Reading info.rhd file...')
     info = load_intan_rhd_format.read_data(info_file)
 
     freq_params = info['frequency_parameters']
@@ -59,7 +59,7 @@ def read_rec_info(file_dir):
 
     out['file_type'] = get_recording_filetype(file_dir)
 
-    print('Recording Info\n--------------\n')
+    print('\nRecording Info\n--------------\n')
     print(dp.print_dict(out))
     return out
 

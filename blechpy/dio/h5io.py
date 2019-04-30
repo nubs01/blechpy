@@ -1,6 +1,6 @@
-import tables,os, time
-import easygui as eg
-from blechpy.dio import rawIO, blech_params as params
+import tables,os, time, sys
+import easygui as eg, pandas as pd, numpy as np
+from blechpy.dio import particles, rawIO, blech_params as params
 from blechpy.data_print import data_print as dp
 
 def Timer(heading):
@@ -9,10 +9,18 @@ def Timer(heading):
             start = time.time()
             print('')
             print('----------\n%s\n----------' % heading)
-            func(*args,**kwargs)
+            result = func(*args,**kwargs)
             print('Done! Elapsed Time: %1.2f' % (time.time()-start))
+            return result
         return wrapper
     return real_timer
+
+def println(txt):
+    '''Print inline without newline
+    required due to how ipython doesn't work right with print(...,end='')
+    '''
+    sys.stdout.write(txt)
+    sys.stdout.flush()
 
 def create_empty_data_h5(filename):
     '''Create empty h5 store for blech data with approriate data groups
@@ -27,21 +35,20 @@ def create_empty_data_h5(filename):
 
     # Check if file exists, and ask to delete if it does
     if os.path.isfile(filename):
-        q = eg.ynbox('%s already exists. Would you like to delete?' % file_name, 
+        q = eg.ynbox('%s already exists. Would you like to delete?' % filename, 
                     'Delete existing file')
         if not q:
             return filename
         else:
-            print('Deleting existing h5 file...',end='')
+            println('Deleting existing h5 file...')
             os.remove(filename)
             print('Done!')
     print('Creating empty HDF5 store with raw data groups')
-    print('Writing %s.h5 ...' % basename,end='')
+    println('Writing %s.h5 ...' % basename)
+    data_groups = ['raw','raw_emg','digital_in','digital_out','trial_info']
     with tables.open_file(filename,'w',title=basename) as hf5:
-        hf5.create_group('/','raw')
-        hf5.create_group('/', 'raw_emg')
-        hf5.create_group('/', 'digital_in')
-        hf5.create_group('/', 'digital_out')
+        for grp in data_groups:
+            hf5.create_group('/',grp)
     print('Done!\n')
     return filename
 
@@ -131,7 +138,8 @@ def create_hdf_arrays(file_name,rec_info,electrode_mapping,emg_mapping,file_dir=
         if not os.path.isabs(file_name):
             file_name = os.path.join(file_dir,file_name)
 
-    print('Creating empty arrays in hdf5 store for raw data...',end='')
+    println('Creating empty arrays in hdf5 store for raw data...')
+    sys.stdout.flush()
     atom = tables.IntAtom()
     with tables.open_file(file_name,'r+') as hf5:
 
@@ -156,6 +164,7 @@ def create_hdf_arrays(file_name,rec_info,electrode_mapping,emg_mapping,file_dir=
         if rec_info.get('dig_out'):
             for x in rec_info['dig_out']:
                 hf5.create_earray('/digital_out','dig_out_%i' % x,atom,(0,))
+
     print('Done!')
 
 
@@ -184,7 +193,7 @@ def read_files_into_arrays(file_name,rec_info,electrode_mapping,emg_mapping,file
         # Read in time data
         print('Reading time data...')
         time = rawIO.read_time_dat(file_dir,rec_info['amplifier_sampling_rate'])
-        print('Writing time data...',end='')
+        println('Writing time data...')
         hf5.root.raw.amplifier_time.append(time[:])
         print('Done!')
 
@@ -221,7 +230,7 @@ def read_in_amplifier_signal(hf5,file_dir,file_type,num_channels,el_map,em_map):
     exec_str = 'hf5.root.%s.%s%i.append(data[:])'
 
     if file_type == 'one file per signal type':
-        print('Reading all amplifier_dat...',end='')
+        println('Reading all amplifier_dat...')
         all_data = rawIO.read_amplifier_dat(file_dir,num_channels)
         print('Done!')
 
@@ -235,11 +244,12 @@ def read_in_amplifier_signal(hf5,file_dir,file_type,num_channels,el_map,em_map):
         elif file_type == 'one file per channel':
             file_name = os.path.join(file_dir,'amp-%s-%02d.dat' % \
                     (port,channel))
-            print('Reading data from %s' % os.path.basename(file_name))
+            println('Reading data from %s...' % os.path.basename(file_name))
             data = rawIO.read_one_channel_file(file_name)
+            print('Done!')
         tmp_str = exec_str % ('raw','electrode',electrode)
-        print('Writing data from port %s channel %i to electrode%i...' % \
-                (port,channel,electrode),end='')
+        println('Writing data from port %s channel %i to electrode%i...' % \
+                (port,channel,electrode))
         exec(tmp_str)
         print('Done!')
     hf5.flush()
@@ -255,12 +265,12 @@ def read_in_amplifier_signal(hf5,file_dir,file_type,num_channels,el_map,em_map):
             elif file_type == 'one file per channel':
                 file_name = os.path.join(file_dir,'amp-%s-%02d.dat' % \
                         (port,channel))
-                print('Reading data from %s...' % os.path.basename(file_name),end='')
+                println('Reading data from %s...' % os.path.basename(file_name))
                 data = rawIO.read_one_channel_file(file_name)
                 print('Done!')
             tmp_str = exec_str % ('raw_emg','emg',emg)
-            print('Writing data from port %s channel %i to emg%i...' % \
-                    (port,channel,emg),end='')
+            println('Writing data from port %s channel %i to emg%i...' % \
+                    (port,channel,emg))
             exec(tmp_str)
             print('Done!')
         hf5.flush() 
@@ -284,7 +294,7 @@ def read_in_digital_signal(hf5,file_dir,file_type,channels,dig_type='in'):
     '''
     exec_str = 'hf5.root.digital_%s.dig_%s_%i.append(data[:])'
     if file_type == 'one file per signal type':
-        print('Reading all digital%s data...' % dig_type,end='')
+        println('Reading all digital%s data...' % dig_type)
         all_data = rawIO.read_digital_dat(file_dir,channels,dig_type)
         print('Done!')
     for i,ch in enumerate(channels):
@@ -293,14 +303,82 @@ def read_in_digital_signal(hf5,file_dir,file_type,channels,dig_type='in'):
         elif file_type == 'one file per channel':
             file_name = os.path.join(file_dir,'board-D%s-%02d.dat' % \
                                         (dig_type.upper(),ch))
-            print('Reading digital%s data from %s...' % \
-                    (dig_type,os.path.basename(file_name)),end='')
+            println('Reading digital%s data from %s...' % \
+                    (dig_type,os.path.basename(file_name)))
             data = rawIO.read_one_channel_file(file_name)
             print('Done!')
         tmp_str = exec_str % (dig_type,dig_type,ch)
-        print('Writing data from ditigal %s channel %i to dig_%s_%i...' % \
-                (dig_type,ch,dig_type,ch),end='')
+        println('Writing data from ditigal %s channel %i to dig_%s_%i...' % \
+                (dig_type,ch,dig_type,ch))
         exec(tmp_str)
         print('Done!')
     hf5.flush()
+
+
+@Timer('Generating Trial List')
+def create_trial_table(h5_file,digital_map,dig_type='in'):
+    '''Gathers digital data from hf5 for channels in digital_map and
+    creates and stores a list of trials  for easy viewing of trial order
+
+    Parameters
+    ----------
+    h5_file : str, path to .h5 file that data is stored in and to write to
+    digital_map : pandas.DataFrame, maps digital channel numbers to string names,
+                  has columns 'dig_in' (or 'dig_out') and 'name'
+    dig_type : str, {'in','out'}
+
+    Returns
+    -------
+    pandas.DataFrame : listing trials in order with digital channel number and name
+                        columns: 'Trial Num', 'channel','name'
+
+    Throws
+    ------
+    ValueError : if dig_type is not 'in' or 'out'
+    '''
+    if dig_type not in ['in','out']:
+        raise ValueError('Invalid digital type given.')
+
+    with tables.open_file(h5_file,'r+') as hf5:
+        # Grab relevant digital data from hf5
+        tree = hf5.root['digital_'+dig_type]
+        dig_str = 'dig_'+dig_type
+        trial_map = []
+        
+        print('Generating trial list for digital %sputs: %s' % (dig_type,
+                ', '.join([str(x) for x in digital_map[dig_str].tolist()])))
+
+        # Loop through channels and get indices of digital signal onsets
+        for i,row in digital_map.iterrows():
+            println('Grabbing data for digital %sput %i...' % (dig_type,row[dig_str]))
+            tmp = np.diff(tree[dig_str+'_'+str(row[dig_str])][:])>0
+            tmp_idx = np.where(tmp)[0]
+            trial_map.extend([(x,row[dig_str],row['name']) for x in tmp_idx])
+            print('Done!')
+
+        # Make dataframe and assign trial numbers
+        println('Constructing DataFrame...')
+        trial_df = pd.DataFrame(trial_map,columns=['idx',dig_str,'name'])
+        trial_df = trial_df.sort_values(by=['idx']).reset_index(drop=True)
+        trial_df = trial_df.reset_index(drop=False).rename(columns={'index':'Trial Num'})
+        trial_df = trial_df.drop(columns=['idx'])
+        print('Done!')
+
+        # Make hf5 group and table
+        println('Writing data to h5 file...')
+        if not '/digital_%s_trials' % dig_type in hf5:
+            group = hf5.create_group("/",'digital_%s_trials' % dig_type,
+                                     'Trial List for Digital %sputs' % dig_type)
+        table = hf5.create_table('/digital_%s_trials' % dig_type,'trial_list',
+                                 particles.trial_info_particle,
+                                 'Trial List  for Digital %sputs' % dig_type)
+        new_row = table.row
+        for i,row in trial_df.iterrows():
+            new_row['trial_num'] = row['Trial Num']
+            new_row['name'] = row['name']
+            new_row['channel'] = row[dig_str]
+            new_row.append()
+        hf5.flush()
+        print('Done!')
+    return trial_df
 

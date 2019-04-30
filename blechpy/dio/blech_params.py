@@ -42,8 +42,9 @@ def Timer(heading):
             start = time.time()
             print('')
             print('----------\n%s\n----------' % heading)
-            func(*args,**kwargs)
+            result = func(*args,**kwargs)
             print('Done! Elapsed Time: %1.2f' % (time.time()-start))
+            return result
         return wrapper
     return real_timer
 
