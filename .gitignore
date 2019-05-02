@@ -1,0 +1,5 @@
+*.pyc
+*.swp
+@eaDir
+*.DS_Store
+
