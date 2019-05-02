@@ -134,36 +134,49 @@ def get_din_channels(file_dir):
     return DIN
 
 @Timer('Collecting parameters for common average referencing')
-def get_CAR_params(file_dir,electrode_mapping,num_groups):
-    '''
-    BROKEN: Use electrode number instead of ports and channels
-    Returns a dict containing standard params for common average referencing
-    Each dict field with fields, num groups, ports, channels, emg port and emg
-    channels
+def get_CAR_groups(num_groups,electrode_mapping):
+    '''Returns a dict containing standard params for common average referencing
+    Each dict field with fields, num groups, car_electrodes
     Can set num_groups to an integer or as unilateral or bilateral
     Settings as unilateral or bilateral will automatically assign channels to
     groups, setting to a number will allow choice of channels for each group
     unilateral: 1 CAR group, all channels on port
     bilateral: 2 CAR groups, [0-7,24-31] & [8-23], assumes same port for both
+
+    Parameters
+    ----------
+    num_groups : int or 'bilateral', number of CAR groups, bilateral
+                 autmatically assigns the first and last 8 electrodes to group 1 and the
+                 middle 16 to group 2
+    electrode_mapping : pandas.DataFrame, mapping electrode numbers to port and channel,
+                        has columns: 'Electrode', 'Port' and 'Channel'
+
+    Returns
+    -------
+    num_groups : int, number of CAR groups
+    car_electrodes : list of lists of ints, list with a list of electrodes for
+                     each CAR group 
+
+    Throws
+    ------
+    ValueError : if num_groups is not a valid int (>0) or 'bilateral'
     '''
     if num_groups=='bilateral':
         num_groups = 2
         implant_type = 'bilateral'
-    elif num_groups=='unilateral':
-        num_groups = 1
-        implant_type = 'unilateral'
     elif isinstance(num_groups,int) and num_groups>0:
         implant_type=None
     else:
-        raise ValueError('Num groups must be an integer >0 or a string bilateral or unlateral')
+        raise ValueError('Num groups must be an integer >0 or a string bilateral')
 
     electrodes = electrode_mapping['Electrode'].tolist()
     car_electrodes = []
     if implant_type=='bilateral':
         g1 = electrodes[:8]
-        g2 = elecctrodes[-8:]
+        g1.extend(electrodes[-8:])
+        g2 = electrodes[8:-8]
         car_electrodes = [g1,g2]
-    elif implant_type=='unilateral':
+    elif num_groups==1:
         car_electrodes.append(electrodes)
     else:
         select_list = []
@@ -176,13 +189,18 @@ def get_CAR_params(file_dir,electrode_mapping,num_groups):
                 raise ValueError('Must select electrodes for CAR groups')
             car_electrodes.append([int(x.split(',')[0]) for x in tmp])
 
-    out = {'num groups':num_groups,'car_electrodes':car_electrodes}
-    return out
+    return num_groups,car_electrodes
 
 @Timer('Writing Clustering Parameters to .params File')
 def write_params(file_name,params):
-    '''
-    Writes parameters into a file for use by blech_process.py
+    '''Writes parameters into a file for use by blech_process.py
+
+    Parameters
+    ----------
+    file_name : str, path to .params file to write params in 
+    params : dict, dictionary of parameters with keys:
+                   clustering_params, data_params, 
+                   bandpass_params, spike_snapshot
     '''
     if not file_name.endswith('.params'):
         file_name += '.params'
@@ -200,9 +218,21 @@ def write_params(file_name,params):
 
 
 def select_from_list(prompt,title,items,multi_select=False):
-    '''
-    makes a popup for list selections, can be multichoice or single choice
+    '''makes a popup for list selections, can be multichoice or single choice
     default is single selection
+
+    Parameters
+    ----------
+    prompt : str, prompt for selection dialog
+    title : str, title of selection dialog
+    item : list, list of items to be selected from
+    multi_select : bool (optional), whether multiple selection is permitted,
+                   default False
+
+    Returns
+    -------
+    str (if multi_select=False): string of selected choice
+    list (if multi_select=True): list of strings that were selected
     '''
     if multi_select is False:
         choice = eg.choicebox(prompt,title,items)

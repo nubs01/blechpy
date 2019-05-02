@@ -121,25 +121,27 @@ class dataset(object):
         self.emg_mapping = emg_mapping
 
         # Get digital input names
-        if self.rec_info.get('dig_in'):
+        if rec_info.get('dig_in'):
             dig_in_names = eg.multenterbox('Give names for digital inputs:','Digital Input Names',
-                                            ['digital in %i' % x for x in self.rec_info['dig_in']])
-            self.dig_in_mapping = pd.DataFrame([(x,y) for x,y in  zip(self.rec_info['dig_in'],dig_in_names)],
+                                            ['digital in %i' % x for x in rec_info['dig_in']])
+            self.dig_in_mapping = pd.DataFrame([(x,y) for x,y in  zip(rec_info['dig_in'],dig_in_names)],
                                                 columns=['dig_in','name'])
 
         # Get digital output names
-        if self.rec_info.get('dig_out'):
+        if rec_info.get('dig_out'):
             dig_out_names = eg.multenterbox('Give names for digital outputs:','Digital Output Names',
-                                            ['digital out %i' % x for x in self.rec_info['dig_out']])
-            self.dig_out_mapping = pd.DataFrame([(x,y) for x,y in  zip(self.rec_info['dig_out'],dig_out_names)],
+                                            ['digital out %i' % x for x in rec_info['dig_out']])
+            self.dig_out_mapping = pd.DataFrame([(x,y) for x,y in  zip(rec_info['dig_out'],dig_out_names)],
                                                 columns=['dig_out','name'])
 
 
+        # Store clustering parameters
         self.clust_params = {'file_dir':file_dir,'data_quality':data_quality,
                              'sampling_rate':sampling_rate,
                              'clustering_params':clustering_params,
                              'data_params':data_params,'bandpass_params':bandpass_params,
                              'spike_snapshot':spike_snapshot}
+
 
         # Outline standard processing pipeline and status check
         self.processing_steps = ['extract_data','create_trial_list','common_avg_reference','blech_clust',
@@ -156,6 +158,7 @@ class dataset(object):
         -------
         str : representation of dataset object
         '''
+        info = self.rec_info
         out = [self.data_name]
         out.append('Data directory:  '+self.data_dir)
         out.append('Object creation date: ' + self.dataset_creation_date.strftime('%m/%d/%y'))
@@ -183,11 +186,34 @@ class dataset(object):
         out.append(dp.print_dataframe(self.electrode_mapping))
         out.append('')
         
-        out.append('--------------------')
-        out.append('EMG')
-        out.append('--------------------')
-        out.append(dp.print_dataframe(self.emg_mapping))
-        out.append('')
+        if hasattr(self,'car_electrodes'):
+            out.append('--------------------')
+            out.append('CAR Groups')
+            out.append('--------------------')
+            headers = ['Group %i' % x for x in range(len(self.car_electrodes))]
+            out.append(dp.print_list_table(self.car_electrodes,headers))
+            out.append('')
+
+        if not self.emg_mapping.empty:
+            out.append('--------------------')
+            out.append('EMG')
+            out.append('--------------------')
+            out.append(dp.print_dataframe(self.emg_mapping))
+            out.append('')
+
+        if info.get('dig_in'):
+            out.append('--------------------')
+            out.append('Digital Input')
+            out.append('--------------------')
+            out.append(dp.print_dataframe(self.dig_in_mapping))
+            out.append('')
+
+        if info.get('dig_out'):
+            out.append('--------------------')
+            out.append('Digital Output')
+            out.append('--------------------')
+            out.append(dp.print_dataframe(self.dig_out_mapping))
+            out.append('')
 
         out.append('--------------------')
         out.append('Clustering Parameters')
@@ -280,12 +306,40 @@ class dataset(object):
         process_call.extend([str(x) for x in electrodes])
         subprocess.call(process_call,env=my_env)
 
-    @Logger('Common average referencing')
-    def common_average_reference(self):
-       pass 
+    @Logger('Common Average Referencing')
+    def common_average_reference(self,num_groups=None):
+        '''Define electrode groups and remove common average from  signals
 
-    @Logger('Create Trial Lists')
+        Parameters
+        ----------
+        num_groups : int (optional), number of CAR groups, if not provided
+                                     there's a prompt
+        '''
+        # Gather Common Average Reference Groups
+        if num_groups is None:
+            num_groups = eg.enterbox('Enter number of common average reference groups (integers only):','CAR Groups')
+            if num_groups.isnumeric():
+                num_groups = int(num_groups)
+        num_groups,car_electrodes = dio.params.get_CAR_groups(num_groups,self.electrode_mapping)
+        self.car_electrodes = car_electrodes
+        print('CAR Groups\n')
+        headers = ['Group %i' %x for x in range(num_groups)]
+        print(dp.print_list_table(car_electrodes,headers))
+
+        # Reference each group
+        for i,x in enumerate(car_electrodes):
+            dio.h5io.common_avg_reference(self.h5_file,x,i)
+
+        # Compress and repack file
+        dio.h5io.compress_and_repack(self.h5_file)
+
+        self.process_status['common_average_reference'] = True
+
+    @Logger('Creating Trial Lists')
     def create_trial_list(self):
+        '''Create lists of trials based on digital inputs and outputs and store to hdf5 store
+        Can only be run after data extraction
+        '''
         if not self.process_status['extract_data']:
             eg.exceptionbox('Must extract data before creating trial list','Data Not Extracted')
             return

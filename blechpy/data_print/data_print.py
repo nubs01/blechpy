@@ -93,3 +93,34 @@ def print_dataframe(df,tabs=0,idxfmt='Date'):
     for i in range(tabs):
         out = '    '+out.replace('\n','\n    ')
     return out
+
+def print_list_table(lis,headers=[]):
+    '''Make a string from list of lists with columns for each list
+
+    Parameters
+    ----------
+    lis : list of lists, data to print
+    headers: list of str (optional), headers for each column
+
+    Returns
+    -------
+    str : string represenation of list of lists as table
+    '''
+    lis = deepcopy(lis)
+    if headers is not None:
+        for x,y in zip(lis,headers):
+            x.insert(0,'-'*len(y))
+            x.insert(0,y)
+
+    # Match lengths
+    max_len = max([len(x) for x in lis])
+    for x in lis:
+        while len(x)<max_len:
+            x.append('')
+    fmt = '\t'.join(['{%i}' % x for x in range(len(lis))])
+    out = []
+    for x in zip(*lis):
+        out.append(fmt.format(*x))
+    out = '\n'.join(out)
+    return out
+

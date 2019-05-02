@@ -1,4 +1,4 @@
-import tables,os, time, sys
+import tables,os, time, sys, subprocess
 import easygui as eg, pandas as pd, numpy as np
 from blechpy.dio import particles, rawIO, blech_params as params
 from blechpy.data_print import data_print as dp
@@ -366,10 +366,9 @@ def create_trial_table(h5_file,digital_map,dig_type='in'):
 
         # Make hf5 group and table
         println('Writing data to h5 file...')
-        if not '/digital_%s_trials' % dig_type in hf5:
-            group = hf5.create_group("/",'digital_%s_trials' % dig_type,
-                                     'Trial List for Digital %sputs' % dig_type)
-        table = hf5.create_table('/digital_%s_trials' % dig_type,'trial_list',
+        if not '/trial_info' in hf5:
+            group = hf5.create_group("/",'trial_info','Trial Lists')
+        table = hf5.create_table('/trial_info','digital_%s_trials' % dig_type,
                                  particles.trial_info_particle,
                                  'Trial List  for Digital %sputs' % dig_type)
         new_row = table.row
@@ -382,3 +381,120 @@ def create_trial_table(h5_file,digital_map,dig_type='in'):
         print('Done!')
     return trial_df
 
+@Timer('Common Average Referencing')
+def common_avg_reference(h5_file,electrodes,group_num):
+    '''Computes and subtracts the common average for a group of electrodes 
+
+    Parameters
+    ----------
+    h5_file : str, path to .h5 file with the raw data
+    electrodes : list of int, electrodes to average
+    group_num : int, number of common average group (for  storing common
+                     average in hdf5 store)
+    '''
+    if not os.path.isfile(h5_file):
+        raise FileNotFoundError('%s was not found.' % h5_file)
+
+    print('Common Average Referencing Electrodes:\n'+ \
+            ', '.join([str(x) for x in electrodes.copy()]))
+    with tables.open_file(h5_file,'r+') as hf5:
+        raw = hf5.root.raw
+        n_samples = raw['electrode%i' % electrodes[0]].shape[0]
+
+        # Calculate common average
+        println('Computing common average...')
+        common_avg = np.zeros((1,n_samples))[0]
+        for x in electrodes:
+            common_avg += raw['electrode%i' % x][:]
+        common_avg /= float(len(electrodes))
+        print('Done!')
+        
+        # Store common average 
+        Atom = tables.Float64Atom()
+        println('Storing common average signal...')
+        if not '/common_average' in hf5:
+            hf5.create_group('/','common_average','Common average electrodes and signals')
+        if '/common_average/electrodes_group%i' % group_num in hf5:
+            hf5.remove_node('/common_average/electrodes_group%i' % group_num)
+        if '/common_average/common_average_group%i' % group_num in hf5:
+            hf5.remove_node('/common_average/common_average_group%i' % group_num)
+        hf5.create_array('/common_average','electrodes_group%i' % group_num,np.array(electrodes))
+        hf5.create_earray('/common_average','common_average_group%i' % group_num,obj=common_avg)
+        hf5.flush()
+        print('Done!')
+
+        # Replace raw data with referenced data
+        println('Storing referenced signals...')
+        for x in electrodes:
+            referenced_data = raw['electrode%i' % x][:]-common_avg
+            hf5.remove_node('/raw/electrode%i'  % x)
+            if not '/referenced' in hf5:
+                hf5.create_group('/','referenced','Common average referenced signals')
+            if '/referenced/electrode%i' % x in hf5:
+                hf5.remove_node('/referenced/electrode%i' % x)
+            hf5.create_earray('/referenced','electrode%i' % x,obj=referenced_data)
+            hf5.flush()
+        print('Done!')
+
+@Timer('Compressing and repacking h5 file')
+def compress_and_repack(h5_file,new_file=None):
+    '''Compress and repack the h5 file with ptrepack either to same name or new name
+
+     Parameters
+     ----------
+     h5_file : str, path to h5 file
+     new_file : str (optional), new path for h5_file 
+
+     Returns
+     -------
+     str, new path to h5 file
+     '''
+    if new_file is None:
+        new_file = os.path.join(os.path.dirname(h5_file),'tmp.h5')
+        tmp = True
+    else:
+        tmp = False
+
+    print('Repacking %s as %s...' % (h5_file,new_file))
+    subprocess.call(['ptrepack','--chunkshape','auto','--propindexes','--complevel','9',
+                     '--complib','blosc',h5_file,new_file])
+
+    # Remove old  h5 file
+    print('Removing old h5 file: %s' % h5_file)
+    os.remove(h5_file)
+
+    # If used a temporary rename to old file name
+    if tmp:
+        print('Renaming temporary file to %s' % h5_file)
+        subprocess.call(['mv',new_file,h5_file])
+        new_file = h5_file
+
+    return new_file
+
+def get_trial_info(h5_file):
+    '''Opens the h5 file and returns the digital_in and digital_out trial info
+    as pandas DataFrames
+
+    Parameters
+    ----------
+    h5_file : str, path to h5_file
+
+    Returns
+    -------
+    dict  of pandas.DataFrame values and table names as keys, one key for each
+             table under /trial_info
+    '''
+    if not os.path.isfile(h5_file):
+        raise FileNotFoundError('%s was not found' % h5_file)
+
+    out = {}
+    with open(h5_file,'r') as hf5:
+        if not '/trial_info' in hf5:
+            return {}
+        trial_nodes = h5_file.list_nodes('/trial_info')
+        for node in trial_nodes:
+            df = pd.DataFrame.from_records(node[:])
+            df['name'] = df['name'].apply(lambda x: x.decode('utf-8'))
+            out[node.name] = df
+
+    return out
