@@ -488,7 +488,7 @@ def get_trial_info(h5_file):
         raise FileNotFoundError('%s was not found' % h5_file)
 
     out = {}
-    with open(h5_file,'r') as hf5:
+    with tables.open_file(h5_file,'r') as hf5:
         if not '/trial_info' in hf5:
             return {}
         trial_nodes = h5_file.list_nodes('/trial_info')
@@ -498,3 +498,67 @@ def get_trial_info(h5_file):
             out[node.name] = df
 
     return out
+
+@Timer('Clustering Cleanup')
+def cleanup_clustering(file_dir):
+    '''Consolidate memory monitor files from clustering, remove raw and
+    referenced data from hdf5 and repack
+
+    Parameters
+    ----------
+    file_dir : str, path to recording directory
+
+    Returns
+    -------
+    str, path to new hdf5 file
+    '''
+    # Check for memory_monitor_clustering files 
+    # If found write all conents into memory_usage.txt and delete files
+    println('Consolidating clustering memory usage logs...')
+    mem_dir = os.path.join(file_dir,'memory_monitor_clustering') 
+    mem_file = os.path.join(mem_dir,'memory_usage.txt')
+    if not os.path.isfile(mem_file):
+        file_list = os.listdir(mem_dir)
+        with open(mem_file,'w') as write_file:
+            for f in file_list:
+                try:
+                    mem_usage = np.loadtxt(os.path.join(mem_dir,f))
+                    print('electrode%s\t%sMB' % (f.replace('.txt',''),str(mem_usage)),file=write_file)
+                    os.remove(os.path.join(mem_dir,f))
+                except:
+                    pass
+    print('Done!')
+
+    # Grab h5 filename
+    hdf5_name = get_h5_filename(file_dir)
+    hdf5_file = os.path.join(file_dir,hdf5_name)
+
+    # If raw and/or referenced data is still in h5
+    # Remove raw/referenced data from hf5
+    # Repack h5 as *_repacked.h5
+    # Create sorted_units groups in h5, if it doesn't exist
+    changes = False
+    with tables.open_file(hdf5_file,'r+') as hf5:
+        if '/raw' in hf5:
+            println('Removing raw data from hdf5 store...')
+            hf5.remove_node('/raw',recursive=1)
+            changes = True
+            print('Done!')
+        if '/referenced' in hf5:
+            println('Removing referenced data from hdf5 store...')
+            hf5.remove_node('/referenced',recursive=1)
+            changes = True
+            print('Done!')
+        if not '/sorted_units' in  hf5:
+            hf5.create_group('/','sorted_units')
+            changes = True
+        if not '/unit_descriptor' in hf5:
+            hf5.create_table('/','unit_descriptor',description = particles.unit_descriptor)
+            changes = True
+
+    # Repack if any big changes were made to h5 store
+    if changes:
+        new_h5 = compress_and_repack(hdf5_file,hdf5_file.replace('.h5','_repacked.h5'))
+        return new_h5
+    else:
+        return hdf5_file

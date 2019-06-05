@@ -13,12 +13,12 @@ clustering_params = {'Max Number of Clusters':7,
 data_params = {'clean':{'V_cutoff for disconnected headstage':1500,
                         'Max rate of cutoff breach per second':0.2,
                         'Max allowed seconds with a breach': 10,
-                        'Max allowed breacher per second':20,
+                        'Max allowed breaches per second':20,
                         'Intra-cluster waveform amp SD cutoff':3},
                 'noisy':{'V_cutoff for disconnected headstage':3000,
                         'Max rate of cutoff breach per second':2,
                         'Max allowed seconds with a breach': 20,
-                        'Max allowed breacher per second':40,
+                        'Max allowed breaches per second':40,
                         'Intra-cluster waveform amp SD cutoff':3}}
 
 bandpass_params = {'Lower freq cutoff':300,
@@ -32,6 +32,7 @@ clust_param_order = ['Max Number of Clusters','Max Number of Iterations',
 data_param_order = ['V_cutoff for disconnected headstage',
                     'Max rate of cutoff breach per second',
                     'Max allowed seconds with a breach',
+                    'Max allowed breaches per second',
                     'Intra-cluster waveform amp SD cutoff']
 band_param_order = ['Lower freq cutoff','Upper freq cutoff']
 spike_snap_order = ['Time before spike (ms)','Time after spike (ms)']
@@ -161,9 +162,9 @@ def get_CAR_groups(num_groups,electrode_mapping):
     ------
     ValueError : if num_groups is not a valid int (>0) or 'bilateral'
     '''
-    if num_groups=='bilateral':
+    if num_groups=='bilateral32':
         num_groups = 2
-        implant_type = 'bilateral'
+        implant_type = 'bilateral32'
     elif isinstance(num_groups,int) and num_groups>0:
         implant_type=None
     else:
@@ -171,7 +172,7 @@ def get_CAR_groups(num_groups,electrode_mapping):
 
     electrodes = electrode_mapping['Electrode'].tolist()
     car_electrodes = []
-    if implant_type=='bilateral':
+    if implant_type=='bilateral32':
         g1 = electrodes[:8]
         g1.extend(electrodes[-8:])
         g2 = electrodes[8:-8]
@@ -215,6 +216,7 @@ def write_params(file_name,params):
             print(params['bandpass_params'][c],file=f)
         for c in spike_snap_order:
             print(params['spike_snapshot'][c],file=f)
+        print(params['sampling_rate'],file=f)
 
 
 def select_from_list(prompt,title,items,multi_select=False):

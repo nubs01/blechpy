@@ -3,6 +3,9 @@ from  blechpy import dio
 import datetime as dt
 from blechpy.data_print import data_print as dp
 import pickle, os, shutil, sys
+import multiprocessing
+import subprocess
+from copy import deepcopy
 
 def Logger(heading):
     def real_logger(func):
@@ -99,10 +102,10 @@ class dataset(object):
         self.rec_info = rec_info
 
         # Get default parameters for blech_clust
-        clustering_params = dio.params.clustering_params
-        data_params = dio.params.data_params[data_quality]
-        bandpass_params = dio.params.bandpass_params
-        spike_snapshot = dio.params.spike_snapshot
+        clustering_params = deepcopy(dio.params.clustering_params)
+        data_params = deepcopy(dio.params.data_params[data_quality])
+        bandpass_params = deepcopy(dio.params.bandpass_params)
+        spike_snapshot = deepcopy(dio.params.spike_snapshot)
 
         # Ask for emg port & channels
         if emg_port is None:
@@ -144,7 +147,7 @@ class dataset(object):
 
 
         # Outline standard processing pipeline and status check
-        self.processing_steps = ['extract_data','create_trial_list','common_avg_reference','blech_clust',
+        self.processing_steps = ['extract_data','create_trial_list','common_average_reference','blech_clust',
                                 'blech_post_process','mark_units','gather_unit_plots',
                                 'units_similarity','make_unit_arrays','make_psth',
                                 'palatability_calculate','palatability_plot',
@@ -231,7 +234,7 @@ class dataset(object):
             print('Saved dataset processing metadata to %s' % self.save_file)
 
     @Logger('Extracting Data')
-    def extract_data(self,data_quality='clean'):
+    def extract_data(self):
         '''Create hdf5 store for data and read in Intan .dat files. Also create
         subfolders for processing outputs
 
@@ -247,15 +250,58 @@ class dataset(object):
         if self.rec_info['file_type'] is None:
             raise ValueError('Unsupported recording type. Cannot extract yet.')
 
-        # Check if they are OK with the parameters that will be used
-        q = eg.ynbox(dp.print_dict(self.clust_params)+'\n Are these parameters OK?',
-                        'Check Extraction and Clustering Parameters')
-        if not q:
-            return
 
         print('\nExtract Intan Data\n--------------------')
         # Create h5 file
         fn = dio.h5io.create_empty_data_h5(self.h5_file)
+
+
+        # Create arrays for raw data in hdf5 store
+        dio.h5io.create_hdf_arrays(self.h5_file,self.rec_info, \
+                                    self.electrode_mapping,self.emg_mapping)
+
+        # Read in data to arrays
+        dio.h5io.read_files_into_arrays(self.h5_file,self.rec_info, \
+                                        self.electrode_mapping,self.emg_mapping)
+
+        # update status
+        self.process_status['extract_data'] = True
+
+        print('\nData Extraction Complete\n--------------------')
+
+    @Logger('Running blech_clust')
+    def blech_clust_run(self,data_quality=None,accept_params=False):
+        '''
+        Write clustering parameters to file and 
+        Run blech_process on each electrode using GNU parallel
+
+        Parameters
+        ----------
+        data_quality : {'clean','noisy',None (default)}, 
+            set if you want to change the data quality parameters for cutoff
+            and spike detection before running clustering. These parameters are
+            automatically set as "clean" during initial parameter setup
+        accept_params : bool, False (default)
+            set to True in order to skip popup confirmation of parameters when
+            running
+        '''
+        if data_quality:
+            tmp = deepcopy(dio.params.data_params.get(data_quality))
+            if tmp:
+                self.clust_params['data_params'] = tmp
+            else:
+                raise ValueError('%s is not a valid data_quality preset. Must be "clean" or "noisy".')
+
+        # Check if they are OK with the parameters that will be used
+        if not accept_params:
+            q = eg.ynbox(dp.print_dict(self.clust_params)+'\n Are these parameters OK?',
+                            'Check Extraction and Clustering Parameters')
+            if not q:
+                return
+
+        # Write parameters into .params file
+        self.param_file = os.path.join(self.data_dir,self.data_name+'.params')
+        dio.params.write_params(self.param_file,self.clust_params)
 
         # Create folders for saving things within recording dir
         data_dir = self.data_dir
@@ -267,31 +313,10 @@ class dataset(object):
                 shutil.rmtree(tmp_dir)
             os.mkdir(tmp_dir)
 
-        # Create arrays for raw data in hdf5 store
-        dio.h5io.create_hdf_arrays(self.h5_file,self.rec_info, \
-                                    self.electrode_mapping,self.emg_mapping)
-
-        # Read in data to arrays
-        dio.h5io.read_files_into_arrays(self.h5_file,self.rec_info, \
-                                        self.electrode_mapping,self.emg_mapping)
-
-        # Write parameters into .params file
-        self.param_file = os.path.join(data_dir,self.data_name+'.params')
-        dio.params.write_params(self.param_file,self.clust_params)
-
         # Set file for clusting log
         self.clustering_log = os.path.join(data_dir,'results.log')
 
-        # update status
-        self.process_status['extract_data'] = True
 
-        print('\nData Extraction Complete\n--------------------')
-
-    @Logger('Running blech_clust')
-    def blech_clust_run(self):
-        '''
-        Run blech_process on each electrode using GNU parallel
-        '''
         process_path = os.path.realpath(__file__)
         process_path = os.path.join(os.path.dirname(process_path),'blech_process.py')
         electrodes = self.electrode_mapping['Electrode'].tolist()
@@ -304,7 +329,9 @@ class dataset(object):
                         self.clustering_log,'python',process_path,'{1}',self.data_dir,
                         ':::']
         process_call.extend([str(x) for x in electrodes])
-        subprocess.call(process_call,env=my_env)
+        subprocess.check_call(process_call,env=my_env)
+        dio.h5io.cleanup_clustering(self.data_dir)
+        self.process_status['blech_clust'] = True
 
     @Logger('Common Average Referencing')
     def common_average_reference(self,num_groups=None):
@@ -345,11 +372,19 @@ class dataset(object):
             return
         if self.rec_info.get('dig_in'):
             in_list = dio.h5io.create_trial_table(self.h5_file,self.dig_in_mapping,'in')
+            self.dig_in_trials = in_list
         else:
             print('No digital input data found')
         if self.rec_info.get('dig_out'):
             out_list = dio.h5io.create_trial_table(self.h5_file,self.dig_out_mapping,'out')
+            self.dig_out_trials = out_list
         else:
             print('No digital output data found')
         self.process_status['create_trial_list'] = True
 
+    def extract_and_cluster(self,data_quality='clean',num_CAR_groups='bilateral32',accept_params=False):
+        self.extract_data()
+        self.create_trial_list()
+        self.common_average_reference(num_CAR_groups)
+        self.blech_clust_run(data_quality,accept_params)
+        self.save()
