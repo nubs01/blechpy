@@ -22,7 +22,7 @@ def println(txt):
     sys.stdout.write(txt)
     sys.stdout.flush()
 
-def create_empty_data_h5(filename):
+def create_empty_data_h5(filename,shell=False):
     '''Create empty h5 store for blech data with approriate data groups
 
     Parameters
@@ -35,14 +35,19 @@ def create_empty_data_h5(filename):
 
     # Check if file exists, and ask to delete if it does
     if os.path.isfile(filename):
-        q = eg.ynbox('%s already exists. Would you like to delete?' % filename, 
-                    'Delete existing file')
-        if not q:
-            return filename
-        else:
-            println('Deleting existing h5 file...')
+        if shell:
+            println('%s already exists. Deleting...' % filename)
             os.remove(filename)
             print('Done!')
+        else:
+            q = eg.ynbox('%s already exists. Would you like to delete?' % filename, 
+                        'Delete existing file')
+            if not q:
+                return filename
+            else:
+                println('Deleting existing h5 file...')
+                os.remove(filename)
+                print('Done!')
     print('Creating empty HDF5 store with raw data groups')
     println('Writing %s.h5 ...' % basename)
     data_groups = ['raw','raw_emg','digital_in','digital_out','trial_info']
@@ -242,7 +247,7 @@ def read_in_amplifier_signal(hf5,file_dir,file_type,num_channels,el_map,em_map):
         if file_type == 'one file per signal type':
             data = all_data[channel]
         elif file_type == 'one file per channel':
-            file_name = os.path.join(file_dir,'amp-%s-%02d.dat' % \
+            file_name = os.path.join(file_dir,'amp-%s-%03d.dat' % \
                     (port,channel))
             println('Reading data from %s...' % os.path.basename(file_name))
             data = rawIO.read_one_channel_file(file_name)
@@ -263,7 +268,7 @@ def read_in_amplifier_signal(hf5,file_dir,file_type,num_channels,el_map,em_map):
             if file_type == 'one file per signal type':
                 data = all_data[channel]
             elif file_type == 'one file per channel':
-                file_name = os.path.join(file_dir,'amp-%s-%02d.dat' % \
+                file_name = os.path.join(file_dir,'amp-%s-%03d.dat' % \
                         (port,channel))
                 println('Reading data from %s...' % os.path.basename(file_name))
                 data = rawIO.read_one_channel_file(file_name)

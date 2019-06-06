@@ -11,7 +11,7 @@ from blechpy.dio import particles
 import re
 
 
-def sort_units(file_dir):
+def sort_units(file_dir,shell=False):
     '''Allows user to sort clustered units 
     '''
     hf5_name = h5io.get_h5_filename(file_dir)

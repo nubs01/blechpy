@@ -7,7 +7,7 @@ import easygui as eg
 support_rec_types = {'one file per channel':'amp-\S-\d*\.dat',
                      'one file per signal type':'amplifier\.dat'}
 
-def read_rec_info(file_dir):
+def read_rec_info(file_dir,shell):
     '''Reads the info.rhd file to get relevant parameters.
     Parameters
     ----------
@@ -57,7 +57,7 @@ def read_rec_info(file_dir):
         out['dig_out'] = dout
 
 
-    out['file_type'] = get_recording_filetype(file_dir)
+    out['file_type'] = get_recording_filetype(file_dir,shell)
 
     print('\nRecording Info\n--------------\n')
     print(dp.print_dict(out))
@@ -180,7 +180,7 @@ def read_one_channel_file(file_name):
     chan_dat = np.fromfile(file_name,dtype=np.dtype('int16'))
     return chan_dat
 
-def get_recording_filetype(file_dir):
+def get_recording_filetype(file_dir,shell=False):
     '''Check Intan recording directory to determine type of recording and thus
     extraction method to use. Asks user to confirm, and manually correct if
     incorrect
@@ -204,7 +204,10 @@ def get_recording_filetype(file_dir):
                                     *list(support_rec_types.keys())])
     else:
         msg = '\"'+file_type+'\"'
-    check = eg.ynbox('Detected recording type is '+msg+'\nIs this correct?','Recording Type')
+    if shell:
+        check = True
+    else:
+        check = eg.ynbox('Detected recording type is '+msg+'\nIs this correct?','Recording Type')
     if check:
         return file_type
     else:

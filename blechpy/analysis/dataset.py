@@ -78,12 +78,19 @@ class dataset(object):
         self.h5_file = h5_file
 
         self.dataset_creation_date = dt.datetime.today()
+
+        # Outline standard processing pipeline and status check
+        self.processing_steps = ['extract_data','create_trial_list',
+                'common_average_reference','blech_clust',
+                'blech_post_process','mark_units','gather_unit_plots',
+                'units_similarity','make_unit_arrays','make_psth',
+                'palatability_calculate','palatability_plot',
+                'overlay_psth']
+        self.process_status = dict.fromkeys(self.processing_steps,False)
         
-        # Initialize default parameters
-        self.initParams()
 
     @Logger('Initializing Parameters')
-    def initParams(self,data_quality='clean',emg_port=None,emg_channels=None):
+    def initParams(self,data_quality='clean',emg_port=None,emg_channels=None,shell=False,dig_in_names=None,dig_out_names=None):
         '''
         Initializes basic default analysis parameters that can be customized
         before running processing methods
@@ -95,7 +102,7 @@ class dataset(object):
 
         # Get parameters from info.rhd
         file_dir = self.data_dir
-        rec_info = dio.rawIO.read_rec_info(file_dir)
+        rec_info = dio.rawIO.read_rec_info(file_dir,shell)
         ports = rec_info.pop('ports')
         channels = rec_info.pop('channels')
         sampling_rate = rec_info['amplifier_sampling_rate']
@@ -108,34 +115,46 @@ class dataset(object):
         spike_snapshot = deepcopy(dio.params.spike_snapshot)
 
         # Ask for emg port & channels
-        if emg_port is None:
+        if emg_port is None and not shell:
             q = eg.ynbox('Do you have an EMG?','EMG')
             if q:
-                emg_port = dio.params.select_from_list('Select EMG Port:','EMG Port',ports)
+                emg_port = dio.params.select_from_list('Select EMG Port:',
+                        'EMG Port',ports)
                 emg_channels = dio.params.select_from_list('Select EMG Channels:',
-                                                            'EMG Channels',
-                                                            [y for x,y in zip(ports,channels) if x==emg_port],
-                                                            multi_select=True)
+                        'EMG Channels',
+                        [y for x,y in zip(ports,channels) if x==emg_port],
+                        multi_select=True)
+        elif emg_port is None and shell:
+            print('\nNo EMG port given.\n')
 
         electrode_mapping,emg_mapping = dio.params.flatten_channels(ports,channels,
-                                                                    emg_port=emg_port,
-                                                                    emg_channels=emg_channels)
+                emg_port=emg_port,emg_channels=emg_channels)
         self.electrode_mapping = electrode_mapping
         self.emg_mapping = emg_mapping
 
         # Get digital input names
         if rec_info.get('dig_in'):
-            dig_in_names = eg.multenterbox('Give names for digital inputs:','Digital Input Names',
-                                            ['digital in %i' % x for x in rec_info['dig_in']])
-            self.dig_in_mapping = pd.DataFrame([(x,y) for x,y in  zip(rec_info['dig_in'],dig_in_names)],
-                                                columns=['dig_in','name'])
+            if shell and dig_in_names is None:
+                raise ValueError('dig_in_names must be provided if shell = True')
+            elif not shell and dig_in_names is None:
+                dig_in_names = eg.multenterbox('Give names for digital inputs:',
+                        'Digital Input Names',
+                        ['digital in %i' % x for x in rec_info['dig_in']])
+            self.dig_in_mapping = pd.DataFrame( \
+                    [(x,y) for x,y in  zip(rec_info['dig_in'],dig_in_names)],
+                    columns=['dig_in','name'])
 
         # Get digital output names
         if rec_info.get('dig_out'):
-            dig_out_names = eg.multenterbox('Give names for digital outputs:','Digital Output Names',
-                                            ['digital out %i' % x for x in rec_info['dig_out']])
-            self.dig_out_mapping = pd.DataFrame([(x,y) for x,y in  zip(rec_info['dig_out'],dig_out_names)],
-                                                columns=['dig_out','name'])
+            if shell and dig_out_names is None:
+                raise ValueError('dig_out_names must be provided if shell = True')
+            elif not shell and dig_out_names is None:
+                dig_out_names = eg.multenterbox('Give names for digital outputs:',
+                        'Digital Output Names',
+                        ['digital out %i' % x for x in rec_info['dig_out']])
+            self.dig_out_mapping = pd.DataFrame( \
+                    [(x,y) for x,y in  zip(rec_info['dig_out'],dig_out_names)],
+                    columns=['dig_out','name'])
 
 
         # Store clustering parameters
@@ -146,13 +165,6 @@ class dataset(object):
                              'spike_snapshot':spike_snapshot}
 
 
-        # Outline standard processing pipeline and status check
-        self.processing_steps = ['extract_data','create_trial_list','common_average_reference','blech_clust',
-                                'blech_post_process','mark_units','gather_unit_plots',
-                                'units_similarity','make_unit_arrays','make_psth',
-                                'palatability_calculate','palatability_plot',
-                                'overlay_psth']
-        self.process_status = dict.fromkeys(self.processing_steps,False)
 
     def __str__(self):
         '''Put all information about dataset in string format
@@ -234,7 +246,7 @@ class dataset(object):
             print('Saved dataset processing metadata to %s' % self.save_file)
 
     @Logger('Extracting Data')
-    def extract_data(self):
+    def extract_data(self,shell=False):
         '''Create hdf5 store for data and read in Intan .dat files. Also create
         subfolders for processing outputs
 
@@ -253,7 +265,7 @@ class dataset(object):
 
         print('\nExtract Intan Data\n--------------------')
         # Create h5 file
-        fn = dio.h5io.create_empty_data_h5(self.h5_file)
+        fn = dio.h5io.create_empty_data_h5(self.h5_file,shell)
 
 
         # Create arrays for raw data in hdf5 store
@@ -329,7 +341,7 @@ class dataset(object):
                         self.clustering_log,'python',process_path,'{1}',self.data_dir,
                         ':::']
         process_call.extend([str(x) for x in electrodes])
-        subprocess.check_call(process_call,env=my_env)
+        subprocess.call(process_call,env=my_env)
         dio.h5io.cleanup_clustering(self.data_dir)
         self.process_status['blech_clust'] = True
 
@@ -382,9 +394,47 @@ class dataset(object):
             print('No digital output data found')
         self.process_status['create_trial_list'] = True
 
-    def extract_and_cluster(self,data_quality='clean',num_CAR_groups='bilateral32',accept_params=False):
-        self.extract_data()
+    def extract_and_cluster(self,data_quality='clean',num_CAR_groups='bilateral32',shell=False):
+        if shell:
+            # Initialize Initial Parameters
+            num_ins = int(input('Number of digital inputs : '))
+            num_outs = int(input('Number of digital outputs : '))
+            emg = bool(int(input('EMG (0 or 1)? : ')))
+            
+            if emg:
+                emg_port = input('EMG Port? : ')
+                emg_channels = input('EMG Channels (comma-separated) : ')
+                emg_channels = [int(x) for x in emg_channels.split(',')]
+            else:
+                emg_port = None
+                emg_channels = None
+
+            dig_in_names = []
+            if num_ins>0:
+                print('Digital Input Names\n----------\n')
+            for i in range(num_ins):
+                tmp = input('dig_in_%i : ' % i)
+                dig_in_names.append(tmp)
+            if dig_in_names == []:
+                dig_in_names = None
+
+            dig_out_names = []
+            if num_outs>0:
+                print('Digital Output Names\n----------\n')
+            for i in range(num_outs):
+                tmp = input('dig_out_%i : ' % i)
+                dig_out_names.append(tmp)
+            if dig_out_names == []:
+                dig_out_names = None
+
+            self.initParams(data_quality,emg_port,emg_channels,
+                    shell,dig_in_names,dig_out_names)
+        else:
+            # Initialize default parameters
+            self.initParams(shell=shell)
+
+        self.extract_data(shell=shell)
         self.create_trial_list()
         self.common_average_reference(num_CAR_groups)
-        self.blech_clust_run(data_quality,accept_params)
+        self.blech_clust_run(data_quality,accept_params=shell)
         self.save()
