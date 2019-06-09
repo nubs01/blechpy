@@ -81,8 +81,8 @@ class dataset(object):
 
         # Outline standard processing pipeline and status check
         self.processing_steps = ['extract_data','create_trial_list',
-                'common_average_reference','blech_clust',
-                'blech_post_process','mark_units','gather_unit_plots',
+                'common_average_reference','blech_clust_run','cleanup_clustering',
+                'mark_units','gather_unit_plots',
                 'units_similarity','make_unit_arrays','make_psth',
                 'palatability_calculate','palatability_plot',
                 'overlay_psth']
@@ -302,7 +302,7 @@ class dataset(object):
             if tmp:
                 self.clust_params['data_params'] = tmp
             else:
-                raise ValueError('%s is not a valid data_quality preset. Must be "clean" or "noisy".')
+                raise ValueError('%s is not a valid data_quality preset. Must be "clean" or "noisy" or None.')
 
         # Check if they are OK with the parameters that will be used
         if not accept_params:
@@ -310,6 +310,9 @@ class dataset(object):
                             'Check Extraction and Clustering Parameters')
             if not q:
                 return
+
+        print('\nRunning Blech Clust\n-------------------')
+        print('Parameters\n%s' % dp.print_dict(self.clust_params))
 
         # Write parameters into .params file
         self.param_file = os.path.join(self.data_dir,self.data_name+'.params')
@@ -327,6 +330,9 @@ class dataset(object):
 
         # Set file for clusting log
         self.clustering_log = os.path.join(data_dir,'results.log')
+        if os.path.exists(self.clustering_log):
+            os.remove(self.clustering_log)
+
 
 
         process_path = os.path.realpath(__file__)
@@ -342,8 +348,8 @@ class dataset(object):
                         ':::']
         process_call.extend([str(x) for x in electrodes])
         subprocess.call(process_call,env=my_env)
-        dio.h5io.cleanup_clustering(self.data_dir)
         self.process_status['blech_clust'] = True
+        print('Clustering Complete\n------------------')
 
     @Logger('Common Average Referencing')
     def common_average_reference(self,num_groups=None):
@@ -394,38 +400,60 @@ class dataset(object):
             print('No digital output data found')
         self.process_status['create_trial_list'] = True
 
-    def extract_and_cluster(self,data_quality='clean',num_CAR_groups='bilateral32',shell=False):
+    def cleanup_clustering(self):
+        '''Consolidates memory monitor files, removes raw and referenced data
+        and setups up hdf5 store for sorted units data
+        '''
+        dio.h5io.cleanup_clustering(self.data_dir)
+        self.process_status['cleanup_clustering'] = True
+
+    def extract_and_cluster(self,data_quality='clean',num_CAR_groups='bilateral32',shell=False,dig_in_names=None,dig_out_names=None,emg_port=None,emg_channels=None):
         if shell:
             # Initialize Initial Parameters
-            num_ins = int(input('Number of digital inputs : '))
-            num_outs = int(input('Number of digital outputs : '))
-            emg = bool(int(input('EMG (0 or 1)? : ')))
+            if dig_in_names is None:
+                num_ins = int(input('Number of digital inputs : '))
+            if dig_out_names is None:
+                num_outs = int(input('Number of digital outputs : '))
+
+            if emg_port is False:
+                emg = False
+                emg_port = None
+            elif emg_port is None:
+                emg = bool(int(input('EMG (0 or 1)? : ')))
+            elif isinstance(emg_port,str) and isinstance(emg_channels,list):
+                emg = False
+            else:
+                raise ValueError('emg_port and emg_channels must be both set or both left empty')
             
             if emg:
                 emg_port = input('EMG Port? : ')
                 emg_channels = input('EMG Channels (comma-separated) : ')
                 emg_channels = [int(x) for x in emg_channels.split(',')]
-            else:
-                emg_port = None
-                emg_channels = None
 
-            dig_in_names = []
-            if num_ins>0:
-                print('Digital Input Names\n----------\n')
-            for i in range(num_ins):
-                tmp = input('dig_in_%i : ' % i)
-                dig_in_names.append(tmp)
-            if dig_in_names == []:
-                dig_in_names = None
+            if dig_in_names is None:
+                dig_in_names = []
+                if num_ins>0:
+                    print('Digital Input Names\n----------\n')
+                for i in range(num_ins):
+                    tmp = input('dig_in_%i : ' % i)
+                    dig_in_names.append(tmp)
+                if dig_in_names == []:
+                    dig_in_names = None
 
-            dig_out_names = []
-            if num_outs>0:
-                print('Digital Output Names\n----------\n')
-            for i in range(num_outs):
-                tmp = input('dig_out_%i : ' % i)
-                dig_out_names.append(tmp)
-            if dig_out_names == []:
+            if dig_out_names is None:
+                dig_out_names = []
+                if num_outs>0:
+                    print('Digital Output Names\n----------\n')
+                for i in range(num_outs):
+                    tmp = input('dig_out_%i : ' % i)
+                    dig_out_names.append(tmp)
+                if dig_out_names == []:
+                    dig_out_names = None
+
+            if dig_out_names is False:
                 dig_out_names = None
+            if dig_in_names is False:
+                dig_in_names = None
 
             self.initParams(data_quality,emg_port,emg_channels,
                     shell,dig_in_names,dig_out_names)
