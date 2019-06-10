@@ -15,12 +15,13 @@ from scipy.misc import imread
 import shutil
 
 # A function that accepts a numpy array of waveforms and creates a datashader image from them
-def waveforms_datashader(waveforms, x_values, dir_name = "datashader_temp"):
+def waveforms_datashader(waveforms, dir_name = "datashader_temp"):
 
 	# Make a pandas dataframe with two columns, x and y, holding all the data. The individual waveforms are separated by a row of NaNs
 
 	# First downsample the waveforms 10 times (to remove the effects of 10 times upsampling during de-jittering)
 	waveforms = waveforms[:, ::10]
+        x_values = np.arange(len(waveforms[0])) + 1
 	# Then make a new array of waveforms - the last element of each waveform is a NaN
 	new_waveforms = np.zeros((waveforms.shape[0], waveforms.shape[1] + 1))
 	new_waveforms[:, -1] = np.nan
@@ -68,7 +69,3 @@ def waveforms_datashader(waveforms, x_values, dir_name = "datashader_temp"):
 	# Return and figure and axis for adding axis labels, title and saving the file
 	return fig, ax
 
-
-		 
-
-	

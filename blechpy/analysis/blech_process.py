@@ -248,11 +248,10 @@ for i in range(max_clusters-1):
     # Create file, and plot spike waveforms for the different clusters. Plot 10 times downsampled dejittered/smoothed waveforms.
     # Additionally plot the ISI distribution of each cluster 
     os.mkdir('./Plots/%i/Plots/%i_clusters_waveforms_ISIs' % (electrode_num, i+2))
-    x = np.arange(len(slices_dejittered[0])/10) + 1
     for cluster in range(i+2):
         cluster_points = np.where(predictions[:] == cluster)[0]
 
-        fig, ax = blech_waveforms_datashader.waveforms_datashader(slices_dejittered[cluster_points, :], x, dir_name = "datashader_temp_el%i" % electrode_num)
+        fig, ax = blech_waveforms_datashader.waveforms_datashader(slices_dejittered[cluster_points, :], dir_name = "datashader_temp_el%i" % electrode_num)
         ax.set_xlabel('Sample ({:d} samples per ms)'.format(int(sampling_rate/1000)))
         ax.set_ylabel('Voltage (microvolts)')
         ax.set_title('Cluster%i' % cluster)
