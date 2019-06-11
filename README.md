@@ -69,10 +69,17 @@ dat.extract_and_cluster(data_quality='clean',num_CAR_groups='bilateral32',
 
 ### Spike Sorting
 ```python
-dat.sort_units()
+dat.cleanup_clustering()        # Deletes raw & referenced data, consolidates
+                                # clustering memory logs, sets up HDF5 store
+                                # for spike sorting and repacks
+
+dat.sort_units()                # Series of input GUIs to sort and label units
+                                # Clusters can now be merged and split over and
+                                # over until satisfied
 
 #or
 
-dat.sort_units(shell=True)
+dat.sort_units(shell=True)      # For command-line interface, though you still
+                                # gotta see the plots if clusters are split
 ```
 
