@@ -435,6 +435,31 @@ class dataset(object):
 
 
     def extract_and_cluster(self,data_quality='clean',num_CAR_groups='bilateral32',shell=False,dig_in_names=None,dig_out_names=None,emg_port=None,emg_channels=None):
+        '''Runs data from raw to clustered with no fuss
+
+        Parameters (all optional)
+        ----------
+        data_quality : {'clean','noisy'}
+            sets defaults for clustering parameters, best to start with 'clean'
+            (default) and re-cluster with dat.blech_clust_run('noisy') if too
+            many electrodes have early cutoffs
+        num_CAR_groups : int, number of common average reference groups 
+            can also pass 'bilateral32' keyword to automatically set 2 CAR
+            groups with 16 channels each. This is currently the default so be
+            sure to change if this is not true
+        shell : bool
+            True if you want to use command-line for everything, False for GUI (default)
+        dig_in_names : list of str
+            Names of digital inputs, must match number of digital inputs or it gets mad
+            default is None which means you can enter them when to program asks
+        dig_out_names : list of str
+            Same as dig_in_names but for digital outputs
+        emg_port : str
+            port that emg is on, if no EMG you can set this to False and skip questions
+            default is None, will prompt you about EMG later
+        emg_channels : list of int
+            any emg channel numbers on emg_port
+        '''
         if shell:
             # Initialize Initial Parameters
             if dig_in_names is None:
