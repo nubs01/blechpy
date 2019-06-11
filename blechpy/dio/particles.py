@@ -11,7 +11,7 @@ class trial_info_particle(tables.IsDescription):
 class unit_descriptor(tables.IsDescription):
     '''PyTables particles for storing sorted unit information 
     '''
-    electrode_numer = tables.Int32Col()
+    electrode_number = tables.Int32Col()
     single_unit = tables.Int32Col()
     regular_spiking = tables.Int32Col()
     fast_spiking = tables.Int32Col()

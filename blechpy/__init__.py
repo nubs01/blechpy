@@ -22,6 +22,10 @@ def load_dataset(file_name=None):
     if file_name is None:
         file_name = eg.fileopenbox('Choose dataset.p file', \
                                     'Choose file',filetypes=['.p'])
+    if os.path.isdir(file_name):
+        ld = os.listdir(file_name)
+        fn = [os.path.join(file_name,x) for x in ld if x.endswith('.p')]
+        file_name = fn[0]
     if not os.path.isfile(file_name):
         raise FileNotFoundError('%s is not a valid filename' % file_name)
 

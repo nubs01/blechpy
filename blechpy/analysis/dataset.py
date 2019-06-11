@@ -1,5 +1,7 @@
 import easygui as eg, pandas as pd
 from  blechpy import dio
+from blechpy.widgets import userIO
+from blechpy.analysis import post_process as post
 import datetime as dt
 from blechpy.data_print import data_print as dp
 import pickle, os, shutil, sys
@@ -164,6 +166,17 @@ class dataset(object):
                              'data_params':data_params,'bandpass_params':bandpass_params,
                              'spike_snapshot':spike_snapshot}
 
+
+    def edit_clustering_parameters(self,shell=False):
+        '''Allows user interface for editing clustering parameters
+
+        Parameters
+        ----------
+        shell : bool (optional), True if you want command-line interface, False for GUI (default)
+        '''
+        param_filler = userIO.dictIO(self.clust_params,shell)
+        param_filler.fill_dict()
+        self.clust_params = param_filler.get_dict()
 
 
     def __str__(self):
@@ -348,7 +361,7 @@ class dataset(object):
                         ':::']
         process_call.extend([str(x) for x in electrodes])
         subprocess.call(process_call,env=my_env)
-        self.process_status['blech_clust'] = True
+        self.process_status['blech_clust_run'] = True
         print('Clustering Complete\n------------------')
 
     @Logger('Common Average Referencing')
@@ -400,12 +413,26 @@ class dataset(object):
             print('No digital output data found')
         self.process_status['create_trial_list'] = True
 
+    @Logger('Cleaning up memory logs, removing raw data and setting up hdf5 for unit sorting')
     def cleanup_clustering(self):
         '''Consolidates memory monitor files, removes raw and referenced data
         and setups up hdf5 store for sorted units data
         '''
-        dio.h5io.cleanup_clustering(self.data_dir)
+        h5_file = dio.h5io.cleanup_clustering(self.data_dir)
+        self.h5_file = h5_file
         self.process_status['cleanup_clustering'] = True
+
+    def sort_units(self,shell=False):
+        '''Begins processes to allow labelling of clusters as sorted units
+
+        Parameters
+        ----------
+        shell : bool
+            True if command-line interfaced desired, False for GUI (default)
+        '''
+        fs = self.rec_info['amplifier_sampling_rate']
+        post.sort_units(self.data_dir,fs,shell)
+
 
     def extract_and_cluster(self,data_quality='clean',num_CAR_groups='bilateral32',shell=False,dig_in_names=None,dig_out_names=None,emg_port=None,emg_channels=None):
         if shell:

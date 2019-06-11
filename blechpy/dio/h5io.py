@@ -560,10 +560,19 @@ def cleanup_clustering(file_dir):
         if not '/unit_descriptor' in hf5:
             hf5.create_table('/','unit_descriptor',description = particles.unit_descriptor)
             changes = True
+        else:
+            hf5.remove_node('/unit_descriptor',recursive=1)
+            hf5.create_table('/','unit_descriptor',description = particles.unit_descriptor)
+            changes = True
+
 
     # Repack if any big changes were made to h5 store
     if changes:
-        new_h5 = compress_and_repack(hdf5_file,hdf5_file.replace('.h5','_repacked.h5'))
+        if hdf5_file.endswith('_repacked.h5'):
+            new_fn = hdf5_file
+        else:
+            new_fn = hdf5_file.replace('.h5','_repacked.h5')
+        new_h5 = compress_and_repack(hdf5_file,new_fn)
         return new_h5
     else:
         return hdf5_file
