@@ -17,6 +17,13 @@ import re
 
 def sort_units(file_dir,fs,shell=False):
     '''Allows user to sort clustered units 
+
+    Parameters
+    ----------
+    file_dir : str, path to recording directory
+    fs : float, sampling rate in Hz
+    shell : bool
+        True for command-line interface, False for GUI (default)
     '''
     hf5_name = h5io.get_h5_filename(file_dir)
     hf5_file = os.path.join(file_dir,hf5_name)
@@ -51,6 +58,8 @@ def sort_units(file_dir,fs,shell=False):
             break
         if clust_info['Edit Clusters'] or len(clusters)>1:
             clusters = edit_clusters(clusters,fs,shell)
+            if isinstance(clusters,dict):
+                clusters = [clusters]
             if clusters is None:
                 quit_flag = True
                 break
@@ -95,16 +104,16 @@ def edit_clusters(clusters,fs,shell=False):
         if len(clusters)==1:
             # One cluster, ask if they want to keep or split
             if shell:
-                q = input('One cluster left. Do you want to split %s?\n(y/n/blank to abort) >> ' \
+                q = input('Do you want to split %s?\n(y/n/blank to abort) >> ' \
                         % clusters[0]['Cluster Name'])
                 if q=='n':
-                    return clusters
+                    return clusters[0]
                 elif q=='':
                     return None
             else:
-                q = eg.ynbox('One cluster left. Do you want to split %s?' % clusters[0]['Cluster Name'])
+                q = eg.ynbox('Do you want to split %s?' % clusters[0]['Cluster Name'])
                 if not q:
-                    return clusters
+                    return clusters[0]
                 
             clusters = split_cluster(clusters[0],fs,shell=shell)
             if clusters is None or clusters==[]:
