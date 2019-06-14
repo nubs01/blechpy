@@ -1,7 +1,7 @@
 import easygui as eg, pandas as pd
 from  blechpy import dio
 from blechpy.widgets import userIO
-from blechpy.analysis import post_process as post
+from blechpy.analysis import spike_sorting as ss
 import datetime as dt
 from blechpy.data_print import data_print as dp
 import pickle, os, shutil, sys
@@ -431,7 +431,7 @@ class dataset(object):
             True if command-line interfaced desired, False for GUI (default)
         '''
         fs = self.rec_info['amplifier_sampling_rate']
-        post.sort_units(self.data_dir,fs,shell)
+        ss.sort_units(self.data_dir,fs,shell)
 
 
     def extract_and_cluster(self,data_quality='clean',num_CAR_groups='bilateral32',shell=False,dig_in_names=None,dig_out_names=None,emg_port=None,emg_channels=None):
@@ -452,6 +452,7 @@ class dataset(object):
         dig_in_names : list of str
             Names of digital inputs, must match number of digital inputs or it gets mad
             default is None which means you can enter them when to program asks
+            Can set this to False if no digital inputs in order to skip questions
         dig_out_names : list of str
             Same as dig_in_names but for digital outputs
         emg_port : str

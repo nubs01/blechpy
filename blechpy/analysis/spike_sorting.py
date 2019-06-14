@@ -135,6 +135,7 @@ def edit_clusters(clusters,fs,shell=False):
             clusters = new_clusters
             del new_clusters
         else:
+            # Automatically merge multiple clusters
             cluster = merge_clusters(clusters,fs)
             print('%i clusters merged into %s' % (len(clusters),cluster['Cluster Name']))
             clusters = [cluster]
@@ -180,6 +181,7 @@ def label_single_unit(hf5_file,cluster,sorting_log=None,metrics_dir=None):
     '''Adds a sorted unit to the hdf5 store
     adds unit info to unit_descriptor table and spike times and waveforms to
     sorted_units
+    and saves metrics for unit into sorted_units folder
 
     Parameters
     ----------
