@@ -610,6 +610,71 @@ def make_unit_plots(file_dir,fs):
             plt.close('all')
 
 
+def delete_unit(file_dir,unit_num):
+    '''Delete a sorted unit and re-label all following units. Also relabel all
+    associated plots and data in sorted_unit_metrics and unit_waveform_plots
 
+    Parameters
+    ----------
+    file_dir : str, full path to recording directory
+    unit_num : int, number of unit to delete
+    '''
+    h5_name = h5io.get_h5_filename(file_dir)
+    h5_file = os.path.join(file_dir,h5_name)
+    unit_numbers = get_unit_numbers(h5_file)
+    unit_name = 'units%03d' % unit_num
+    change_units = [x for x in unit_numbers if x>unit_num]
+    new_units = [x-1 for x in change_units]
+    new_names = ['unit%03d' % x for x in new_units]
+    old_names = ['unit%03d' % x for x in change_units]
+    old_prefix = ['Unit%i' % x for x in change_units]
+    new_prefix = ['Unit%i' % x for x in new_units]
 
+    metrics_dir = os.path.join(file_dir,'sorted_unit_metrics')
+    plot_dir = os.path.join(file_dir,'unit_waveforms_plots')
 
+    # Remove metrics
+    shutil.rmtree(os.path.join(metrics_dir,unit_name))
+
+    # remove unit from hdf5 store
+    with tables.open_file(h5_file,'r+') as hf5:
+        hf5.remove_node('/sorted_units',name=unit_name)
+        table = hf5.root.unit_descriptor
+        table.remove_row(unit_num)
+        # rename rest of units in hdf5 and metrics folders
+        for x,y in zip(old_names,new_names):
+            hf5.rename_node('/sorted_units',newname=y,name=x)
+            os.rename(os.path.join(metrics_dir,x),os.path.join(metrics_dir,y))
+        hf5.flush()
+
+    # delete and rename plot files
+    plot_files = os.listdir(plot_dir)
+    for x in plot_files:
+        if x.startswith('Unit%i' % unit_num):
+            os.remove(os.path.join(plot_dir,x))
+        elif any([x.startswith(y) for y in old_prefix]):
+            pre = [b for a,b in zip(old_prefix,new_prefix) if x.startswith(a)]
+            old_file = os.path.join(plot_dir,x)
+            new_file = os.path.join(plot_dir,x.replace(pre[0][0],pre[0][1]))
+            os.rename(old_file,new_file)
+
+    # Compress and repack
+    h5io.compress_and_repack(h5_file)
+
+def make_spike_arrays(h5_file,params):
+    '''Makes stimulus triggered spike array for all sorted units
+
+    Parameters
+    ----------
+    h5_file : str, full path to hdf5 store
+    params : dict
+        Parameters for arrays with fields: 
+            dig_ins_to_use : list of int, which dig_in channels to make arrays for
+            laser_channels : list of int or None if no lasers
+            sampling_rate : float, sampling rate of data in Hz
+            pre_stimulus: : int, ms before stimulus to include in array
+            post_stimulus : int, ms after stimulus to include in array
+    '''
+    pass
+
+            
