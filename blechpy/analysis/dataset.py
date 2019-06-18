@@ -65,7 +65,7 @@ class dataset(object):
             file_dir = eg.diropenbox(title='Select dataset directory')
             if file_dir is None:
                 raise ValueError('Dataset cannot be initialized without a '
-                                 ' directory')
+                                 'directory')
 
         if not os.path.isdir(file_dir):
             raise NotADirectoryError('Could not find folder %s' % file_dir)
@@ -75,8 +75,9 @@ class dataset(object):
         if tmp == '':
             file_dir = file_dir[:-1]
             tmp = os.path.basename(file_dir)
-            self.data_name = tmp
-            self.data_dir = file_dir
+
+        self.data_name = tmp
+        self.data_dir = file_dir
 
         # Make paths for analysis log file, dataset object savefile and hdf5
         self.log_file = os.path.join(file_dir, '%s_processing.log' % tmp)
@@ -86,7 +87,8 @@ class dataset(object):
             h5_file = os.path.join(file_dir, '%s.h5' % tmp)
         else:
             h5_file = os.path.join(file_dir, h5_name)
-            self.h5_file = h5_file
+
+        self.h5_file = h5_file
 
         self.dataset_creation_date = dt.datetime.today()
 
@@ -126,6 +128,7 @@ class dataset(object):
         out.append('Object creation date: '
                    + self.dataset_creation_date.strftime('%m/%d/%y'))
         out.append('Dataset Save File: ' + self.save_file)
+
         if hasattr(self, 'raw_h5_file'):
             out.append('Deleted Raw h5 file: '+self.raw_h5_file)
             out.append('h5 File: '+self.h5_file)
@@ -221,6 +224,7 @@ class dataset(object):
         spike_snapshot = deepcopy(dio.params.spike_snapshot)
 
         # Ask for emg port & channels
+        # TODO: Move select_from_list to userIO and make it shell compatible
         if emg_port is None and not shell:
             q = eg.ynbox('Do you have an EMG?', 'EMG')
             if q:
@@ -233,8 +237,9 @@ class dataset(object):
                      zip(ports, channels)
                      if x == emg_port],
                     multi_select=True)
-            elif emg_port is None and shell:
-                print('\nNo EMG port given.\n')
+
+        elif emg_port is None and shell:
+            print('\nNo EMG port given.\n')
 
         electrode_mapping, emg_mapping = dio.params.flatten_channels(
             ports,
@@ -245,32 +250,41 @@ class dataset(object):
         self.emg_mapping = emg_mapping
 
         # Get digital input names
+        # TODO: make shell compatible
         if rec_info.get('dig_in'):
             if shell and dig_in_names is None:
                 raise ValueError('dig_in_names must be provided '
                                  'if shell = True')
             elif not shell and dig_in_names is None:
-                dig_in_names = eg.multenterbox(
-                    'Give names for digital inputs:',
-                    'Digital Input Names',
-                    ['digital in %i' % x for x in rec_info['dig_in']])
-                self.dig_in_mapping = pd.DataFrame(
-                    [(x, y) for x, y in zip(rec_info['dig_in'], dig_in_names)],
-                    columns=['dig_in', 'name'])
+                dig_in_names = eg.multenterbox('Give names for digital '
+                                               'inputs:',
+                                               'Digital Input Names',
+                                               ['digital in %i' %
+                                                x for x in
+                                                rec_info['dig_in']])
+
+            self.dig_in_mapping = pd.DataFrame([(x, y) for x, y in
+                                                zip(rec_info['dig_in'],
+                                                    dig_in_names)],
+                                               columns=['dig_in', 'name'])
 
         # Get digital output names
         if rec_info.get('dig_out'):
             if shell and dig_out_names is None:
                 raise ValueError('dig_out_names must be provided '
                                  'if shell = True')
-            dig_out_names = eg.multenterbox(
-                'Give names for digital outputs:',
-                'Digital Output Names',
-                ['digital out %i' % x
-                 for x in rec_info['dig_out']])
-            self.dig_out_mapping = pd.DataFrame(
-                [(x, y) for x, y in zip(rec_info['dig_out'], dig_out_names)],
-                columns=['dig_out', 'name'])
+            elif not shell and dig_out_names is None:
+                dig_out_names = eg.multenterbox('Give names for digital '
+                                                'outputs:',
+                                                'Digital Output Names',
+                                                ['digital out %i' %
+                                                 x for x in
+                                                 rec_info['dig_out']])
+
+            self.dig_out_mapping = pd.DataFrame([(x, y) for x, y in
+                                                 zip(rec_info['dig_out'],
+                                                     dig_out_names)],
+                                                columns=['dig_out', 'name'])
 
         # Store clustering parameters
         self.clust_params = {'file_dir': file_dir,
@@ -299,7 +313,7 @@ class dataset(object):
 
         print('\nExtract Intan Data\n--------------------')
         # Create h5 file
-        fn = dio.h5io.create_empty_data_h5(self.h5_file, shell)
+        dio.h5io.create_empty_data_h5(self.h5_file, shell)
 
         # Create arrays for raw data in hdf5 store
         dio.h5io.create_hdf_arrays(self.h5_file, self.rec_info,
@@ -364,7 +378,8 @@ class dataset(object):
             tmp_dir = os.path.join(data_dir, d)
             if os.path.exists(tmp_dir):
                 shutil.rmtree(tmp_dir)
-                os.mkdir(tmp_dir)
+
+            os.mkdir(tmp_dir)
 
         # Set file for clusting log
         self.clustering_log = os.path.join(data_dir, 'results.log')
@@ -401,17 +416,19 @@ class dataset(object):
         # Gather Common Average Reference Groups
         if num_groups is None:
             num_groups = eg.enterbox('Enter number of common average '
-                                     'reference groups (integers only):',
+                                     'reference groups (integer only):',
                                      'CAR Groups')
             if num_groups.isnumeric():
                 num_groups = int(num_groups)
-                num_groups, car_electrodes = dio.params.get_CAR_groups(
-                    num_groups,
-                    self.electrode_mapping)
-                self.car_electrodes = car_electrodes
-                print('CAR Groups\n')
-                headers = ['Group %i' % x for x in range(num_groups)]
-                print(dp.print_list_table(car_electrodes, headers))
+
+        num_groups, car_electrodes = dio.params.get_CAR_groups(
+            num_groups,
+            self.electrode_mapping)
+
+        self.car_electrodes = car_electrodes
+        print('CAR Groups\n')
+        headers = ['Group %i' % x for x in range(num_groups)]
+        print(dp.print_list_table(car_electrodes, headers))
 
         # Reference each group
         for i, x in enumerate(car_electrodes):
@@ -432,6 +449,7 @@ class dataset(object):
             eg.exceptionbox('Must extract data before creating trial list',
                             'Data Not Extracted')
             return
+
         if self.rec_info.get('dig_in'):
             in_list = dio.h5io.create_trial_table(self.h5_file,
                                                   self.dig_in_mapping,
@@ -519,6 +537,7 @@ class dataset(object):
             else:
                 raise ValueError('emg_port and emg_channels must be both set '
                                  'or both left empty')
+
             if emg:
                 emg_port = input('EMG Port? : ')
                 emg_channels = input('EMG Channels (comma-separated) : ')
@@ -531,8 +550,9 @@ class dataset(object):
                     for i in range(num_ins):
                         tmp = input('dig_in_%i : ' % i)
                         dig_in_names.append(tmp)
-                        if dig_in_names == []:
-                            dig_in_names = None
+
+                if dig_in_names == []:
+                    dig_in_names = None
 
             if dig_out_names is None:
                 dig_out_names = []
@@ -541,13 +561,15 @@ class dataset(object):
                     for i in range(num_outs):
                         tmp = input('dig_out_%i : ' % i)
                         dig_out_names.append(tmp)
-                        if dig_out_names == []:
-                            dig_out_names = None
+
+                if dig_out_names == []:
+                    dig_out_names = None
 
             if dig_out_names is False:
                 dig_out_names = None
-                if dig_in_names is False:
-                    dig_in_names = None
+
+            if dig_in_names is False:
+                dig_in_names = None
 
             self.initParams(data_quality, emg_port, emg_channels,
                             shell, dig_in_names, dig_out_names)

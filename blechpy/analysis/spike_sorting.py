@@ -558,6 +558,7 @@ def plot_cluster(cluster,index=None):
                 cluster['1ms_violations'],cluster['spike_times'].shape[0]))
     if index is not None:
         title_str = 'Index: %i %s, ' % (index,title_str)
+
     ax.set_title(title_str)
     return fig,ax
 
@@ -587,10 +588,11 @@ def make_unit_plots(file_dir,fs):
             fig,ax = blech_waveforms_datashader.waveforms_datashader(waveforms)
             ax.set_xlabel('Samples (%s)' % fs_str)
             ax.set_ylabel('Voltage (microvolts)')
-            unit_title = ('Unit %i, total waveforms = %i\nElectrode: %i, '
-                'Single Unit: %i, RSU: %i, FSU: %i') % (i,waveforms.shape[0],
-                    descriptor['electrode_number'],descriptor['single_unit'],
-                    descriptor['regular_spiking'],descriptor['fast_spiking']))
+            unit_title = (('Unit %i, total waveforms = %i\nElectrode: %i, '
+                           'Single Unit: %i, RSU: %i, FSU: %i') %
+                          (i,waveforms.shape[0],
+                           descriptor['electrode_number'],descriptor['single_unit'],
+                           descriptor['regular_spiking'],descriptor['fast_spiking']))
             ax.set_title(unit_title)
             fig.savefig(os.path.join(plot_dir,'Unit%i.png' % i))
             plt.close('all')
@@ -668,7 +670,7 @@ def make_spike_arrays(h5_file,params):
     ----------
     h5_file : str, full path to hdf5 store
     params : dict
-        Parameters for arrays with fields: 
+        Parameters for arrays with fields:
             dig_ins_to_use : list of int, which dig_in channels to make arrays for
             laser_channels : list of int or None if no lasers
             sampling_rate : float, sampling rate of data in Hz
@@ -677,4 +679,3 @@ def make_spike_arrays(h5_file,params):
     '''
     pass
 
-            
