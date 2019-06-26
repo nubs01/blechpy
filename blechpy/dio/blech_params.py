@@ -198,9 +198,9 @@ def write_params(file_name,params):
 
     Parameters
     ----------
-    file_name : str, path to .params file to write params in 
+    file_name : str, path to .params file to write params in
     params : dict, dictionary of parameters with keys:
-                   clustering_params, data_params, 
+                   clustering_params, data_params,
                    bandpass_params, spike_snapshot
     '''
     if not file_name.endswith('.params'):

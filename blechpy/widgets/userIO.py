@@ -3,7 +3,9 @@ from tkinter import ttk
 from collections.abc import Mapping
 from copy import deepcopy
 
-def get_dict_shell_input(dat,type_dict=None,tabstop=''):
+def get_dict_shell_input(dat, type_dict=None, tabstop='', prompt=None):
+    if prompt:
+        print('----------\n%s\n----------' % prompt)
     output = deepcopy(dat)
     if type_dict==None:
         type_dict = make_type_dict(dat)
@@ -80,32 +82,40 @@ class dictIO(object):
             'or default to string input'))
         else:
             self._types = types
-            
+
         self._storage = deepcopy(data)
         self._output = deepcopy(data)
         self._shell = shell
 
-    def fill_dict(self):
+    def fill_dict(self,prompt=None):
         if self._shell:
-            self.fill_dict_shell()
+            self.fill_dict_shell(prompt=prompt)
         else:
-            self.fill_dict_gui()
+            self.fill_dict_gui(prompt=prompt)
 
-    def fill_dict_shell(self):
-        out = get_dict_shell_input(self._storage)
+        return self.get_dict()
+
+    def fill_dict_shell(self, prompt=None):
+        out = get_dict_shell_input(self._storage,prompt=prompt)
         self._output = deepcopy(out)
 
     def get_dict(self):
         return deepcopy(self._output)
 
 
-    def fill_dict_gui(self):
+    def fill_dict_gui(self, prompt=None):
         output = deepcopy(self._storage)
         type_dict = self._types
         root= tk.Tk()
         root.style = ttk.Style()
         root.style.theme_use('clam')
         self.root = root
+
+        if prompt:
+            prompt_label = ttk.Label(root,text=prompt)
+            prompt_label.pack(side='top',fill='x',expand='True')
+            ttk.Separator(root,orient='horizontal').pack(side='top',fill='x',expand=True)
+
         dict_pane = dict_fill_pane(root,output,type_dict)
         dict_pane.pack(side='top',fill='both',expand=True)
         self.dict_pane = dict_pane
@@ -116,11 +126,11 @@ class dictIO(object):
         cancel.pack(side='right')
         line.pack(side='bottom',anchor='e')
         root.mainloop()
-    
+
     def submit(self):
         self._output = self.dict_pane.get_values()
         self.root.destroy()
-    
+
     def cancel(self):
         self._output = None
         self.root.destroy()

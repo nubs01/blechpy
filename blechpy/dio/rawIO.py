@@ -7,7 +7,7 @@ import easygui as eg
 support_rec_types = {'one file per channel':'amp-\S-\d*\.dat',
                      'one file per signal type':'amplifier\.dat'}
 
-def read_rec_info(file_dir,shell):
+def read_rec_info(file_dir,shell=False):
     '''Reads the info.rhd file to get relevant parameters.
     Parameters
     ----------
@@ -199,15 +199,23 @@ def get_recording_filetype(file_dir,shell=False):
         regex = re.compile(v)
         if any([True for x in file_list if regex.match(x) is not None]):
             file_type = k
+
     if file_type is None:
         msg = '\n   '.join(['unsupported recording type. Supported types are:',
                                     *list(support_rec_types.keys())])
     else:
         msg = '\"'+file_type+'\"'
+
     if shell:
-        check = True
+        q = input('Detected recording type is %s \nIs this correct? (y/n):  ' % msg)
+        if q.lower()=='y':
+            check = True
+        else:
+            check = False
+
     else:
         check = eg.ynbox('Detected recording type is '+msg+'\nIs this correct?','Recording Type')
+
     if check:
         return file_type
     else:

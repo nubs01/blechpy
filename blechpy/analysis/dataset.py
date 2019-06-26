@@ -29,7 +29,8 @@ def Logger(heading):
             else:
                 func(*args, **kwargs)
                 print('Done!')
-                return wrapper
+
+        return wrapper
     return real_logger
 
 
@@ -112,8 +113,9 @@ class dataset(object):
             True if you want command-line interface, False for GUI (default)
         '''
         param_filler = userIO.dictIO(self.clust_params, shell)
-        param_filler.fill_dict()
-        self.clust_params = param_filler.get_dict()
+        tmp = param_filler.fill_dict()
+        if tmp:
+            self.clust_params = tmp
 
     def __str__(self):
         '''Put all information about dataset in string format
@@ -331,7 +333,7 @@ class dataset(object):
         print('\nData Extraction Complete\n--------------------')
 
     @Logger('Running blech_clust')
-    def blech_clust_run(self, data_quality=None, accept_params=False):
+    def blech_clust_run(self, data_quality=None, accept_params=False,shell=False):
         '''
         Write clustering parameters to file and
         Run blech_process on each electrode using GNU parallel
@@ -356,9 +358,18 @@ class dataset(object):
 
         # Check if they are OK with the parameters that will be used
         if not accept_params:
-            q = eg.ynbox(dp.print_dict(self.clust_params)
-                         + '\n Are these parameters OK?',
-                         'Check Extraction and Clustering Parameters')
+            if not shell:
+                q = eg.ynbox(dp.print_dict(self.clust_params)
+                             + '\n Are these parameters OK?',
+                             'Check Extraction and Clustering Parameters')
+            else:
+                q = input(dp.print_dict(self.clust_params)
+                          +'\n Are these paramters OK? (y/n):  ')
+                if q=='y':
+                    q = True
+                else:
+                    False
+
             if not q:
                 return
 
@@ -580,5 +591,5 @@ class dataset(object):
         self.extract_data(shell=shell)
         self.create_trial_list()
         self.common_average_reference(num_CAR_groups)
-        self.blech_clust_run(data_quality, accept_params=shell)
+        self.blech_clust_run(data_quality, accept_params=shell,shell=shell)
         self.save()

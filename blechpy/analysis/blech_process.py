@@ -250,6 +250,10 @@ for i in range(max_clusters-1):
     os.mkdir('./Plots/%i/Plots/%i_clusters_waveforms_ISIs' % (electrode_num, i+2))
     for cluster in range(i+2):
         cluster_points = np.where(predictions[:] == cluster)[0]
+        if cluster_points.shape[0] == 0:
+            print('No cluster points for %s: electrode %i, cluster %i' 
+                  % (os.path.dirname(file_dir), electrode_num, cluster))
+            continue
 
         fig, ax = blech_waveforms_datashader.waveforms_datashader(slices_dejittered[cluster_points, :], dir_name = "datashader_temp_el%i" % electrode_num)
         ax.set_xlabel('Sample ({:d} samples per ms)'.format(int(sampling_rate/1000)))
@@ -261,7 +265,7 @@ for i in range(max_clusters-1):
         fig = plt.figure()
         cluster_times = times_dejittered[cluster_points]
         ISIs = np.ediff1d(np.sort(cluster_times))
-        ISIs = ISIs/30.0
+        ISIs = ISIs/(sampling_rate/1000)
         try:
             plt.hist(ISIs, bins = [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, np.max(ISIs)])
         except:

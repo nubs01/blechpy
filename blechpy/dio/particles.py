@@ -6,6 +6,10 @@ class trial_info_particle(tables.IsDescription):
     trial_num = tables.UInt16Col()
     channel = tables.Int16Col()
     name = tables.StringCol(20)
+    on_index = tables.Int32Col()
+    off_index = tables.Int32Col()
+    on_time = tables.Float32Col()
+    off_time = tables.Float32Col()
 
 
 class unit_descriptor(tables.IsDescription):

@@ -48,8 +48,7 @@ def dejitter(slices, spike_times, spike_snapshot = [0.5, 1.0], sampling_rate = 3
     # Calculate the number of samples to be sliced out around each spike's minimum
     before = int((sampling_rate/1000.0)*(spike_snapshot[0]))
     after = int((sampling_rate/1000.0)*(spike_snapshot[1]))
-    
-    #slices_dejittered = np.zeros((len(slices)-1,300))
+
     slices_dejittered = []
     spike_times_dejittered = []
     for i in range(len(slices)):

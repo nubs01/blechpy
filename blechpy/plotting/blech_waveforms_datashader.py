@@ -17,6 +17,8 @@ import shutil
 # A function that accepts a numpy array of waveforms and creates a datashader image from them
 def waveforms_datashader(waveforms, dir_name = "datashader_temp"):
 
+    if waveforms.shape[0]==0:
+        return None
     # Make a pandas dataframe with two columns, x and y, holding all the data. The individual waveforms are separated by a row of NaNs
 
     # First downsample the waveforms 10 times (to remove the effects of 10 times upsampling during de-jittering)

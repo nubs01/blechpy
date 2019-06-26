@@ -1,5 +1,12 @@
-import os, tables, ast, re, shutil
-import numpy as np, easygui as eg, pylab as plt, datetime as dt
+import os
+import tables
+import ast
+import re
+import shutil
+import numpy as np
+import easygui as eg
+import pylab as plt
+import datetime as dt
 from sklearn.mixture import GaussianMixture
 from blechpy.plotting import blech_waveforms_datashader
 from blechpy.dio import h5io, particles
@@ -7,8 +14,9 @@ from blechpy.data_print import data_print as dp
 from blechpy.widgets import userIO
 from copy import deepcopy
 
-def sort_units(file_dir,fs,shell=False):
-    '''Allows user to sort clustered units 
+
+def sort_units(file_dir, fs, shell=False):
+    '''Allows user to sort clustered units
 
     Parameters
     ----------
@@ -18,60 +26,65 @@ def sort_units(file_dir,fs,shell=False):
         True for command-line interface, False for GUI (default)
     '''
     hf5_name = h5io.get_h5_filename(file_dir)
-    hf5_file = os.path.join(file_dir,hf5_name)
-    sorting_log = hf5_file.replace('.h5','_sorting.log')
-    metrics_dir = os.path.join(file_dir,'sorted_unit_metrics')
+    hf5_file = os.path.join(file_dir, hf5_name)
+    sorting_log = hf5_file.replace('.h5', '_sorting.log')
+    metrics_dir = os.path.join(file_dir, 'sorted_unit_metrics')
     if not os.path.exists(metrics_dir):
         os.mkdir(metrics_dir)
     quit_flag = False
-    
+
     # Start loop to label a cluster
-    clust_info = {'Electrode':0,'Clusters in solution':7,'Cluster Numbers':[],'Edit Clusters':False}
-    clust_query = userIO.dictIO(clust_info,shell=shell)
-    print('Beginning spike sorting for:\n\t%s\nSorting Log written to:\n\t%s' % (hf5_file,sorting_log))
+    clust_info = {'Electrode': 0, 'Clusters in solution': 7,
+                  'Cluster Numbers': [], 'Edit Clusters': False}
+    clust_query = userIO.dictIO(clust_info, shell=shell)
+    print(('Beginning spike sorting for: \n\t%s\n'
+          'Sorting Log written to: \n\t%s') % (hf5_file, sorting_log))
     print(('To select multiple clusters, simply type in the numbers of each\n'
-        'cluster comma-separated, however, you MUST check Edit Clusters in order\n'
-        'to split clusters, merges will be assumed from multiple cluster selection.'))
-    print(('\nIf using GUI input, hit cancel at any point to abort sorting of current cluster.\n'
-        'If using shell interface, type abort at any time.\n'))
+           'cluster comma-separated, however, you MUST check Edit Clusters in'
+           'order\nto split clusters, merges will be assumed'
+           ' from multiple cluster selection.'))
+    print(('\nIf using GUI input, hit cancel at any point to abort sorting'
+           ' of current cluster.\nIf using shell interface,'
+           ' type abort at any time.\n'))
     while not quit_flag:
-        clust_query.fill_dict()
-        clust_info = clust_query.get_dict()
+        clust_info = clust_query.fill_dict()
         if clust_info is None:
             quit_flag = True
             break
         clusters = []
         for c in clust_info['Cluster Numbers']:
-            tmp = get_cluster_data(file_dir,clust_info['Electrode'],
-                    clust_info['Clusters in solution'],int(c),fs)
+            tmp = get_cluster_data(file_dir, clust_info['Electrode'],
+                                   clust_info['Clusters in solution'],
+                                   int(c), fs)
             clusters.append(tmp)
-        if len(clusters)==0:
-            quit_flag=True
+        if len(clusters) == 0:
+            quit_flag = True
             break
-        if clust_info['Edit Clusters'] or len(clusters)>1:
-            clusters = edit_clusters(clusters,fs,shell)
-            if isinstance(clusters,dict):
+        if clust_info['Edit Clusters'] or len(clusters) > 1:
+            clusters = edit_clusters(clusters, fs, shell)
+            if isinstance(clusters, dict):
                 clusters = [clusters]
             if clusters is None:
                 quit_flag = True
                 break
-        
-        cell_types = get_cell_types([x['Cluster Name'] for x in clusters],shell)
+
+        cell_types = get_cell_types([x['Cluster Name'] for x in clusters],
+                                    shell)
         if cell_types is None:
             quit_flag = True
             break
         else:
-            for x,y in zip(clusters,cell_types):
+            for x, y in zip(clusters, cell_types):
                 x.update(y)
         for unit in clusters:
-            label_single_unit(hf5_file,unit,sorting_log,metrics_dir)
+            label_single_unit(hf5_file, unit, fs, sorting_log, metrics_dir)
 
         q = input('Do you wish to continue sorting units? (y/n) >> ')
-        if q=='n':
+        if q == 'n':
             quit_flag = True
 
 
-def edit_clusters(clusters,fs,shell=False):
+def edit_clusters(clusters, fs, shell=False):
     '''Handles editing of a cluster group until a user has a single cluster
     they are satisfied with
 
@@ -93,69 +106,70 @@ def edit_clusters(clusters,fs,shell=False):
     clusters = deepcopy(clusters)
     quit_flag = False
     while not quit_flag:
-        if len(clusters)==1:
+        if len(clusters) == 1:
             # One cluster, ask if they want to keep or split
             if shell:
-                q = input('Do you want to split %s?\n(y/n/blank to abort) >> ' \
-                        % clusters[0]['Cluster Name'])
-                if q=='n':
+                q = input('Do you want to split %s?\n(y/n/blank to abort) >> '
+                          % clusters[0]['Cluster Name'])
+                if q == 'n':
                     return clusters[0]
-                elif q=='':
+                elif q == '':
                     return None
             else:
-                q = eg.ynbox('Do you want to split %s?' % clusters[0]['Cluster Name'])
+                q = eg.ynbox('Do you want to split %s?'
+                             % clusters[0]['Cluster Name'])
                 if not q:
                     return clusters[0]
-                
-            clusters = split_cluster(clusters[0],fs,shell=shell)
-            if clusters is None or clusters==[]:
+
+            clusters = split_cluster(clusters[0], fs, shell=shell)
+            if clusters is None or clusters == []:
                 return None
             figs = []
-            for i,c in enumerate(clusters):
-                tmp_fig = plot_cluster(c,i)
+            for i, c in enumerate(clusters):
+                tmp_fig = plot_cluster(c, i)
                 figs.append(tmp_fig)
             plt.show()
-            query = {'Clusters to keep (indices)':[]}
-            query = userIO.dictIO(query,shell=shell)
-            query.fill_dict()
-            ans = query.get_dict()
+            query = {'Clusters to keep (indices)': []}
+            query = userIO.dictIO(query, shell=shell)
+            ans = query.fill_dict()
             if ans is None:
                 return None
             ans = [int(x) for x in ans['Clusters to keep (indices)']]
-            new_clusters = [clusters[x] for x  in ans]
+            new_clusters = [clusters[x] for x in ans]
             del clusters
             clusters = new_clusters
             del new_clusters
         else:
             # Automatically merge multiple clusters
-            cluster = merge_clusters(clusters,fs)
-            print('%i clusters merged into %s' % (len(clusters),cluster['Cluster Name']))
+            cluster = merge_clusters(clusters, fs)
+            print('%i clusters merged into %s'
+                  % (len(clusters), cluster['Cluster Name']))
             clusters = [cluster]
 
 
-def get_cell_types(cluster_names,shell=True):
+def get_cell_types(cluster_names, shell=True):
     '''Queries user to identify cluster as multiunit vs single-unit, regular vs
     fast spiking
 
     Parameters
     ----------
-    shell : bool (optional), 
+    shell : bool (optional),
         True if command-line interface desired, False for GUI (default)
 
     Returns
     -------
     dict
-        with keys 'Single unit','Regular spiking','Fast spiking' and values are
-        0 or 1 for each  key
+        with keys 'Single unit', 'Regular spiking', 'Fast spiking' and values
+        are 0 or 1 for each  key
     '''
-    query = {'Single Unit':False,'Regular Spiking':False,'Fast Spiking':False}
+    query = {'Single Unit': False, 'Regular Spiking': False,
+             'Fast Spiking': False}
     new_query = {}
     for name in cluster_names:
         new_query[name] = query.copy()
 
-    query = userIO.dictIO(new_query,shell=shell)
-    query.fill_dict()
-    ans = query.get_dict()
+    query = userIO.dictIO(new_query, shell=shell)
+    ans = query.fill_dict()
     if ans is None:
         return None
     out = []
@@ -168,8 +182,8 @@ def get_cell_types(cluster_names,shell=True):
     return out
 
 
-
-def label_single_unit(hf5_file,cluster,sorting_log=None,metrics_dir=None):
+def label_single_unit(hf5_file, cluster, fs, sorting_log=None,
+                      metrics_dir=None):
     '''Adds a sorted unit to the hdf5 store
     adds unit info to unit_descriptor table and spike times and waveforms to
     sorted_units
@@ -179,42 +193,45 @@ def label_single_unit(hf5_file,cluster,sorting_log=None,metrics_dir=None):
     ----------
     hf5_file : str, full path to .h5 file
     electrode_num : int, electrode number
-    spike_times : numpy.array, 1D array of spike times corresponding to this unit
-    spike_waveforms : numpy.array, 
+    spike_times : numpy.array
+        1D array of spike times corresponding to this unit
+    spike_waveforms : numpy.array,
         array containing waveforms of spikes for this unit with each row
         corresponding to rows in spike_times
-    single_unit : {0,1},
+    single_unit : {0, 1},
         0 (default) is for multi-unit activity, 1 to indicate single unit
-    reg_spiking : {0,1},
+    reg_spiking : {0, 1},
         0 (default) is if multi-unit or not regular-spiking pyramidal cell
-    fast_spiking : {0,1},
+    fast_spiking : {0, 1},
         0 (default) is if multi-unit or not fast-spiking interneuron
     '''
     if sorting_log is None:
-        sorting_log = hf5_file.replace('.h5','_sorting.log')
+        sorting_log = hf5_file.replace('.h5', '_sorting.log')
     if metrics_dir is None:
         file_dir = os.path.dirname(hf5_file)
-        metrics_dir = os.path.join(file_dir,'sorted_unit_metrics')
+        metrics_dir = os.path.join(file_dir, 'sorted_unit_metrics')
 
     unit_name = get_next_unit_name(hf5_file)
-    metrics_dir = os.path.join(metrics_dir,unit_name)
+    metrics_dir = os.path.join(metrics_dir, unit_name)
     if not os.path.exists(metrics_dir):
         os.mkdir(metrics_dir)
 
-    with open(sorting_log,'a+') as log:
-        print('%s sorted on %s' % (unit_name,dt.datetime.today().strftime('%m/%d/%y %H:%M')),
-                file=log)
-        print('Cluster info:\n----------',file=log)
+    with open(sorting_log, 'a+') as log:
+        print('%s sorted on %s'
+              % (unit_name,
+                 dt.datetime.today().strftime('%m/%d/%y %H: %M')),
+              file=log)
+        print('Cluster info: \n----------', file=log)
         print_clust = deepcopy(cluster)
         # Get rid of data arrays in output clister
-        for k,v in cluster.items():
-            if isinstance(v,np.ndarray):
+        for k, v in cluster.items():
+            if isinstance(v, np.ndarray):
                 print_clust.pop(k)
-        print(dp.print_dict(print_clust),file=log)
-        print('Saving metrics to %s' % metrics_dir,file=log)
-        print('--------------',file=log)
+        print(dp.print_dict(print_clust), file=log)
+        print('Saving metrics to %s' % metrics_dir, file=log)
+        print('--------------', file=log)
 
-    with tables.open_file(hf5_file,'r+') as hf5:
+    with tables.open_file(hf5_file, 'r+') as hf5:
         table = hf5.root.unit_descriptor
         unit_descrip = table.row
         unit_descrip['electrode_number'] = int(cluster['electrode'])
@@ -222,38 +239,44 @@ def label_single_unit(hf5_file,cluster,sorting_log=None,metrics_dir=None):
         unit_descrip['regular_spiking'] = int(cluster['regular_spiking'])
         unit_descrip['fast_spiking'] = int(cluster['fast_spiking'])
 
-        hf5.create_group('/sorted_units',unit_name,title=unit_name)
+        hf5.create_group('/sorted_units', unit_name, title=unit_name)
         waveforms = hf5.create_array('/sorted_units/%s' % unit_name,
-                                    'waveforms',cluster['spike_waveforms'])
+                                     'waveforms', cluster['spike_waveforms'])
         times = hf5.create_array('/sorted_units/%s' % unit_name,
-                                'times',cluster['spike_times'])
+                                 'times', cluster['spike_times'])
         unit_descrip.append()
         table.flush()
         hf5.flush()
 
     # Save metrics for sorted unit
-    energy = cluster['data'][:,0]
-    amplitudes = cluster['data'][:,1]
-    pca_slices = cluster['data'][:,2:]
+    energy = cluster['data'][:, 0]
+    amplitudes = cluster['data'][:, 1]
+    pca_slices = cluster['data'][:, 2:]
 
-    np.save(os.path.join(metrics_dir,'spike_times.npy'),cluster['spike_times'])
-    np.save(os.path.join(metrics_dir,'spike_waveforms.npy',),cluster['spike_waveforms'])
-    np.save(os.path.join(metrics_dir,'energy.npy'),energy)
-    np.save(os.path.join(metrics_dir,'amplitudes.npy'),amplitudes)
-    np.save(os.path.join(metrics_dir,'pca_slices.npy'),pca_slices)
-    clust_info_file = os.path.join(metrics_dir,'cluster.info')
-    with open(clust_info_file,'a+') as log:
-        print('%s sorted on %s' % (unit_name,dt.datetime.today().strftime('%m/%d/%y %H:%M')),
-                file=log)
-        print('Cluster info:\n----------',file=log)
-        print(dp.print_dict(print_clust),file=log)
-        print('Saved metrics to %s' % metrics_dir,file=log)
-        print('--------------',file=log)
+    np.save(os.path.join(metrics_dir, 'spike_times.npy'),
+            cluster['spike_times'])
+    np.save(os.path.join(metrics_dir, 'spike_waveforms.npy'),
+            cluster['spike_waveforms'])
+    np.save(os.path.join(metrics_dir, 'energy.npy'), energy)
+    np.save(os.path.join(metrics_dir, 'amplitudes.npy'), amplitudes)
+    np.save(os.path.join(metrics_dir, 'pca_slices.npy'), pca_slices)
+    clust_info_file = os.path.join(metrics_dir, 'cluster.info')
+    with open(clust_info_file, 'a+') as log:
+        print('%s sorted on %s'
+              % (unit_name,
+                 dt.datetime.today().strftime('%m/%d/%y %H: %M')),
+              file=log)
+        print('Cluster info: \n----------', file=log)
+        print(dp.print_dict(print_clust), file=log)
+        print('Saved metrics to %s' % metrics_dir, file=log)
+        print('--------------', file=log)
 
-    print('Added %s to hdf5 store as %s' % (cluster['Cluster Name'],unit_name))
+    print('Added %s to hdf5 store as %s'
+          % (cluster['Cluster Name'], unit_name))
     print('Saved metrics to %s' % metrics_dir)
 
-def split_cluster(cluster,fs,params=None,shell=True):
+
+def split_cluster(cluster, fs, params=None, shell=True):
     '''Use GMM to re-cluster a single cluster into a number of sub clusters
 
     Parameters
@@ -261,7 +284,7 @@ def split_cluster(cluster,fs,params=None,shell=True):
     cluster : dict, cluster metrics and data
     params : dict (optional), parameters for reclustering
         with keys: 'Number of Clusters', 'Max Number of Iterations',
-                    'Convergence Criterion','GMM random restarts'
+                    'Convergence Criterion', 'GMM random restarts'
     shell : bool , optional, whether to use shell or GUI input (defualt=True)
 
     Returns
@@ -270,13 +293,12 @@ def split_cluster(cluster,fs,params=None,shell=True):
         resultant clusters from split
     '''
     if params is None:
-        clustering_params = {'Number of Clusters':2,
-                            'Max Number of Iterations':1000,
-                            'Convergence Criterion':0.00001,
-                            'GMM random restarts':10}
-        params_filler = userIO.dictIO(clustering_params,shell=shell)
-        params_filler.fill_dict()
-        params = params_filler.get_dict()
+        clustering_params = {'Number of Clusters': 2,
+                             'Max Number of Iterations': 1000,
+                             'Convergence Criterion': 0.00001,
+                             'GMM random restarts': 10}
+        params_filler = userIO.dictIO(clustering_params, shell=shell)
+        params = params_filler.fill_dict()
 
     if params is None:
         return None
@@ -286,10 +308,10 @@ def split_cluster(cluster,fs,params=None,shell=True):
     thresh = float(params['Convergence Criterion'])
     n_restarts = int(params['GMM random restarts'])
 
-    g = GaussianMixture(n_components=n_clusters, covariance_type='full', \
-            tol=thresh, max_iter = n_iter, n_init = n_restarts)
+    g = GaussianMixture(n_components=n_clusters, covariance_type='full',
+                        tol=thresh, max_iter=n_iter, n_init=n_restarts)
     g.fit(cluster['data'])
-    
+
     out_clusters = []
     if g.converged_:
         spike_waveforms = cluster['spike_waveforms']
@@ -297,19 +319,20 @@ def split_cluster(cluster,fs,params=None,shell=True):
         data = cluster['data']
         predictions = g.predict(data)
         for c in range(n_clusters):
-            clust_idx = np.where(predictions==c)[0]
+            clust_idx = np.where(predictions == c)[0]
             tmp_clust = deepcopy(cluster)
             clust_id = str(cluster['cluster_id']) + \
-                    bytes([b'A'[0]+c]).decode('utf-8')
+                bytes([b'A'[0]+c]).decode('utf-8')
             clust_name = 'E%iS%i_cluster%s' % \
-                    (cluster['electrode'],cluster['solution'],clust_id)
+                (cluster['electrode'], cluster['solution'], clust_id)
             clust_waveforms = spike_waveforms[clust_idx]
             clust_times = spike_times[clust_idx]
-            clust_data = data[clust_idx,:]
+            clust_data = data[clust_idx, :]
             clust_log = cluster['manipulations'] + \
-                    '\nSplit %s with parameters:' \
-                    '\n%s\nCluster %i from split results. Named %s' \
-                    % (cluster['Cluster Name'],dp.print_dict(params),c,clust_name)
+                '\nSplit %s with parameters: ' \
+                '\n%s\nCluster %i from split results. Named %s' \
+                % (cluster['Cluster Name'], dp.print_dict(params),
+                   c, clust_name)
             tmp_clust['Cluster Name'] = clust_name
             tmp_clust['cluster_id'] = clust_id
             tmp_clust['data'] = clust_data
@@ -317,7 +340,7 @@ def split_cluster(cluster,fs,params=None,shell=True):
             tmp_clust['spike_waveforms'] = clust_waveforms
 
             tmp_isi, tmp_violations1, tmp_violations2 = \
-                    get_ISI_and_violations(clust_times,fs)
+                get_ISI_and_violations(clust_times, fs)
             tmp_clust['ISI'] = tmp_isi
             tmp_clust['1ms_violations'] = tmp_violations1
             tmp_clust['2ms_violations'] = tmp_violations2
@@ -326,7 +349,7 @@ def split_cluster(cluster,fs,params=None,shell=True):
     return out_clusters
 
 
-def get_unit_metrics(file_dir,electrode_num,solution_num,cluster_num):
+def get_unit_metrics(file_dir, electrode_num, solution_num, cluster_num):
     '''Grab all metrics for a specfic cluster from a clustering solution for an
     electrode
 
@@ -336,26 +359,29 @@ def get_unit_metrics(file_dir,electrode_num,solution_num,cluster_num):
     electrode_num : int, electrode number
     solution_num : int,  number of clusters in solution
     cluster_num : int, number of desired cluster within solution
-    
+
     Returns
     -------
-    numpy.array, numpy.array, numpy.array,numpy.array, numpy.array, numpy.array
+    np.array, np.array, np.array, np.array, np.array, np.array
     spike_waveforms, spike_times, pca_slices, energy, amplitudes, predictions
     '''
-    spike_waveforms,spike_times,pca_slices,energy,amplitudes,predictions = \
-            get_clustering_metrics(file_dir,electrode_num,solution_num)
+    spike_waveforms, spike_times, pca_slices, energy, amplitudes, predictions \
+        = get_clustering_metrics(file_dir, electrode_num, solution_num)
 
-    this_cluster = np.where(predictions==cluster_num)[0]
-    spike_waveforms = spike_waveforms[this_cluster,:]
+    this_cluster = np.where(predictions == cluster_num)[0]
+    spike_waveforms = spike_waveforms[this_cluster, :]
     spike_times = spike_times[this_cluster]
-    pca_slices = pca_slices[this_cluster,:]
+    pca_slices = pca_slices[this_cluster, :]
     energy = energy[this_cluster]
     amplitudes = amplitudes[this_cluster]
     predictions = predictions[this_cluster]
 
-    return spike_waveforms,spike_times,pca_slices,energy,amplitudes,predictions
+    return spike_waveforms, spike_times, pca_slices, \
+        energy, amplitudes, predictions
 
-def get_cluster_data(file_dir,electrode_num,solution_num,cluster_num,fs,n_pc=3):
+
+def get_cluster_data(file_dir, electrode_num, solution_num, cluster_num, fs,
+                     n_pc=3):
     '''Grab all metrics for a specific clustering solution and return in a data
     matrix that can be used for re-clustering
 
@@ -366,51 +392,54 @@ def get_cluster_data(file_dir,electrode_num,solution_num,cluster_num,fs,n_pc=3):
     solution_num : int,  number of clusters in solution
     cluster_num : int, number of desired cluster within solution
     fs : float, sampling rate of the data in Hz
-    
+
     Returns
     -------
     cluster : dict
-        with keys: Cluster Name, data, spike_times, spike_waveforms, manipulations
+        with keys: Cluster Name, data, spike_times, spike_waveforms,
+        manipulations
 
         Cluster Name: str, Unique identifier for cluster
         electrode : int
         solution : int
         cluster_id : str, unique cluster id, updated on splits and merges
-        data : numpy.array 
-            with columns: normalized energy, normalized amplitudes, PC1, PC2, PC3
+        data : numpy.array
+            with columns: normalized energy, normalized amplitudes, PC1, PC2,
+            PC3
         spike_times : numpy.array
         spike_waveforms : numpy.array
         manipulations : str, log of actions taken on this cluster
     '''
-    spike_waveforms,spike_times,pca_slices,energy,amplitudes,predictions = \
-            get_unit_metrics(file_dir,electrode_num,solution_num,cluster_num)
-    
-    data = np.zeros((len(spike_times),n_pc+2))
-    data[:,0] = energy/np.max(energy)
-    data[:,1] = np.abs(amplitudes)/np.max(amplitudes)
-    data[:,2:] = pca_slices[:,:n_pc]
+    spike_waveforms, spike_times, pca_slices, energy, amplitudes, predictions \
+        = get_unit_metrics(file_dir, electrode_num, solution_num, cluster_num)
 
-    ISI,violations1,violations2 = get_ISI_and_violations(spike_times,fs)
-    cluster = {'Cluster Name':'E%iS%i_cluster%i' % (electrode_num,
-                                                    solution_num,
-                                                    cluster_num),
-                'electrode':electrode_num,
-                'solution':solution_num,
-                'cluster_id':str(cluster_num),
-                'data':data,
-                'spike_times':spike_times,
-                'spike_waveforms':spike_waveforms,
-                'ISI':ISI,
-                '1ms_violations':violations1,
-                '2ms_violations':violations2,
-                'single_unit':0,
-                'fast_spiking':0,
-                'regular_spiking':0,
-                'manipulations':''}
+    data = np.zeros((len(spike_times), n_pc+2))
+    data[:, 0] = energy/np.max(energy)
+    data[:, 1] = np.abs(amplitudes)/np.max(amplitudes)
+    data[:, 2:] = pca_slices[:, : n_pc]
+
+    ISI, violations1, violations2 = get_ISI_and_violations(spike_times, fs)
+    cluster = {'Cluster Name': 'E%iS%i_cluster%i' % (electrode_num,
+                                                     solution_num,
+                                                     cluster_num),
+               'electrode': electrode_num,
+               'solution': solution_num,
+               'cluster_id': str(cluster_num),
+               'data': data,
+               'spike_times': spike_times,
+               'spike_waveforms': spike_waveforms,
+               'ISI': ISI,
+               '1ms_violations': violations1,
+               '2ms_violations': violations2,
+               'single_unit': 0,
+               'fast_spiking': 0,
+               'regular_spiking': 0,
+               'manipulations': ''}
 
     return deepcopy(cluster)
 
-def get_clustering_metrics(file_dir,electrode_num,solution_num):
+
+def get_clustering_metrics(file_dir, electrode_num, solution_num):
     '''Grab all saved metrics associated with a particular clustering solution
     for an electrode
 
@@ -422,26 +451,29 @@ def get_clustering_metrics(file_dir,electrode_num,solution_num):
 
     Returns
     -------
-    numpy.array, numpy.array, numpy.array,numpy.array, numpy.array, numpy.array
+    np.array, np.array, np.array, np.array, np.array, np.array
     spike_waveforms, spike_times, pca_slices, energy, amplitudes, predictions
     '''
-    waveform_dir = os.path.join(file_dir,'spike_waveforms',
-                                    'electrode%i' % electrode_num)
-    spike_time_file = os.path.join(file_dir,'spike_times',
-                                    'electrode%i' % electrode_num,
-                                    'spike_times.npy')
-    predictions_file = os.path.join(file_dir,'clustering_results',
+    waveform_dir = os.path.join(file_dir, 'spike_waveforms',
+                                'electrode%i' % electrode_num)
+    spike_time_file = os.path.join(file_dir, 'spike_times',
+                                   'electrode%i' % electrode_num,
+                                   'spike_times.npy')
+    predictions_file = os.path.join(file_dir, 'clustering_results',
                                     'electrode%i' % electrode_num,
                                     'clusters%i' % solution_num,
                                     'predictions.npy')
     spike_times = np.load(spike_time_file)
     predictions = np.load(predictions_file)
-    spike_waveforms = np.load(os.path.join(waveform_dir,'spike_waveforms.npy'))
-    pca_slices = np.load(os.path.join(waveform_dir,'pca_waveforms.npy'))
-    energy = np.load(os.path.join(waveform_dir,'energy.npy'))
-    amplitudes = np.load(os.path.join(waveform_dir,'spike_amplitudes.npy'))
+    spike_waveforms = np.load(os.path.join(waveform_dir,
+                                           'spike_waveforms.npy'))
+    pca_slices = np.load(os.path.join(waveform_dir, 'pca_waveforms.npy'))
+    energy = np.load(os.path.join(waveform_dir, 'energy.npy'))
+    amplitudes = np.load(os.path.join(waveform_dir, 'spike_amplitudes.npy'))
 
-    return spike_waveforms,spike_times,pca_slices,energy,amplitudes,predictions
+    return spike_waveforms, spike_times, pca_slices, energy, \
+        amplitudes, predictions
+
 
 def get_unit_numbers(hf5_file):
     '''returns a list of sorted unit numbers from the hdf5 store
@@ -457,7 +489,7 @@ def get_unit_numbers(hf5_file):
     pattern = 'unit(\d*)'
     parser = re.compile(pattern)
     out = []
-    with tables.open_file(hf5_file,'r') as hf5:
+    with tables.open_file(hf5_file, 'r') as hf5:
         if '/sorted_units' in hf5:
             node_list = hf5.list_nodes('/sorted_units')
             if node_list == []:
@@ -466,6 +498,7 @@ def get_unit_numbers(hf5_file):
             return out
         else:
             return []
+
 
 def get_next_unit_name(hf5_file):
     '''returns node name for next sorted unit
@@ -485,7 +518,8 @@ def get_next_unit_name(hf5_file):
         out = 'unit%03d' % int(max(units)+1)
     return out
 
-def get_ISI_and_violations(spike_times,fs):
+
+def get_ISI_and_violations(spike_times, fs):
     '''returns array of ISIs and percent of 1 & 2 ms ISI violations
 
     Parameters
@@ -500,7 +534,8 @@ def get_ISI_and_violations(spike_times,fs):
 
     return ISIs, violations1, violations2
 
-def merge_clusters(clusters,fs):
+
+def merge_clusters(clusters, fs):
     '''Merge 2 or more clusters into a single cluster
 
     Parameters
@@ -516,22 +551,24 @@ def merge_clusters(clusters,fs):
     clust = clusters.pop(0)
     for c in clusters:
         clust['cluster_id'] = clust['cluster_id']+c['cluster_id']
-        clust['spike_times'] = np.concatenate((clust['spike_times'],c['spike_times']))
-        clust['data'] = np.concatenate((clust['data'],c['data']))
+        clust['spike_times'] = np.concatenate((clust['spike_times'],
+                                               c['spike_times']))
+        clust['data'] = np.concatenate((clust['data'], c['data']))
         clust['spike_waveforms'] = np.concatenate((clust['spike_waveforms'],
-            c['spike_waveforms']))
-        new_name = 'E%iS%i_cluster%s' % (clust['electrode'],clust['solution'],
-                clust['cluster_id'] )
+                                                   c['spike_waveforms']))
+        new_name = 'E%iS%i_cluster%s' % (clust['electrode'], clust['solution'],
+                                         clust['cluster_id'])
         clust['manipulations'] += ('Cluster %s merged with cluster %s.\n'
-                'New Cluster named: %s') % (clust['Cluster Name'],c['Cluster Name'],
-                    new_name)
+                                   'New Cluster named: %s') \
+            % (clust['Cluster Name'], c['Cluster Name'], new_name)
     idx = np.argsort(clust['spike_times'])
-    clust['Cluster Name'] = 'E%iS%i_cluster%s' % (clust['electrode'],clust['solution'],
-            clust['cluster_id'])
+    clust['Cluster Name'] = 'E%iS%i_cluster%s' % (clust['electrode'],
+                                                  clust['solution'],
+                                                  clust['cluster_id'])
     clust['spike_times'] = clust['spike_times'][idx]
-    clust['spike_waveforms'] = clust['spike_waveforms'][idx,:]
-    clust['data'] = clust['data'][idx,:]
-    ISI,v1,v2 = get_ISI_and_violations(clust['spike_times'],fs)
+    clust['spike_waveforms'] = clust['spike_waveforms'][idx, :]
+    clust['data'] = clust['data'][idx, :]
+    ISI, v1, v2 = get_ISI_and_violations(clust['spike_times'], fs)
     clust['ISI'] = ISI
     clust['1ms_violations'] = v1
     clust['2ms_violations'] = v2
@@ -541,7 +578,8 @@ def merge_clusters(clusters,fs):
 
     return deepcopy(clust)
 
-def plot_cluster(cluster,index=None):
+
+def plot_cluster(cluster, index=None):
     '''Plots a cluster with isi and violation info for viewing
 
     Parameters
@@ -549,20 +587,20 @@ def plot_cluster(cluster,index=None):
     cluster : dict with cluster info
 
     '''
-    fig,ax = blech_waveforms_datashader.waveforms_datashader(cluster['spike_waveforms'])
+    fig, ax = blech_waveforms_datashader.waveforms_datashader(cluster['spike_waveforms'])
     ax.set_xlabel('Sample (30 samples per ms)')
     ax.set_ylabel('Voltage (microvolts)')
-    title_str = (('Cluster Name: {:s}\n2ms Violations={:.1f}%, '
-        '1ms Violations={:.1f}%\nNumber of Waveforms={:d}').format( \
-                cluster['Cluster Name'],cluster['2ms_violations'],
-                cluster['1ms_violations'],cluster['spike_times'].shape[0]))
+    title_str = (('Cluster Name: {: s}\n2ms Violations={: .1f}%, '
+        '1ms Violations={: .1f}%\nNumber of Waveforms={: d}').format( \
+                cluster['Cluster Name'], cluster['2ms_violations'],
+                cluster['1ms_violations'], cluster['spike_times'].shape[0]))
     if index is not None:
-        title_str = 'Index: %i %s, ' % (index,title_str)
+        title_str = 'Index: %i %s, ' % (index, title_str)
 
     ax.set_title(title_str)
-    return fig,ax
+    return fig, ax
 
-def make_unit_plots(file_dir,fs):
+def make_unit_plots(file_dir, fs):
     '''Makes waveform plots for sorted unit in unit_waveforms_plots
 
     Parameters
@@ -571,48 +609,48 @@ def make_unit_plots(file_dir,fs):
     fs : float, smapling rate in Hz
     '''
     h5_name = h5io.get_h5_filename(file_dir)
-    h5_file = os.path.join(file_dir,h5_name)
+    h5_file = os.path.join(file_dir, h5_name)
 
-    plot_dir = os.path.join(file_dir,'unit_waveforms_plots')
+    plot_dir = os.path.join(file_dir, 'unit_waveforms_plots')
     if os.path.exists(plot_dir):
-        shutil.rmtree(plot_dir,ignore_errors=True)
+        shutil.rmtree(plot_dir, ignore_errors=True)
     os.mkdir(plot_dir)
-    fs_str = '(%g samples per ms)' % fs/1000.0
+    fs_str = '(%g samples per ms)' % (fs/1000.0)
     unit_numbers = get_unit_numbers(h5_file)
-    with tables.open_file(h5_file,'r+') as hf5:
+    with tables.open_file(h5_file, 'r+') as hf5:
         units = hf5.list_nodes('/sorted_units')
-        for i,unit in zip(unit_numbers,units):
+        for i, unit in zip(unit_numbers, units):
             # plot all waveforms
             waveforms = unit.waveforms[:]
             descriptor = hf5.root.unit_descriptor[i]
-            fig,ax = blech_waveforms_datashader.waveforms_datashader(waveforms)
+            fig, ax = blech_waveforms_datashader.waveforms_datashader(waveforms)
             ax.set_xlabel('Samples (%s)' % fs_str)
             ax.set_ylabel('Voltage (microvolts)')
             unit_title = (('Unit %i, total waveforms = %i\nElectrode: %i, '
                            'Single Unit: %i, RSU: %i, FSU: %i') %
-                          (i,waveforms.shape[0],
-                           descriptor['electrode_number'],descriptor['single_unit'],
-                           descriptor['regular_spiking'],descriptor['fast_spiking']))
+                          (i, waveforms.shape[0],
+                           descriptor['electrode_number'], descriptor['single_unit'],
+                           descriptor['regular_spiking'], descriptor['fast_spiking']))
             ax.set_title(unit_title)
-            fig.savefig(os.path.join(plot_dir,'Unit%i.png' % i))
+            fig.savefig(os.path.join(plot_dir, 'Unit%i.png' % i))
             plt.close('all')
 
             # Plot mean and SEM of waveforms
             # Downsample by 10 to remove upsampling from de-jittering
             fig = plt.figure()
-            mean_wave = np.mean(waveforms[:,::10],axis=0)
-            std_wave = np.std(waveforms[:,::10],axis=0)
+            mean_wave = np.mean(waveforms[:, : : 10], axis=0)
+            std_wave = np.std(waveforms[:, : : 10], axis=0)
             mean_x = np.arange(mean_wave.shape[0]) + 1
-            plt.plot(mean_x,mean_wave,line_width=4.0)
-            plt.fill_between(mean_x,mean_wave-std_wave,mean_wave+std_wave,alpha=0.4)
+            plt.plot(mean_x, mean_wave, linewidth=4.0)
+            plt.fill_between(mean_x, mean_wave-std_wave, mean_wave+std_wave, alpha=0.4)
             plt.xlabel('Samples (%s)' % fs_str)
             plt.ylabel('Voltage (microvolts)')
             plt.title(unit_title)
-            fig.savefig(os.path.join(plot_dir,'Unit%i_mean_sd.png' % i))
+            fig.savefig(os.path.join(plot_dir, 'Unit%i_mean_sd.png' % i))
             plt.close('all')
 
 
-def delete_unit(file_dir,unit_num):
+def delete_unit(file_dir, unit_num):
     '''Delete a sorted unit and re-label all following units. Also relabel all
     associated plots and data in sorted_unit_metrics and unit_waveform_plots
 
@@ -622,7 +660,7 @@ def delete_unit(file_dir,unit_num):
     unit_num : int, number of unit to delete
     '''
     h5_name = h5io.get_h5_filename(file_dir)
-    h5_file = os.path.join(file_dir,h5_name)
+    h5_file = os.path.join(file_dir, h5_name)
     unit_numbers = get_unit_numbers(h5_file)
     unit_name = 'units%03d' % unit_num
     change_units = [x for x in unit_numbers if x>unit_num]
@@ -632,38 +670,38 @@ def delete_unit(file_dir,unit_num):
     old_prefix = ['Unit%i' % x for x in change_units]
     new_prefix = ['Unit%i' % x for x in new_units]
 
-    metrics_dir = os.path.join(file_dir,'sorted_unit_metrics')
-    plot_dir = os.path.join(file_dir,'unit_waveforms_plots')
+    metrics_dir = os.path.join(file_dir, 'sorted_unit_metrics')
+    plot_dir = os.path.join(file_dir, 'unit_waveforms_plots')
 
     # Remove metrics
-    shutil.rmtree(os.path.join(metrics_dir,unit_name))
+    shutil.rmtree(os.path.join(metrics_dir, unit_name))
 
     # remove unit from hdf5 store
-    with tables.open_file(h5_file,'r+') as hf5:
-        hf5.remove_node('/sorted_units',name=unit_name)
+    with tables.open_file(h5_file, 'r+') as hf5:
+        hf5.remove_node('/sorted_units', name=unit_name)
         table = hf5.root.unit_descriptor
         table.remove_row(unit_num)
         # rename rest of units in hdf5 and metrics folders
-        for x,y in zip(old_names,new_names):
-            hf5.rename_node('/sorted_units',newname=y,name=x)
-            os.rename(os.path.join(metrics_dir,x),os.path.join(metrics_dir,y))
+        for x, y in zip(old_names, new_names):
+            hf5.rename_node('/sorted_units', newname=y, name=x)
+            os.rename(os.path.join(metrics_dir, x), os.path.join(metrics_dir, y))
         hf5.flush()
 
     # delete and rename plot files
     plot_files = os.listdir(plot_dir)
     for x in plot_files:
         if x.startswith('Unit%i' % unit_num):
-            os.remove(os.path.join(plot_dir,x))
+            os.remove(os.path.join(plot_dir, x))
         elif any([x.startswith(y) for y in old_prefix]):
-            pre = [b for a,b in zip(old_prefix,new_prefix) if x.startswith(a)]
-            old_file = os.path.join(plot_dir,x)
-            new_file = os.path.join(plot_dir,x.replace(pre[0][0],pre[0][1]))
-            os.rename(old_file,new_file)
+            pre = [b for a, b in zip(old_prefix, new_prefix) if x.startswith(a)]
+            old_file = os.path.join(plot_dir, x)
+            new_file = os.path.join(plot_dir, x.replace(pre[0][0], pre[0][1]))
+            os.rename(old_file, new_file)
 
     # Compress and repack
     h5io.compress_and_repack(h5_file)
 
-def make_spike_arrays(h5_file,params):
+def make_spike_arrays(h5_file, params):
     '''Makes stimulus triggered spike array for all sorted units
 
     Parameters
