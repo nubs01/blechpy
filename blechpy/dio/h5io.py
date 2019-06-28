@@ -70,7 +70,7 @@ def create_empty_data_h5(filename, shell=False):
     return filename
 
 
-def get_h5_filename(file_dir):
+def get_h5_filename(file_dir, shell=False):
     '''Return the name of the h5 file found in file_dir.
     Asks for selection if multiple found
 
@@ -86,8 +86,9 @@ def get_h5_filename(file_dir):
     file_list = os.listdir(file_dir)
     h5_files = [f for f in file_list if f.endswith('.h5')]
     if len(h5_files) > 1:
-        choice = params.select_from_list('Choose which h5 file to load',
-                                         'Multiple h5 stores found', h5_files)
+        choice = userIO.select_from_list('Choose which h5 file to load',
+                                         h5_files, 'Multiple h5 stores found',
+                                         shell=shell)
         if choice is None:
             return None
         else:
@@ -710,16 +711,26 @@ def create_trial_data_table(h5_file, digital_map, fs, dig_type='in'):
               (dig_type, ', '.join([str(x) for x in
                                     digital_map[dig_str].tolist()])))
 
+        exp_start_idx = 0
+        exp_end_idx = 0
         # Loop through channels and get indices of digital signal onsets
         for i, row in digital_map.iterrows():
             println('Grabbing data for digital %sput %i...' %
                     (dig_type, row[dig_str]))
-            dig_diff = np.diff(tree[dig_str+'_'+str(row[dig_str])][:])
+            dig_trace = tree[dig_str+'_'+str(row[dig_str])][:]
+            if len(dig_trace) > exp_end_idx:
+                exp_end_idx = len(dig_trace)
+
+            dig_diff = np.diff(dig_trace)
             on_idx = np.where(dig_diff > 0)[0]
             off_idx = np.where(dig_diff < 0)[0]
             trial_map.extend([(x, row[dig_str], row['name'], x, y, x/fs, y/fs)
                               for x, y in zip(on_idx, off_idx)])
             print('Done!')
+
+        # Add one more row for experiment start and end time
+        trial_map.extend([(0, -1, 'Experiment', exp_start_idx, exp_end_idx,
+                            exp_start_idx/fs, exp_end_idx/fs)])
 
         # Make dataframe and assign trial numbers
         println('Constructing DataFrame...')
@@ -737,12 +748,16 @@ def create_trial_data_table(h5_file, digital_map, fs, dig_type='in'):
         if '/trial_info' not in hf5:
             group = hf5.create_group("/", 'trial_info', 'Trial Lists')
 
+        if '/trial_info/digital_%s_trials' % dig_type in hf5:
+            hf5.remove_node('/trial_info','digital_%s_trials' % dig_type,
+                            recursive=True)
+
         table = hf5.create_table('/trial_info', 'digital_%s_trials' % dig_type,
                                  particles.trial_info_particle,
                                  'Trial List  for Digital %sputs' % dig_type)
         new_row = table.row
         for i, row in trial_df.iterrows():
-            new_row['trial_num'] = row['Trial Num']
+            new_row['trial_num'] = row['trial_num']
             new_row['name'] = row['name']
             new_row['channel'] = row['channel']
             new_row['on_index'] = row['on_index']
@@ -751,6 +766,8 @@ def create_trial_data_table(h5_file, digital_map, fs, dig_type='in'):
             new_row['off_time'] = row['off_time']
 
             new_row.append()
+
+        # make one more row for experiment info
 
         hf5.flush()
         print('Done!')
@@ -790,10 +807,10 @@ def read_trial_data_table(h5_file, dig_type='in', channels=None):
     trial_node = '/trial_info/digital_%s_trials' % dig_type
 
     with tables.open_file(h5_file, 'r') as hf5:
-        if '/trial_info' not in hf5 or trial_node not in hdf5:
+        if '/trial_info' not in hf5 or trial_node not in hf5:
             raise ValueError('trial_info table not found in hdf5 store')
 
-        df = pd.DataFrame.from_records(trial_node[:])
+        df = pd.DataFrame.from_records(hf5.get_node(trial_node)[:])
         df['name'] = df['name'].apply(lambda x: x.decode('utf-8'))
 
     if channels is not None:

@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 from blechpy.dio import rawIO
 from blechpy.data_print import data_print as dp
+from blechpy.widgets import userIO
 
 clustering_params = {'Max Number of Clusters':7,
                     'Max Number of Iterations':1000,
@@ -36,6 +37,10 @@ data_param_order = ['V_cutoff for disconnected headstage',
                     'Intra-cluster waveform amp SD cutoff']
 band_param_order = ['Lower freq cutoff','Upper freq cutoff']
 spike_snap_order = ['Time before spike (ms)','Time after spike (ms)']
+
+spike_array_params = {'dig_ins_to_use': [], 'laser_channels': [],
+                      'sampling_rate': None, 'pre_stimulus': 1000,
+                      'post_stimulus': 5000}
 
 def Timer(heading):
     def real_timer(func):
@@ -135,7 +140,7 @@ def get_din_channels(file_dir):
     return DIN
 
 @Timer('Collecting parameters for common average referencing')
-def get_CAR_groups(num_groups,electrode_mapping):
+def get_CAR_groups(num_groups,electrode_mapping, shell=False):
     '''Returns a dict containing standard params for common average referencing
     Each dict field with fields, num groups, car_electrodes
     Can set num_groups to an integer or as unilateral or bilateral
@@ -184,8 +189,12 @@ def get_CAR_groups(num_groups,electrode_mapping):
         for idx,row in electrode_mapping.iterrows():
             select_list.append(', '.join([str(x) for x in row]))
         for i in range(num_groups):
-            tmp = select_from_list('Choose CAR electrodes for group %i: [Electrode, Port, Channel]' % i,
-                                    'Group %i Electrodes' % i,select_list,multi_select=True)
+            tmp = userIO.select_from_list('Choose CAR electrodes for group %i'
+                                          ': [Electrode, Port, Channel]' % i,
+                                          select_list,
+                                          title='Group %i Electrodes' % i,
+                                          multi_select=True,
+                                          shell=shell)
             if tmp is None:
                 raise ValueError('Must select electrodes for CAR groups')
             car_electrodes.append([int(x.split(',')[0]) for x in tmp])
@@ -218,30 +227,6 @@ def write_params(file_name,params):
             print(params['spike_snapshot'][c],file=f)
         print(params['sampling_rate'],file=f)
 
-
-def select_from_list(prompt,title,items,multi_select=False):
-    '''makes a popup for list selections, can be multichoice or single choice
-    default is single selection
-
-    Parameters
-    ----------
-    prompt : str, prompt for selection dialog
-    title : str, title of selection dialog
-    item : list, list of items to be selected from
-    multi_select : bool (optional), whether multiple selection is permitted,
-                   default False
-
-    Returns
-    -------
-    str (if multi_select=False): string of selected choice
-    list (if multi_select=True): list of strings that were selected
-    '''
-    if multi_select is False:
-        choice = eg.choicebox(prompt,title,items)
-    else:
-        choice = eg.multchoicebox(prompt,title,items,None)
-
-    return choice
 
 def flatten_channels(ports,channels,emg_port=None,emg_channels=None):
     '''takes all ports and all channels and makes a dataframe mapping ports and

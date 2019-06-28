@@ -201,7 +201,9 @@ class dataset(object):
     @Logger('Initializing Parameters')
     def initParams(self, data_quality='clean', emg_port=None,
                    emg_channels=None, shell=False, dig_in_names=None,
-                   dig_out_names=None):
+                   dig_out_names=None, laser_channels=None,
+                   spike_dig_ins=None, pre_stimulus=1000,
+                   post_stimulus=5000):
         '''
         Initializes basic default analysis parameters that can be customized
         before running processing methods
@@ -224,21 +226,22 @@ class dataset(object):
         data_params = deepcopy(dio.params.data_params[data_quality])
         bandpass_params = deepcopy(dio.params.bandpass_params)
         spike_snapshot = deepcopy(dio.params.spike_snapshot)
+        spike_array_params = deepcopy(dio.params.spike_array_params)
 
         # Ask for emg port & channels
-        # TODO: Move select_from_list to userIO and make it shell compatible
         if emg_port is None and not shell:
             q = eg.ynbox('Do you have an EMG?', 'EMG')
             if q:
-                emg_port = dio.params.select_from_list('Select EMG Port:',
-                                                       'EMG Port', ports)
-                emg_channels = dio.params.select_from_list(
+                emg_port = userIO.select_from_list('Select EMG Port:',
+                                                   ports, 'EMG Port',
+                                                   shell=shell)
+                emg_channels = userIO.select_from_list(
                     'Select EMG Channels:',
-                    'EMG Channels',
                     [y for x, y in
                      zip(ports, channels)
                      if x == emg_port],
-                    multi_select=True)
+                    title='EMG Channels',
+                    multi_select=True, shell=shell)
 
         elif emg_port is None and shell:
             print('\nNo EMG port given.\n')
@@ -251,19 +254,52 @@ class dataset(object):
         self.electrode_mapping = electrode_mapping
         self.emg_mapping = emg_mapping
 
-        # Get digital input names
-        # TODO: make shell compatible
+        # Get digital input names and spike array parameters
         if rec_info.get('dig_in'):
-            if shell and dig_in_names is None:
-                raise ValueError('dig_in_names must be provided '
-                                 'if shell = True')
-            elif not shell and dig_in_names is None:
-                dig_in_names = eg.multenterbox('Give names for digital '
-                                               'inputs:',
-                                               'Digital Input Names',
-                                               ['digital in %i' %
-                                                x for x in
-                                                rec_info['dig_in']])
+            if dig_in_names is None:
+                dig_in_names = dict.fromkeys(['dig_in_%i' % x
+                                              for x in rec_info['dig_in']])
+                name_filler = userIO.dictIO(dig_in_names, shell=shell)
+                dig_in_names = name_filler.fill_dict('Enter names for '
+                                                     'digital inputs:')
+                if dig_in_names is None or \
+                   any([x is None for x in dig_in_names.values()]):
+                    raise ValueError('Must name all dig_ins')
+
+                dig_in_names = list(dig_in_names.values())
+
+            if laser_channels is None:
+                laser_dict = dict.fromkeys(['dig_in_%i' % x
+                                            for x in rec_info['dig_in']],
+                                           False)
+                laser_filler = userIO.dictIO(laser_dict, shell=shell)
+                laser_dict = laser_filler.fill_dict('Select any lasers:')
+                if laser_dict is None:
+                    laser_channels = []
+                else:
+                    laser_channels = [i for i, v
+                                      in zip(rec_info['dig_in'],
+                                             laser_dict.values()) if v]
+
+            spike_array_params['laser_channels'] = laser_channels
+
+            if spike_dig_ins is None:
+                di = [x for x in rec_info['dig_in']
+                      if x not in laser_channels]
+                dn = [dig_in_names[x] for x in di]
+                spike_dig_dict = dict.fromkeys(dn, True)
+                filler = userIO.dictIO(spike_dig_dict, shell=shell)
+                spike_dig_dict = filler.fill_dict('Select digital inputs '
+                                                  'to use for making spike'
+                                                  ' arrays:')
+                if spike_dig_dict is None:
+                    spike_dig_ins = []
+                else:
+                    spike_dig_ins = [x for x, y in
+                                     zip(di, spike_dig_dict.values())
+                                     if y]
+
+            spike_array_params['dig_ins_to_use'] = spike_dig_ins
 
             self.dig_in_mapping = pd.DataFrame([(x, y) for x, y in
                                                 zip(rec_info['dig_in'],
@@ -272,16 +308,17 @@ class dataset(object):
 
         # Get digital output names
         if rec_info.get('dig_out'):
-            if shell and dig_out_names is None:
-                raise ValueError('dig_out_names must be provided '
-                                 'if shell = True')
-            elif not shell and dig_out_names is None:
-                dig_out_names = eg.multenterbox('Give names for digital '
-                                                'outputs:',
-                                                'Digital Output Names',
-                                                ['digital out %i' %
-                                                 x for x in
-                                                 rec_info['dig_out']])
+            if dig_out_names is None:
+                dig_out_names = dict.fromkeys(['dig_out_%i' % x
+                                              for x in rec_info['dig_out']])
+                name_filler = userIO.dictIO(dig_out_names, shell=shell)
+                dig_out_names = name_filler.fill_dict('Enter names for '
+                                                      'digital outputs:')
+                if dig_out_names is None or \
+                   any([x is None for x in dig_out_names.values()]):
+                    raise ValueError('Must name all dig_outs')
+
+                dig_out_names = list(dig_out_names.values())
 
             self.dig_out_mapping = pd.DataFrame([(x, y) for x, y in
                                                  zip(rec_info['dig_out'],
@@ -296,6 +333,20 @@ class dataset(object):
                              'data_params': data_params,
                              'bandpass_params': bandpass_params,
                              'spike_snapshot': spike_snapshot}
+
+        # Store and confirm spike array parameters
+        spike_array_params['sampling_rate'] = sampling_rate
+        spike_array_params['pre_stimulus'] = pre_stimulus
+        spike_array_params['post_stimulus'] = post_stimulus
+        self.spike_array_params = spike_array_params
+        prompt = ('----------\nSpike Array Parameters\n----------\n'
+                  + dp.print_dict(spike_array_params) +
+                  '\nAre these parameters good?')
+        q_idx = userIO.ask_user(prompt, ('Yes', 'Edit'), shell=shell)
+        if q_idx == 1:
+            self.edit_spike_array_parameters(shell=shell)
+
+        self.save()
 
     @Logger('Extracting Data')
     def extract_data(self, shell=False):
@@ -329,11 +380,12 @@ class dataset(object):
 
         # update status
         self.process_status['extract_data'] = True
-
+        self.save()
         print('\nData Extraction Complete\n--------------------')
 
     @Logger('Running blech_clust')
-    def blech_clust_run(self, data_quality=None, accept_params=False,shell=False):
+    def blech_clust_run(self, data_quality=None, accept_params=False,
+                        shell=False):
         '''
         Write clustering parameters to file and
         Run blech_process on each electrode using GNU parallel
@@ -364,8 +416,8 @@ class dataset(object):
                              'Check Extraction and Clustering Parameters')
             else:
                 q = input(dp.print_dict(self.clust_params)
-                          +'\n Are these paramters OK? (y/n):  ')
-                if q=='y':
+                          + '\n Are these paramters OK? (y/n):  ')
+                if q == 'y':
                     q = True
                 else:
                     False
@@ -412,6 +464,7 @@ class dataset(object):
         process_call.extend([str(x) for x in electrodes])
         subprocess.call(process_call, env=my_env)
         self.process_status['blech_clust_run'] = True
+        self.save()
         print('Clustering Complete\n------------------')
 
     @Logger('Common Average Referencing')
@@ -449,6 +502,7 @@ class dataset(object):
         dio.h5io.compress_and_repack(self.h5_file)
 
         self.process_status['common_average_reference'] = True
+        self.save()
 
     @Logger('Creating Trial Lists')
     def create_trial_list(self):
@@ -462,20 +516,27 @@ class dataset(object):
             return
 
         if self.rec_info.get('dig_in'):
-            in_list = dio.h5io.create_trial_table(self.h5_file,
-                                                  self.dig_in_mapping,
-                                                  'in')
+            in_list = dio.h5io.create_trial_data_table(
+                self.h5_file,
+                self.dig_in_mapping,
+                self.rec_info.get('amplifier_sampling_rate'),
+                'in')
             self.dig_in_trials = in_list
         else:
             print('No digital input data found')
-            if self.rec_info.get('dig_out'):
-                out_list = dio.h5io.create_trial_table(self.h5_file,
-                                                       self.dig_out_mapping,
-                                                       'out')
-                self.dig_out_trials = out_list
-            else:
-                print('No digital output data found')
-                self.process_status['create_trial_list'] = True
+
+        if self.rec_info.get('dig_out'):
+            out_list = dio.h5io.create_trial_data_table(
+                self.h5_file,
+                self.dig_out_mapping,
+                self.rec_info.get('amplifier_sampling_rate'),
+                'out')
+            self.dig_out_trials = out_list
+        else:
+            print('No digital output data found')
+
+        self.process_status['create_trial_list'] = True
+        self.save()
 
     @Logger('Cleaning up memory logs, removing raw data and setting up hdf5 '
             'for unit sorting')
@@ -486,6 +547,45 @@ class dataset(object):
         h5_file = dio.h5io.cleanup_clustering(self.data_dir)
         self.h5_file = h5_file
         self.process_status['cleanup_clustering'] = True
+        self.save()
+
+    @Logger('Making Unit Arrays')
+    def make_unit_arrays(self, shell=False):
+        params = self.spike_array_params
+        query = ('\n----------\nParameters for Spike Array Creation'
+                 '\n----------\ntimes in ms\n%s\nWould you like to'
+                 ' continue with these parameters?') % dp.print_dict(params)
+        q_idx = userIO.ask_user(query, choices=('Continue', 'Abort', 'Edit'),
+                                shell=shell)
+        if q_idx == 1:
+            return
+        elif q_idx == 2:
+            params = self.edit_spike_array_parameters(shell=shell)
+            if params is None:
+                return
+
+        print('Generating unit arrays with parameters:\n----------')
+        print(dp.print_dict(params, tabs=1))
+        ss.make_spike_arrays(self.h5_file, params)
+        self.process_status['make_unit_arrays'] = True
+        self.save()
+
+    def edit_spike_array_parameters(self, shell=False):
+        params = self.spike_array_params
+        param_filler = userIO.dictIO(params, shell=shell)
+        new_params = param_filler.fill_dict(prompt=('Input desired parameters'
+                                                    ' (Times are in ms'))
+        if new_params is None:
+            return None
+        else:
+            new_params['dig_ins_to_use'] = [int(x) for x in
+                                            new_params['dig_ins_to_use']
+                                            if x != '']
+            new_params['laser_channels'] = [int(x) for x in
+                                            new_params['laser_channels']
+                                            if x != '']
+            self.spike_array_params = new_params
+            return new_params
 
     def sort_units(self, shell=False):
         '''Begins processes to allow labelling of clusters as sorted units
@@ -497,6 +597,8 @@ class dataset(object):
         '''
         fs = self.rec_info['amplifier_sampling_rate']
         ss.sort_units(self.data_dir, fs, shell)
+        self.process_status['sort_units'] = True
+        self.save()
 
     def extract_and_cluster(self, data_quality='clean',
                             num_CAR_groups='bilateral32', shell=False,
@@ -591,5 +693,5 @@ class dataset(object):
         self.extract_data(shell=shell)
         self.create_trial_list()
         self.common_average_reference(num_CAR_groups)
-        self.blech_clust_run(data_quality, accept_params=shell,shell=shell)
+        self.blech_clust_run(data_quality, accept_params=shell, shell=shell)
         self.save()

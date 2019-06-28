@@ -587,18 +587,23 @@ def plot_cluster(cluster, index=None):
     cluster : dict with cluster info
 
     '''
-    fig, ax = blech_waveforms_datashader.waveforms_datashader(cluster['spike_waveforms'])
+    fig, ax = blech_waveforms_datashader.waveforms_datashader(
+        cluster['spike_waveforms'])
     ax.set_xlabel('Sample (30 samples per ms)')
     ax.set_ylabel('Voltage (microvolts)')
     title_str = (('Cluster Name: {: s}\n2ms Violations={: .1f}%, '
-        '1ms Violations={: .1f}%\nNumber of Waveforms={: d}').format( \
-                cluster['Cluster Name'], cluster['2ms_violations'],
-                cluster['1ms_violations'], cluster['spike_times'].shape[0]))
+                  '1ms Violations={: .1f}%\nNumber of Waveforms'
+                  '={: d}').format(
+                                   cluster['Cluster Name'],
+                                   cluster['2ms_violations'],
+                                   cluster['1ms_violations'],
+                                   cluster['spike_times'].shape[0]))
     if index is not None:
         title_str = 'Index: %i %s, ' % (index, title_str)
 
     ax.set_title(title_str)
     return fig, ax
+
 
 def make_unit_plots(file_dir, fs):
     '''Makes waveform plots for sorted unit in unit_waveforms_plots
@@ -623,14 +628,17 @@ def make_unit_plots(file_dir, fs):
             # plot all waveforms
             waveforms = unit.waveforms[:]
             descriptor = hf5.root.unit_descriptor[i]
-            fig, ax = blech_waveforms_datashader.waveforms_datashader(waveforms)
+            fig, ax = blech_waveforms_datashader.waveforms_datashader(
+                waveforms)
             ax.set_xlabel('Samples (%s)' % fs_str)
             ax.set_ylabel('Voltage (microvolts)')
             unit_title = (('Unit %i, total waveforms = %i\nElectrode: %i, '
                            'Single Unit: %i, RSU: %i, FSU: %i') %
                           (i, waveforms.shape[0],
-                           descriptor['electrode_number'], descriptor['single_unit'],
-                           descriptor['regular_spiking'], descriptor['fast_spiking']))
+                           descriptor['electrode_number'],
+                           descriptor['single_unit'],
+                           descriptor['regular_spiking'],
+                           descriptor['fast_spiking']))
             ax.set_title(unit_title)
             fig.savefig(os.path.join(plot_dir, 'Unit%i.png' % i))
             plt.close('all')
@@ -638,11 +646,12 @@ def make_unit_plots(file_dir, fs):
             # Plot mean and SEM of waveforms
             # Downsample by 10 to remove upsampling from de-jittering
             fig = plt.figure()
-            mean_wave = np.mean(waveforms[:, : : 10], axis=0)
-            std_wave = np.std(waveforms[:, : : 10], axis=0)
+            mean_wave = np.mean(waveforms[:, ::10], axis=0)
+            std_wave = np.std(waveforms[:, ::10], axis=0)
             mean_x = np.arange(mean_wave.shape[0]) + 1
             plt.plot(mean_x, mean_wave, linewidth=4.0)
-            plt.fill_between(mean_x, mean_wave-std_wave, mean_wave+std_wave, alpha=0.4)
+            plt.fill_between(mean_x, mean_wave - std_wave,
+                             mean_wave + std_wave, alpha=0.4)
             plt.xlabel('Samples (%s)' % fs_str)
             plt.ylabel('Voltage (microvolts)')
             plt.title(unit_title)
@@ -663,7 +672,7 @@ def delete_unit(file_dir, unit_num):
     h5_file = os.path.join(file_dir, h5_name)
     unit_numbers = get_unit_numbers(h5_file)
     unit_name = 'units%03d' % unit_num
-    change_units = [x for x in unit_numbers if x>unit_num]
+    change_units = [x for x in unit_numbers if x > unit_num]
     new_units = [x-1 for x in change_units]
     new_names = ['unit%03d' % x for x in new_units]
     old_names = ['unit%03d' % x for x in change_units]
@@ -684,7 +693,8 @@ def delete_unit(file_dir, unit_num):
         # rename rest of units in hdf5 and metrics folders
         for x, y in zip(old_names, new_names):
             hf5.rename_node('/sorted_units', newname=y, name=x)
-            os.rename(os.path.join(metrics_dir, x), os.path.join(metrics_dir, y))
+            os.rename(os.path.join(metrics_dir, x),
+                      os.path.join(metrics_dir, y))
         hf5.flush()
 
     # delete and rename plot files
@@ -693,13 +703,15 @@ def delete_unit(file_dir, unit_num):
         if x.startswith('Unit%i' % unit_num):
             os.remove(os.path.join(plot_dir, x))
         elif any([x.startswith(y) for y in old_prefix]):
-            pre = [b for a, b in zip(old_prefix, new_prefix) if x.startswith(a)]
+            pre = [b for a, b in zip(old_prefix, new_prefix)
+                   if x.startswith(a)]
             old_file = os.path.join(plot_dir, x)
             new_file = os.path.join(plot_dir, x.replace(pre[0][0], pre[0][1]))
             os.rename(old_file, new_file)
 
     # Compress and repack
     h5io.compress_and_repack(h5_file)
+
 
 def make_spike_arrays(h5_file, params):
     '''Makes stimulus triggered spike array for all sorted units
@@ -709,11 +721,139 @@ def make_spike_arrays(h5_file, params):
     h5_file : str, full path to hdf5 store
     params : dict
         Parameters for arrays with fields:
-            dig_ins_to_use : list of int, which dig_in channels to make arrays for
+            dig_ins_to_use : list of int, which dig_in channels for arrays
             laser_channels : list of int or None if no lasers
             sampling_rate : float, sampling rate of data in Hz
             pre_stimulus: : int, ms before stimulus to include in array
             post_stimulus : int, ms after stimulus to include in array
     '''
-    pass
+    dig_in_ch = params['dig_ins_to_use']
+    laser_ch = params['laser_channels']
+    fs = params['sampling_rate']
+    pre_stim = int(params['pre_stimulus'])
+    post_stim = int(params['post_stimulus'])
+    pre_idx = int(pre_stim * (fs/1000))
+    post_idx = int(pre_stim * (fs/1000))
+    n_pts = pre_stim + post_stim
 
+    if dig_in_ch is None or dig_in_ch == []:
+        raise ValueError('Must provide dig_ins_to_use in params in '
+                         'order to make spike arrays')
+    # get digital input table
+    dig_in_table = h5io.read_trial_data_table(h5_file, 'in',
+                                              dig_in_ch)
+
+    # Get laser input table
+    if laser_ch is not None or laser_ch == []:
+        laser_table = h5io.read_trial_data_table(h5_file, 'in',
+                                                 laser_ch)
+        lasers = True
+        n_lasers = len(laser_ch)
+    else:
+        laser_table = None
+        lasers = False
+        n_lasers = 1
+
+    exp_table = h5io.read_trial_data_table(h5_file, 'in', [-1])
+    exp_end_idx = exp_table['off_index'][0]
+    exp_end_time = exp_end_idx/fs
+
+    # Use last spike time to determine end of experiment in case headstage fell
+    # off
+
+    with tables.open_file(h5_file, 'r+') as hf5:
+        n_units = len(hf5.list_nodes('/sorted_units'))
+
+        # Get experiment end time from last spike time in case headstage fell
+        # off
+        exp_end_idx = 0
+        for unit in hf5.root.sorted_units:
+            tmp = np.max(unit.times)
+            if tmp > exp_end_idx:
+                exp_end_idx = tmp
+
+        exp_end_time = exp_end_idx/fs
+
+        if '/spike_trains' in hf5:
+            hf5.remove_node('/', 'spike_trains', recursive=True)
+
+        hf5.create_group('/', 'spike_trains')
+
+        for i in dig_in_ch:
+
+            # grab trials for dig_in_ch that end more than post_stim ms before
+            # the end of the experiment
+            tmp_trials = dig_in_table.query('channel == @i')
+            trial_cutoff_idx = exp_end_idx - post_idx
+
+            # get the end indices for those trials
+            off_idx = np.array(tmp_trials['off_index'])
+            off_idx.sort()
+            n_trials = len(off_idx)
+
+            # loop through trials and get spike train array for each
+            spike_train = []
+            cond_array = np.zeros(n_trials)
+            laser_start = np.zeros(n_trials)
+            laser_single = np.zeros((n_trials, n_lasers))
+
+            for ti, trial_off in enumerate(off_idx):
+                if trial_off >= trial_cutoff_idx:
+                    cond_array[ti] = -1
+                    continue
+
+                window = (trial_off - pre_idx, trial_off + post_idx)
+                spike_shift = pre_idx - trial_off
+                spike_array = np.zeros((n_units, n_pts))
+
+                # loop through units
+                for unit in hf5.root.sorted_units:
+                    unit_num = int(unit._v_name[-3:])
+                    spike_idx = np.where((unit.times[:] >= window[0]) &
+                                         (unit.times[:] <= window[1]))[0]
+                    spike_times = unit.times[spike_idx]
+
+                    # Shift to align to trial window and convert to ms
+                    spike_times = (spike_times + spike_shift) / (fs/1000)
+                    spike_times = spike_times.astype(int)
+                    spike_array[unit_num, spike_times] = 1
+
+                spike_train.append(spike_array)
+
+                if lasers:
+                    # figure out which laser trial matches with this dig_in
+                    # trial and get the duration and onset lag
+                    for li, l in enumerate(laser_ch):
+                        tmp_trial = laser_table.query('abs(off_index - '
+                                                      '@trial_off) <= '
+                                                      '@post_idx')
+                        if not tmp_trial.empty:
+                            # Mark which laser was on
+                            laser_single[ti, li] = 1.0
+
+                            # Get duration of laser
+                            duration = (tmp_trial['off_index'] -
+                                        tmp_trial['on_index']) / (fs/1000)
+                            # round duration down to nearest multiple of 10ms
+                            cond_array[ti] = 10*int(duration.iloc[0]/10)
+
+                            # Get onset lag of laser, time between laser start
+                            # and end of the trial
+                            lag = (tmp_trial['on_index'] -
+                                   trial_off) / (fs/1000)
+                            # Round lag down to nearest multiple of 10ms
+                            laser_start[ti] = 10*int(lag.iloc[0]/10)
+
+            hf5.create_group('/spike_trains', 'dig_in_%i' % i)
+            tmp = hf5.create_array('/spike_trains/dig_in_%i' % i,
+                                   'spike_array', np.array(spike_train))
+            hf5.flush()
+
+            if lasers:
+                ld = hf5.create_array('/spike_trains/dig_in_%i' % i,
+                                      'laser_durations', cond_array)
+                ls = hf5.create_array('/spike_trains/dig_in_%i' % i,
+                                      'laser_onset_lag', laser_start)
+                ol = hf5.create_array('/spike_trains/dig_in_%i' % i,
+                                      'on_laser', laser_single)
+                hf5.flush()
