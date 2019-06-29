@@ -97,25 +97,12 @@ class dataset(object):
         self.processing_steps = ['extract_data', 'create_trial_list',
                                  'common_average_reference', 'blech_clust_run',
                                  'cleanup_clustering',
-                                 'mark_units', 'gather_unit_plots',
+                                 'sort_units', 'make_unit_plots',
                                  'units_similarity', 'make_unit_arrays',
                                  'make_psth',
                                  'palatability_calculate', 'palatability_plot',
                                  'overlay_psth']
         self.process_status = dict.fromkeys(self.processing_steps, False)
-
-    def edit_clustering_parameters(self, shell=False):
-        '''Allows user interface for editing clustering parameters
-
-        Parameters
-        ----------
-        shell : bool (optional)
-            True if you want command-line interface, False for GUI (default)
-        '''
-        param_filler = userIO.dictIO(self.clust_params, shell)
-        tmp = param_filler.fill_dict()
-        if tmp:
-            self.clust_params = tmp
 
     def __str__(self):
         '''Put all information about dataset in string format
@@ -220,6 +207,7 @@ class dataset(object):
         channels = rec_info.pop('channels')
         sampling_rate = rec_info['amplifier_sampling_rate']
         self.rec_info = rec_info
+        self.sampling_rate = sampling_rate
 
         # Get default parameters for blech_clust
         clustering_params = deepcopy(dio.params.clustering_params)
@@ -346,6 +334,26 @@ class dataset(object):
         if q_idx == 1:
             self.edit_spike_array_parameters(shell=shell)
 
+        self.save()
+
+    @Logger('Calculating Unit Similarity')
+    def units_similarity(self, similarity_cutoff=50):
+        '''Go through sorted units and compute similarity
+        Creates a matrix in HDF5 store labelled unit_distances that is an ixj
+        matrix with values corresponding to the % of unit i spikes that are
+        within 1ms of any unit j spikes
+
+        Parameters
+        ----------
+        similarity_cutoff : float (optional)
+            percentage (0-100) above which to classify units as violating
+            similarity. Default is 50
+        '''
+        violation_file = os.path.join(self.data_dir,
+                                      'unit_similarity_violations.txt')
+        ss.calc_units_similarity(self.h5_file, self.sampling_rate,
+                                 similarity_cutoff, violation_file)
+        self.process_status['units_similarity'] = True
         self.save()
 
     @Logger('Extracting Data')
@@ -519,7 +527,7 @@ class dataset(object):
             in_list = dio.h5io.create_trial_data_table(
                 self.h5_file,
                 self.dig_in_mapping,
-                self.rec_info.get('amplifier_sampling_rate'),
+                self.sampling_rate,
                 'in')
             self.dig_in_trials = in_list
         else:
@@ -529,7 +537,7 @@ class dataset(object):
             out_list = dio.h5io.create_trial_data_table(
                 self.h5_file,
                 self.dig_out_mapping,
-                self.rec_info.get('amplifier_sampling_rate'),
+                self.sampling_rate,
                 'out')
             self.dig_out_trials = out_list
         else:
@@ -570,6 +578,12 @@ class dataset(object):
         self.process_status['make_unit_arrays'] = True
         self.save()
 
+    @Logger('Making Unit Plots')
+    def make_unit_plots(self):
+        ss.make_unit_plots(self.data_dir, self.sampling_rate)
+        self.process_status['make_unit_plots'] = True
+        self.save()
+
     def edit_spike_array_parameters(self, shell=False):
         params = self.spike_array_params
         param_filler = userIO.dictIO(params, shell=shell)
@@ -587,6 +601,19 @@ class dataset(object):
             self.spike_array_params = new_params
             return new_params
 
+    def edit_clustering_parameters(self, shell=False):
+        '''Allows user interface for editing clustering parameters
+
+        Parameters
+        ----------
+        shell : bool (optional)
+            True if you want command-line interface, False for GUI (default)
+        '''
+        param_filler = userIO.dictIO(self.clust_params, shell)
+        tmp = param_filler.fill_dict()
+        if tmp:
+            self.clust_params = tmp
+
     def sort_units(self, shell=False):
         '''Begins processes to allow labelling of clusters as sorted units
 
@@ -595,7 +622,7 @@ class dataset(object):
         shell : bool
             True if command-line interfaced desired, False for GUI (default)
         '''
-        fs = self.rec_info['amplifier_sampling_rate']
+        fs = self.sampling_rate
         ss.sort_units(self.data_dir, fs, shell)
         self.process_status['sort_units'] = True
         self.save()

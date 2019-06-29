@@ -1,4 +1,5 @@
 import os
+import sys
 import tables
 import ast
 import re
@@ -13,6 +14,8 @@ from blechpy.dio import h5io, particles
 from blechpy.data_print import data_print as dp
 from blechpy.widgets import userIO
 from copy import deepcopy
+from numba import jit
+import itertools
 
 
 def sort_units(file_dir, fs, shell=False):
@@ -500,6 +503,23 @@ def get_unit_numbers(hf5_file):
             return []
 
 
+def parse_unit_number(unit_name):
+    '''number of unit extracted from unit_name
+
+    Parameters
+    ----------
+    unit_name : str, unit###
+
+    Returns
+    -------
+    int
+    '''
+    pattern = 'unit(\d*)'
+    parser = re.compile(pattern)
+    out = int(parser.match(unit_name)[1])
+    return out
+
+
 def get_next_unit_name(hf5_file):
     '''returns node name for next sorted unit
 
@@ -668,6 +688,8 @@ def delete_unit(file_dir, unit_num):
     file_dir : str, full path to recording directory
     unit_num : int, number of unit to delete
     '''
+    print('\n----------\nDeleting unit %i from dataset\n----------\n'
+          % unit_num)
     h5_name = h5io.get_h5_filename(file_dir)
     h5_file = os.path.join(file_dir, h5_name)
     unit_numbers = get_unit_numbers(h5_file)
@@ -691,7 +713,9 @@ def delete_unit(file_dir, unit_num):
         table = hf5.root.unit_descriptor
         table.remove_row(unit_num)
         # rename rest of units in hdf5 and metrics folders
+        print('Renaming following units...')
         for x, y in zip(old_names, new_names):
+            print('Renaming %s to %s' % (x,y))
             hf5.rename_node('/sorted_units', newname=y, name=x)
             os.rename(os.path.join(metrics_dir, x),
                       os.path.join(metrics_dir, y))
@@ -699,6 +723,7 @@ def delete_unit(file_dir, unit_num):
 
     # delete and rename plot files
     plot_files = os.listdir(plot_dir)
+    print('Correcting names of plots and metrics...')
     for x in plot_files:
         if x.startswith('Unit%i' % unit_num):
             os.remove(os.path.join(plot_dir, x))
@@ -711,6 +736,7 @@ def delete_unit(file_dir, unit_num):
 
     # Compress and repack
     h5io.compress_and_repack(h5_file)
+    print('Finished deleting unit\n----------')
 
 
 def make_spike_arrays(h5_file, params):
@@ -727,6 +753,7 @@ def make_spike_arrays(h5_file, params):
             pre_stimulus: : int, ms before stimulus to include in array
             post_stimulus : int, ms after stimulus to include in array
     '''
+    print('\n----------\nMaking Unit Spike Arrays\n----------\n')
     dig_in_ch = params['dig_ins_to_use']
     laser_ch = params['laser_channels']
     fs = params['sampling_rate']
@@ -754,9 +781,11 @@ def make_spike_arrays(h5_file, params):
         lasers = False
         n_lasers = 1
 
-    exp_table = h5io.read_trial_data_table(h5_file, 'in', [-1])
-    exp_end_idx = exp_table['off_index'][0]
-    exp_end_time = exp_end_idx/fs
+    # Get experiment end time from trial array, channel -1 is whole experiment
+    # time
+    # exp_table = h5io.read_trial_data_table(h5_file, 'in', [-1])
+    # exp_end_idx = exp_table['off_index'][0]
+    # exp_end_time = exp_end_idx/fs
 
     # Use last spike time to determine end of experiment in case headstage fell
     # off
@@ -780,6 +809,7 @@ def make_spike_arrays(h5_file, params):
         hf5.create_group('/', 'spike_trains')
 
         for i in dig_in_ch:
+            print('Creating spike arrays for dig_in_%i...' % i)
 
             # grab trials for dig_in_ch that end more than post_stim ms before
             # the end of the experiment
@@ -844,7 +874,10 @@ def make_spike_arrays(h5_file, params):
                             # Round lag down to nearest multiple of 10ms
                             laser_start[ti] = 10*int(lag.iloc[0]/10)
 
+            array_time = np.arange(-pre_stim, post_stim, 1)  # time array in ms
             hf5.create_group('/spike_trains', 'dig_in_%i' % i)
+            time = hf5.create_array('/spike_trains/dig_in_%i' % i,
+                                    'array_time', array_time)
             tmp = hf5.create_array('/spike_trains/dig_in_%i' % i,
                                    'spike_array', np.array(spike_train))
             hf5.flush()
@@ -857,3 +890,99 @@ def make_spike_arrays(h5_file, params):
                 ol = hf5.create_array('/spike_trains/dig_in_%i' % i,
                                       'on_laser', laser_single)
                 hf5.flush()
+    print('Done with spike array creation!\n----------\n')
+
+
+@jit(nogil=True)
+def count_similar_spikes(unit1_times, unit2_times):
+    '''Compiled function to compute the number of spikes in unit1 that are
+    within 1ms of a spike in unit2
+
+    Parameters
+    ----------
+    unit1_times : numpy.array, 1D array of unit times in ms
+    unit2_times : numpy.array, 1D array of unit times in ms
+
+    Returns
+    -------
+    int : number of spikes in unit1 within 1ms of a spike in unit2
+    '''
+    unit_counter = 0
+    for t1 in unit1_times:
+        diff_arr = np.abs(unit2_times - t1)
+        if np.where(diff_arr <= 1.0)[0].size > 0:
+            unit_counter += 1
+
+    return unit_counter
+
+
+def calc_units_similarity(h5_file, fs, similarity_cutoff=50,
+                          violation_file=None):
+    '''Creates an ixj similarity matrix with values being the percentage of
+    spike in unit i within 1ms of spikes in unit j, and add it to the HDF5
+    store
+    Additionally, if this percentage is greater than the similarity cutoff then
+    units are output to a text file of unit similarity violations
+
+    Parameters
+    ----------
+    h5_file : str, full path to HDF5 store
+    fs : float, sampling rate of data in Hz
+    similarity_cutoff : float (optional)
+        similarity cutoff percentage in % (0-100)
+        default is 50
+    violation_file : str (optional)
+        full path to text file to write violations in default is
+        unit_similarity_violations.txt saved in the same directory as the hf5
+
+    Returns
+    -------
+    similarity_matrix : numpy.array
+    '''
+    print('\n---------\nBeginning unit similarity calculation\n----------')
+    violation_str = 'Unit Number 1\tUnit Number 2\t% Similarity\n'
+    violations = 0
+    if violation_file is None:
+        violation_file = os.path.join(os.path.dirname(h5_file),
+                                      'unit_similarity_violations.txt')
+
+    with tables.open_file(h5_file, 'r+') as hf5:
+        units = hf5.list_nodes('/sorted_units')
+        unit_distances = np.zeros((len(units),
+                                  len(units)))
+
+        for pair in itertools.product(units, repeat=2):
+            u1 = pair[0]
+            u2 = pair[1]
+            u1_idx = parse_unit_number(u1._v_name)
+            u2_idx = parse_unit_number(u2._v_name)
+            print('Computing similarity between Unit %i and Unit %i' %
+                  (u1_idx, u2_idx))
+            n_spikes = len(u1.times[:])
+            u1_times = u1.times[:] / (fs/1000.0)
+            u2_times = u2.times[:] / (fs/1000.0)
+            n_similar = count_similar_spikes(u1_times, u2_times)
+            tmp_dist = 100.0 * float(n_similar/n_spikes)
+            unit_distances[u1_idx, u2_idx] = tmp_dist
+
+            if u1_idx != u2_idx and tmp_dist >= similarity_cutoff:
+                violations += 1
+                violation_str += '%s\t%s\t%g\n' % (u1._v_name,
+                                                   u2._v_name,
+                                                   tmp_dist)
+
+        print('\nSimilarity calculation done!')
+        if '/unit_distances' in hf5:
+            hf5.remove_node('/', 'unit_distances')
+
+        hf5.create_array('/', 'unit_distances', unit_distances)
+        hf5.flush()
+
+    if violations > 0:
+        print('Found %i violations:' % violations)
+        print('\t' + violation_str.replace('\n', '\n\t'))
+
+    with open(violation_file, 'w') as vf:
+        print(violation_str, file=vf)
+
+    return unit_distances

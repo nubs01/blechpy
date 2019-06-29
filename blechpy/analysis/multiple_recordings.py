@@ -298,7 +298,22 @@ class multi_dataset(object):
                            'inter_J3': inter_J3}
 
         # Write dataframe of held units to text file
+        df_file = os.path.join(save_dir, 'held_units_table.txt')
+        held_df.to_csv(df_file, header=True, sep='\t', index=False, mode='a')
+
         # For each held unit, plot waveforms side by side
         # Plot intra and inter J3
 
 
+def plot_held_units(rec_dirs, held_df, save_dir):
+    '''Plot waveforms of held units side-by-side
+
+    Parameters
+    ----------
+    rec_dirs : list of str
+        full paths to recording directories
+    held_df : pandas.DataFrame
+        dataframe listing held units with columns matching the names of the
+        recording directories and a unit column with the unit names
+     save_dir : directory to save plots in
+     '''
