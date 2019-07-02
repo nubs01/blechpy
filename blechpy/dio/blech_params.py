@@ -38,9 +38,12 @@ data_param_order = ['V_cutoff for disconnected headstage',
 band_param_order = ['Lower freq cutoff','Upper freq cutoff']
 spike_snap_order = ['Time before spike (ms)','Time after spike (ms)']
 
-spike_array_params = {'dig_ins_to_use': [], 'laser_channels': [],
-                      'sampling_rate': None, 'pre_stimulus': 1000,
+spike_array_params = {'dig_ins_to_use': None, 'laser_channels': None,
+                      'sampling_rate': None, 'pre_stimulus': 2000,
                       'post_stimulus': 5000}
+
+psth_params = {'window_size': 250, 'window_step': 25,
+               'plot_pre_stimulus': 1000, 'plot_post_stimulus': 2500}
 
 def Timer(heading):
     def real_timer(func):

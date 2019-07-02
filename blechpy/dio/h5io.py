@@ -8,6 +8,7 @@ import pandas as pd
 import numpy as np
 from blechpy.dio import blech_params as params, rawIO, particles
 from blechpy.data_print import data_print as dp
+from blechpy.widgets import userIO
 
 
 def Timer(heading):

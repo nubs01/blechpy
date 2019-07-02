@@ -1,5 +1,4 @@
 import numpy as np
-import tables
 
 
 def make_single_trial_psth(spike_train, win_size, win_step, time=None):
@@ -36,12 +35,12 @@ def make_single_trial_psth(spike_train, win_size, win_step, time=None):
 
     return psth, psth_time
 
-def make_mean_PSTHs(h5_file, win_size, win_step, dig_in_ch):
+def get_mean_PSTHs(h5_file, win_size, win_step, dig_in_ch):
 
     with tables.open_file(h5_file, 'r') as hf5:
         spike_data = hf5.root.spike_trains['dig_in_%i' % dig_in_ch]
         spike_array = spike_data.spike_array[:]
-        time = spike_data.array_time[:]
+        time = spike_data.array_time
 
         psth_time = np.arange(np.min(time) - (win_size/2),
                               np.max(time) + (win_size/2),
@@ -55,47 +54,7 @@ def make_mean_PSTHs(h5_file, win_size, win_step, dig_in_ch):
                 PSTHs[:, i] += tmp
         PSTHs /= spike_array.shape[0]
 
-    return PSTHs, psth_time
-
-
-def make_psths_for_tastant(h5_file, win_size, win_step, dig_in_ch):
-    dig_str = 'dig_in_%i' % dig_in_ch
-    with tables.open_file(h5_file, 'r+') as hf5:
-        spike_data = hf5.root.spike_trains[dig_str]
-        spike_array = spike_data.spike_array[:]
-        time = spike_data.array_time[:]
-
-        psth_time = None
-        PSTHs = None
-
-        for ti, trial in enumerate(spike_array):
-            for ui, unit in enumerate(trial):
-                tmp, tmp_time = make_single_trial_psth(unit, win_size,
-                                                       win_step, time)
-                if psth_time is None:
-                    psth_time = tmp_time
-                    PSTHs = np.zeros((spike_array.shape[1],
-                                     spike_array.shape[0],
-                                     len(psth_time)))
-
-                PSTHs[ui, ti, :] = tmp
-
-        if '/PSTHs' not in hf5:
-            hf5.create_group('/', 'PSTHs')
-
-        if '/PSTHs/%s' % dig_str in hf5:
-            hf5.remove_node('/PSTHs', dig_str, recursive=True)
-
-        hf5.create_group('/PSTHs', dig_str)
-        hf5.create_array('/PSTHs/%s' % dig_str, 'time', psth_time)
-        hf5.create_array('/PSTHs/%s' % dig_str, 'psth_array', PSTHs)
-        hf5.create_array('/PSTHs/%s' % dig_str, 'mean_psths',
-                         np.mean(PSTHs, axis=1))
-        hf5.flush()
-
-    return PSTHs, psth_time
-
-
+    return PSTHs
 
 
 

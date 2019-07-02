@@ -3,6 +3,7 @@ import pandas as pd
 from blechpy import dio
 from blechpy.widgets import userIO
 from blechpy.analysis import spike_sorting as ss
+from blechpy.analysis import spike_analysis
 import datetime as dt
 from blechpy.data_print import data_print as dp
 import pickle
@@ -99,7 +100,7 @@ class dataset(object):
                                  'cleanup_clustering',
                                  'sort_units', 'make_unit_plots',
                                  'units_similarity', 'make_unit_arrays',
-                                 'make_psth',
+                                 'make_psth_arrays', 'plot_psths',
                                  'palatability_calculate', 'palatability_plot',
                                  'overlay_psth']
         self.process_status = dict.fromkeys(self.processing_steps, False)
@@ -111,7 +112,6 @@ class dataset(object):
         -------
         str : representation of dataset object
         '''
-        info = self.rec_info
         out = [self.data_name]
         out.append('Data directory:  '+self.data_dir)
         out.append('Object creation date: '
@@ -128,6 +128,11 @@ class dataset(object):
         out.append('--------------------')
         out.append(dp.print_dict(self.process_status))
         out.append('')
+
+        if not hasattr(self, 'rec_info'):
+            return '\n'.join(out)
+
+        info = self.rec_info
 
         out.append('--------------------')
         out.append('Recording Info')
@@ -176,6 +181,18 @@ class dataset(object):
         out.append(dp.print_dict(self.clust_params))
         out.append('')
 
+        out.append('--------------------')
+        out.append('Spike Array Parameters')
+        out.append('--------------------')
+        out.append(dp.print_dict(self.spike_array_params))
+        out.append('')
+
+        out.append('--------------------')
+        out.append('PSTH Parameters')
+        out.append('--------------------')
+        out.append(dp.print_dict(self.psth_params))
+        out.append('')
+
         return '\n'.join(out)
 
     def save(self):
@@ -188,9 +205,10 @@ class dataset(object):
     @Logger('Initializing Parameters')
     def initParams(self, data_quality='clean', emg_port=None,
                    emg_channels=None, shell=False, dig_in_names=None,
-                   dig_out_names=None, laser_channels=None,
-                   spike_dig_ins=None, pre_stimulus=1000,
-                   post_stimulus=5000):
+                   dig_out_names=None,
+                   spike_array_params=None,
+                   psth_params=None,
+                   confirm_all=False):
         '''
         Initializes basic default analysis parameters that can be customized
         before running processing methods
@@ -214,7 +232,10 @@ class dataset(object):
         data_params = deepcopy(dio.params.data_params[data_quality])
         bandpass_params = deepcopy(dio.params.bandpass_params)
         spike_snapshot = deepcopy(dio.params.spike_snapshot)
-        spike_array_params = deepcopy(dio.params.spike_array_params)
+        if spike_array_params is None:
+            spike_array_params = deepcopy(dio.params.spike_array_params)
+        if psth_params is None:
+            psth_params = deepcopy(dio.params.psth_params)
 
         # Ask for emg port & channels
         if emg_port is None and not shell:
@@ -256,7 +277,7 @@ class dataset(object):
 
                 dig_in_names = list(dig_in_names.values())
 
-            if laser_channels is None:
+            if spike_array_params['laser_channels'] is None:
                 laser_dict = dict.fromkeys(['dig_in_%i' % x
                                             for x in rec_info['dig_in']],
                                            False)
@@ -269,9 +290,9 @@ class dataset(object):
                                       in zip(rec_info['dig_in'],
                                              laser_dict.values()) if v]
 
-            spike_array_params['laser_channels'] = laser_channels
+                spike_array_params['laser_channels'] = laser_channels
 
-            if spike_dig_ins is None:
+            if spike_array_params['dig_ins_to_use'] is None:
                 di = [x for x in rec_info['dig_in']
                       if x not in laser_channels]
                 dn = [dig_in_names[x] for x in di]
@@ -287,7 +308,7 @@ class dataset(object):
                                      zip(di, spike_dig_dict.values())
                                      if y]
 
-            spike_array_params['dig_ins_to_use'] = spike_dig_ins
+                spike_array_params['dig_ins_to_use'] = spike_dig_ins
 
             self.dig_in_mapping = pd.DataFrame([(x, y) for x, y in
                                                 zip(rec_info['dig_in'],
@@ -324,15 +345,23 @@ class dataset(object):
 
         # Store and confirm spike array parameters
         spike_array_params['sampling_rate'] = sampling_rate
-        spike_array_params['pre_stimulus'] = pre_stimulus
-        spike_array_params['post_stimulus'] = post_stimulus
         self.spike_array_params = spike_array_params
-        prompt = ('----------\nSpike Array Parameters\n----------\n'
-                  + dp.print_dict(spike_array_params) +
-                  '\nAre these parameters good?')
-        q_idx = userIO.ask_user(prompt, ('Yes', 'Edit'), shell=shell)
-        if q_idx == 1:
-            self.edit_spike_array_parameters(shell=shell)
+        self.psth_params = psth_params
+        if not confirm_all:
+            prompt = ('\n----------\nSpike Array Parameters\n----------\n'
+                      + dp.print_dict(spike_array_params) +
+                      '\nAre these parameters good?')
+            q_idx = userIO.ask_user(prompt, ('Yes', 'Edit'), shell=shell)
+            if q_idx == 1:
+                self.edit_spike_array_parameters(shell=shell)
+
+            # Edit and store psth parameters
+            prompt = ('\n----------\nPSTH Parameters\n----------\n'
+                      + dp.print_dict(psth_params) +
+                      '\nAre these parameters good?')
+            q_idx = userIO.ask_user(prompt, ('Yes', 'Edit'), shell=shell)
+            if q_idx == 1:
+                self.edit_psth_parameters(shell=shell)
 
         self.save()
 
@@ -349,6 +378,8 @@ class dataset(object):
             percentage (0-100) above which to classify units as violating
             similarity. Default is 50
         '''
+        print('Assessing unit similarity with similarity cutoff at %i%%'
+              % similarity_cutoff)
         violation_file = os.path.join(self.data_dir,
                                       'unit_similarity_violations.txt')
         ss.calc_units_similarity(self.h5_file, self.sampling_rate,
@@ -584,6 +615,19 @@ class dataset(object):
         self.process_status['make_unit_plots'] = True
         self.save()
 
+    @Logger('Making PSTH Arrays')
+    def make_psth_arrays(self, shell=False):
+        params = self.psth_params
+        dig_ins = self.dig_in_mapping
+        for idx, row in dig_ins.iterrows():
+            spike_analysis.make_psths_for_tastant(self.h5_file,
+                                                  params['window_size'],
+                                                  params['window_step'],
+                                                  row['dig_in'])
+
+        self.process_status['make_psth_arrays'] = True
+        self.save()
+
     def edit_spike_array_parameters(self, shell=False):
         params = self.spike_array_params
         param_filler = userIO.dictIO(params, shell=shell)
@@ -609,10 +653,24 @@ class dataset(object):
         shell : bool (optional)
             True if you want command-line interface, False for GUI (default)
         '''
-        param_filler = userIO.dictIO(self.clust_params, shell)
+        param_filler = userIO.dictIO(self.clust_params, shell=shell)
         tmp = param_filler.fill_dict()
         if tmp:
             self.clust_params = tmp
+
+    def edit_psth_parameters(self, shell=False):
+        '''Allows user interface for editing psth parameters
+
+        Parameters
+        ----------
+        shell : bool (optional)
+            True if you want command-line interface, False for GUI (default)
+        '''
+        param_filler = userIO.dictIO(self.psth_params, shell=shell)
+        tmp = param_filler.fill_dict('Edit params for making PSTHs\n'
+                                     'All times are in ms')
+        if tmp:
+            self.psth_params = tmp
 
     def sort_units(self, shell=False):
         '''Begins processes to allow labelling of clusters as sorted units
@@ -630,7 +688,8 @@ class dataset(object):
     def extract_and_cluster(self, data_quality='clean',
                             num_CAR_groups='bilateral32', shell=False,
                             dig_in_names=None, dig_out_names=None,
-                            emg_port=None, emg_channels=None):
+                            emg_port=None, emg_channels=None,
+                            spike_array_params=None, psth_params=None):
         '''Runs data from raw to clustered with no fuss
 
         Parameters (all optional)
@@ -712,7 +771,8 @@ class dataset(object):
                 dig_in_names = None
 
             self.initParams(data_quality, emg_port, emg_channels,
-                            shell, dig_in_names, dig_out_names)
+                            shell, dig_in_names, dig_out_names,
+                            spike_array_params,psth_params,True)
         else:
             # Initialize default parameters
             self.initParams(shell=shell)

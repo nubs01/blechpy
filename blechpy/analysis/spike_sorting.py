@@ -611,13 +611,13 @@ def plot_cluster(cluster, index=None):
         cluster['spike_waveforms'])
     ax.set_xlabel('Sample (30 samples per ms)')
     ax.set_ylabel('Voltage (microvolts)')
-    title_str = (('Cluster Name: {: s}\n2ms Violations={: .1f}%, '
-                  '1ms Violations={: .1f}%\nNumber of Waveforms'
-                  '={: d}').format(
-                                   cluster['Cluster Name'],
-                                   cluster['2ms_violations'],
-                                   cluster['1ms_violations'],
-                                   cluster['spike_times'].shape[0]))
+    title_str = (('Cluster Name: %s\n2ms Violations=%0.1f%%, '
+                  '1ms Violations=%0.1f%%\nNumber of Waveforms'
+                  '=%i') %
+                 (cluster['Cluster Name'],
+                  cluster['2ms_violations'],
+                  cluster['1ms_violations'],
+                  cluster['spike_times'].shape[0]))
     if index is not None:
         title_str = 'Index: %i %s, ' % (index, title_str)
 

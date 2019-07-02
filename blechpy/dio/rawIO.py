@@ -2,10 +2,30 @@ import numpy as np
 import os, re
 from blechpy.dio import load_intan_rhd_format
 from blechpy.data_print import data_print as dp
+from blechpy.widgets import userIO
 import easygui as eg
 
 support_rec_types = {'one file per channel':'amp-\S-\d*\.dat',
                      'one file per signal type':'amplifier\.dat'}
+
+def get_sampling_rate(rec_dir):
+    '''Returns sampling rate in Hz of intan recording data
+
+    Parameters
+    ----------
+    rec_dir : str, full path to raw recording directory
+
+    Returns
+    -------
+    float : sampling rate in Hz
+    '''
+    info_file = os.path.join(rec_dir, 'info.rhd')
+    if not os.path.exists(info_file):
+        raise FileNotFoundError('No info.rhd in recording directory')
+
+    info = load_intan_rhd_format.read_data(info_file)
+    return info['frequency_parameters']['amplifier_sample_rate']
+
 
 def read_rec_info(file_dir,shell=False):
     '''Reads the info.rhd file to get relevant parameters.
@@ -57,7 +77,7 @@ def read_rec_info(file_dir,shell=False):
         out['dig_out'] = dout
 
 
-    out['file_type'] = get_recording_filetype(file_dir,shell)
+    out['file_type'] = get_recording_filetype(file_dir, shell)
 
     print('\nRecording Info\n--------------\n')
     print(dp.print_dict(out))
@@ -156,7 +176,6 @@ def read_digital_dat(file_dir,dig_channels=None,dig_type='in'):
         chan_dat.append(tmp_dat)
     out = np.array(chan_dat)
     return out
-    
 
 def read_one_channel_file(file_name):
     '''Reads a single amp or din channel file created by an intan 'one file per
@@ -206,19 +225,18 @@ def get_recording_filetype(file_dir,shell=False):
     else:
         msg = '\"'+file_type+'\"'
 
-    if shell:
-        q = input('Detected recording type is %s \nIs this correct? (y/n):  ' % msg)
-        if q.lower()=='y':
-            check = True
-        else:
-            check = False
+    query = 'Detected recording type is %s \nIs this correct?:  ' % msg
+    q = userIO.ask_user(query, choices=['Yes', 'No'],
+                        shell=shell)
 
-    else:
-        check = eg.ynbox('Detected recording type is '+msg+'\nIs this correct?','Recording Type')
-
-    if check:
+    if q == 0:
         return file_type
     else:
+        choice = userIO.select_from_list('Select correct recording type',
+                                         list(support_rec_types.keys()),
+                                         'Select Recording Type',
+                                         shell=shell)
+        choice = list(support_rec_types.keys())[choice]
         choice = eg.choicebox('Select correct recording type','Select Recording Type',
                               list(support_rec_types.keys()))
         return choice

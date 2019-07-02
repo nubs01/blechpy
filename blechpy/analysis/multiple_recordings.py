@@ -1,4 +1,4 @@
-from blechpy.dio import h5io
+from blechpy import dio
 from blechpy.widgets import userIO
 import pandas as pd
 import numpy as np
@@ -6,6 +6,7 @@ import pylab as plt
 import easygui as eg
 import os
 import tables
+import pickle
 from sklearn.decomposition import PCA
 from scipy.spatial.distance import cdist
 import seaborn as sns
@@ -54,6 +55,14 @@ def calc_J2(wf_day1, wf_day2):
     return J2
 
 
+def interpolate_waves(waves, fs, fs_new, axis=0):
+    end_time = waves.shape(axis) / fs
+    x = np.arange(0, end_time, 1/fs)
+    x_new = np.arange(0, end_time, 1/fs_new)
+    f = interp1d(x, waves, axis=axis)
+    return f(x_new)
+
+
 def calc_J3(wf_day1, wf_day2):
     '''Calculate J3 value between 2 sets of PCA waveforms
 
@@ -77,7 +86,7 @@ def calc_J3(wf_day1, wf_day2):
 def get_intra_J3(rec_dirs):
     # Go through each recording directory and compute intra_J3 array
     for rd in rec_dirs:
-        h5_name = h5io.get_h5_filename(rd)
+        h5_name = dio.h5io.get_h5_filename(rd)
         h5_file = os.path.join(rd, h5_name)
 
         with tables.open_file(h5_file, 'r') as hf5:
@@ -101,6 +110,7 @@ def find_held_units(rec_dirs, intra_J3, percent_criterion):
 
     held_df = pd.DataFrame(columns=['unit',
                                     *[os.path.basename(x) for x in rec_dirs]])
+    J3_df = held_df.copy()
 
     # Go through each pair of directories and computer inter_J3 between
     # units. If the inter_J3 values is below the percentile_criterion of
@@ -109,14 +119,16 @@ def find_held_units(rec_dirs, intra_J3, percent_criterion):
     inter_J3 = []
     for rd1, rd2 in rec_pairs:
         h5_file1 = os.path.join(rd1,
-                                h5io.get_h5_filename(rd1))
+                                dio.h5io.get_h5_filename(rd1))
         h5_file2 = os.path.join(rd2,
-                                h5io.get_h5_filename(rd2))
+                                dio.h5io.get_h5_filename(rd2))
         rec1 = os.path.basename(rd1)
         rec2 = os.path.basename(rd2)
+        fs1 = dio.get_sampling_rate(rd1)
+        fs2 = dio.get_sampling_rate(rd2)
 
         with tables.open_file(h5_file1, 'r') as hf51, \
-                tables.open_file(h5_fiel2, 'r') as hf52:
+                tables.open_file(h5_file2, 'r') as hf52:
 
             for node1, descrip1 in zip(
                                    hf51.root.sorted_units,
@@ -129,6 +141,13 @@ def find_held_units(rec_dirs, intra_J3, percent_criterion):
 
                             wf1 = node1.waveforms[:]
                             wf2 = node2.waveforms[:]
+
+                            if fs1 > fs2:
+                                wf2 = interpolate_waves(wf2, fs2*10,
+                                                        fs1*10)
+                            elif fs1 < fs2:
+                                wf1 = interpolate_waves(wf1, fs1*10,
+                                                        fs2*10)
 
                             pca = PCA(n_components=3)
                             pca.fit(np.concatenate((wf1, wf2), axis=0))
@@ -149,6 +168,11 @@ def find_held_units(rec_dirs, intra_J3, percent_criterion):
                                                         rec1: unit1,
                                                         rec2: unit2},
                                                        ignore_index=True)
+                                    J3_df = J3_df.append({'unit': 'A',
+                                                          rec1: [J3],
+                                                          rec2: [J3]},
+                                                         ignore_index=True)
+
                                     continue
 
                                 idx1 = np.where(held_df[rec1] == unit1)[0]
@@ -163,13 +187,22 @@ def find_held_units(rec_dirs, intra_J3, percent_criterion):
                                     held_df = held_df.append(
                                         tmp,
                                         ignore_index=True)
+                                    J3_df = J3_df.append({'unit': uL,
+                                                          rec1: [J3],
+                                                          rec2: [J3]},
+                                                         ignore_index=True)
                                 elif idx1.size != 0 and idx2.size != 0:
                                     continue
                                 elif idx1.size != 0:
                                     held_df[rec2].iloc[idx1[0]] = unit2
+                                    J3_df[rec1].iloc[idx1[0]].append(J3)
+                                    J3_df[rec2].iloc[idx1[0]] = [J3]
                                 else:
                                     held_df[rec1].iloc[idx2[0]] = unit1
-    return held_df, inter_J3
+                                    J3_df[rec2].iloc[idx2[0]].append(J3)
+                                    J3_df[rec1].iloc[idx2[0]] = [J3]
+
+    return held_df, inter_J3, J3_df
 
 
 class multi_dataset(object):
@@ -289,23 +322,43 @@ class multi_dataset(object):
                     for x in self.recording_dirs]
 
         intra_J3 = get_intra_J3(rec_dirs)
-        held_df, inter_J3 = find_held_units(rec_dirs,
-                                            intra_J3,
-                                            percent_criterion)
+        held_df, inter_J3, J3_df = find_held_units(rec_dirs,
+                                                   intra_J3,
+                                                   percent_criterion)
 
         self.held_units = {'units': held_df,
+                           'J3_df': J3_df,
                            'intra_J3': intra_J3,
                            'inter_J3': inter_J3}
 
         # Write dataframe of held units to text file
         df_file = os.path.join(save_dir, 'held_units_table.txt')
         held_df.to_csv(df_file, header=True, sep='\t', index=False, mode='a')
+        j3_file = df_file.replace('table.txt', 'J3.txt')
+        J3_df.to_csv(j3_file, header=True, serp='\t', index=False, mode='a')
 
         # For each held unit, plot waveforms side by side
+        plot_held_units(rec_dirs, held_df, J3_df, save_dir)
+
         # Plot intra and inter J3
+        plot_J3s(intra_j3, interJ3, save_dir, percent_criterion)
 
 
-def plot_held_units(rec_dirs, held_df, save_dir):
+def plot_J3s(intra_J3, inter_J3, save_dir, percent_criterion):
+    fig = plt.figure()
+    plt.hist(inter_J3, bins=20, alpha=0.3, label='Across-session J3')
+    plt.hist(intra_J3, bins=20, alpha=0.3, label='Within-session J3')
+    plt.axvlin(np.percentile(inter_J3, percent_criterion), linewidth=5.0,
+               color='black', linestyle='dashed')
+    plt.xlabel('J3', fontsize=35)
+    plt.ylabel('Number of single unit pairs', fontsize=35)
+    plt.tick_params(axis='both', which='major', labelsize=32)
+    fig.savefig(os.path.join(save_dir,'J3_distribution.png'),
+                bbox_inches='tight')
+    plt.close('all')
+
+
+def plot_held_units(rec_dirs, held_df, J3_df, save_dir):
     '''Plot waveforms of held units side-by-side
 
     Parameters
@@ -315,5 +368,109 @@ def plot_held_units(rec_dirs, held_df, save_dir):
     held_df : pandas.DataFrame
         dataframe listing held units with columns matching the names of the
         recording directories and a unit column with the unit names
-     save_dir : directory to save plots in
-     '''
+    J3_df : pandas.DataFrame
+        dataframe with same rows and columns as held df except the values are
+        lists fo inter_J3 values for units that were found to be held
+    save_dir : str, directory to save plots in
+    '''
+    for idx, row in held_df.iterrows():
+        unit_name = row.pop('unit')
+        n_subplots = row.notnull().sum()
+        idx = np.where(row.notnull())[0]
+        cols = row.keys()[idx]
+        units = row.values[idx]
+
+        fig = plt.figure(figsize=(18, 6))
+        ylim = [0, 0]
+        row_ax = []
+
+        for i, x in enumerate(zip(cols, units)):
+            J3_vals = J3_df[x[0]][J3_df['unit'] == unit_name].values[0]
+            J3_str = str(J3_vals)
+            ax = plt.subplot(1, n_subplots, i)
+            row_ax.append(ax)
+            rd = [y for y in rec_dirs if x[0] in y][0]
+            params = get_clustering_parameters(rd)
+            if params is None:
+                raise FileNotFoundError('No dataset pickle file for %s' % rd)
+
+            waves, descriptor = get_unit_waveforms(rd, x[1])
+            waves = waves[:, ::10]
+            time = np.arange(len(waves[0]))
+            fs = params['sampling_rate']
+            snapshot = params['spike_snapshot']
+            t_shift = int(snapshot[0] * (fs/1000.0))
+            time = time - t_shift
+            mean_wave = np.mean(waves, axis=0)
+            std_wave = np.std(waves, axis=0)
+            plt.plot(time, mean_wave,
+                     linewidth=5.0, color='black')
+            plt.plot(time, mean_wave - std_wave,
+                     linewidth=2.0, color='black',
+                     alpha=0.5)
+            plt.plot(time, mean_wave + std_wave,
+                     line_width=2.0, color='black',
+                     alpha=0.5)
+            plt.xlabel('Time (samples [%i per ms])' % int(fs/1000),
+                       fontsize=35)
+            plt.ylabel('Voltage (microvolts)', fontsize=35)
+            plt.title('%s Unit %i, total waveforms = %i,\nElectrode: %i, '
+                      'J3: %s, Single Unit: %i, RSU: %i, FS: %i'
+                      % (rd, x[1], waves.shape[0],
+                         descriptor['electrode_number'],
+                         J3_str,
+                         descriptor['single_unit'],
+                         descriptor['regular_spiking'],
+                         descriptor['fast_spiking']),
+                      fontsize = 20)
+            plt.tick_params(axis='both', which='major', labelsize=32)
+
+            if np.min(waves) - 20 < ylim[0]:
+                ylim[0] = np.min(waves) - 20
+
+            if np.max(waves) + 20 < ylim[0]:
+                ylim[0] = np.min(waves) + 20
+
+        for ax in row_ax:
+            ax.ylim(ylim)
+
+        plt.suptitle('Unit %s' % unit_name)
+        fig.savefig(os.path.join(save_dir,
+                                 'Unit%s_waveforms.png' % unit_name),
+                    bbox_inches='tight')
+        plt.close('all')
+
+
+def get_unit_waveforms(rec_dir, unit_num, shell=True):
+    '''returns the waveforms of a single unit read from the h5 file in rec_dir
+
+    Parameters
+    ----------
+    rec_dir : str, full path to recording directory
+    unit_num : int, number of unit to grab
+
+    Returns
+    -------
+    numpy.array with row for each spike waveform
+    '''
+    h5_name = dio.h5io.get_h5_filename(rec_dir, shell=shell)
+    h5_file = os.path.join(rec_dir, h5_name)
+
+    with tables.open_file(h5_file, 'r') as hf5:
+        unit = hf5.root.sorted_units['unit%03d' % unit_num]
+        waves = unit.waveforms[:]
+        descriptor = hf5.root.unit_descriptor[unit_num]
+
+    return waves, descriptor
+
+def get_clustering_parameters(rec_dir):
+    file_list = os.listdir(rec_dir)
+    dat_file = [x for x in file_list if x.endswith('dataset.p')][0]
+    if dat_file == []:
+        return None
+
+    with open(dat_file, 'rb') as f:
+        dat = pickle.load(f)
+
+    return dat.clust_params
+
