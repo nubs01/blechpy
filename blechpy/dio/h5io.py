@@ -1,4 +1,5 @@
 import tables
+import re
 import os
 import time
 import sys
@@ -39,26 +40,21 @@ def create_empty_data_h5(filename, shell=False):
     ----------
     filename : str, absolute path to h5 file for recording
     '''
-    if not filename.endswith('.h5'):
+    if not filename.endswith('.h5') and not filename.endswith('.hdf5'):
         filename += '.h5'
 
-    basename = os.path.basename(filename).replace('.h5', '')
+    basename = os.path.splitext(os.path.basename(filename))[0]
 
     # Check if file exists, and ask to delete if it does
     if os.path.isfile(filename):
-        if shell:
-            println('%s already exists. Deleting...' % filename)
+        q = userIO.ask_user('%s already exists. Would you like to delete?',
+                            choices=['Yes', 'No'], shell=shell)
+        if q == 1:
+            return filename
+        else:
+            println('Deleting existing h5 file...')
             os.remove(filename)
             print('Done!')
-        else:
-            q = eg.ynbox('%s already exists. Would you like to delete?' %
-                         filename, 'Delete existing file')
-            if not q:
-                return filename
-            else:
-                println('Deleting existing h5 file...')
-                os.remove(filename)
-                print('Done!')
 
     print('Creating empty HDF5 store with raw data groups')
     println('Writing %s.h5 ...' % basename)
@@ -327,6 +323,20 @@ def read_in_amplifier_signal(hf5, file_dir, file_type, num_channels, el_map,
             exec(tmp_str)
             print('Done!')
             hf5.flush()
+
+
+def get_unit_descriptor(rec_dir, unit_num):
+    '''Returns the unit description for a unit in the h5 file in rec_dir
+    '''
+    if isinstance(unit_num , str):
+        unit_num = parse_unit_number(unit_num)
+
+    h5_name = get_h5_filename(rec_dir)
+    h5_file = os.path.join(rec_dir, h5_name)
+    with tables.open_file(h5_file, 'r') as hf5:
+        descrip = hf5.root.unit_descriptor[unit_num]
+
+    return descrip
 
 
 @Timer('Extracting Digital Signal Data')
@@ -818,3 +828,40 @@ def read_trial_data_table(h5_file, dig_type='in', channels=None):
         df = df[df['channel'].isin(channels)]
 
     return df
+
+
+def parse_unit_number(unit_name):
+    '''number of unit extracted from unit_name
+
+    Parameters
+    ----------
+    unit_name : str, unit###
+
+    Returns
+    -------
+    int
+    '''
+    pattern = 'unit(\d*)'
+    parser = re.compile(pattern)
+    out = int(parser.match(unit_name)[1])
+    return out
+
+
+def get_unit_names(rec_dir):
+    '''Finds h5 file in dir, gets names of sorted units and returns
+
+    Parameters
+    ----------
+    rec_dir : str, full path to recording dir
+    '''
+    h5_name = get_h5_filename(rec_dir)
+    h5_file = os.path.join(rec_dir, h5_name)
+
+    with tables.open_file(h5_file, 'r') as hf5:
+        units = hf5.list_nodes('/sorted_units')
+        unit_names = [x._v_name for x in units]
+
+    return unit_names
+
+
+

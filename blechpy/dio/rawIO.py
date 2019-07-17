@@ -7,6 +7,7 @@ import easygui as eg
 
 support_rec_types = {'one file per channel':'amp-\S-\d*\.dat',
                      'one file per signal type':'amplifier\.dat'}
+voltage_scaling = 0.195
 
 def get_sampling_rate(rec_dir):
     '''Returns sampling rate in Hz of intan recording data
@@ -237,7 +238,5 @@ def get_recording_filetype(file_dir,shell=False):
                                          'Select Recording Type',
                                          shell=shell)
         choice = list(support_rec_types.keys())[choice]
-        choice = eg.choicebox('Select correct recording type','Select Recording Type',
-                              list(support_rec_types.keys()))
         return choice
 

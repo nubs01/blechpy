@@ -6,8 +6,10 @@ from sklearn.mixture import GaussianMixture
 import pylab as plt
 from sklearn.decomposition import PCA
 
+voltage_scaling = 0.195
+
 def get_filtered_electrode(data, freq = [300.0, 3000.0], sampling_rate = 30000.0):
-    el = 0.195*(data)
+    el = voltage_scaling*(data)
     m, n = butter(2, [2.0*freq[0]/sampling_rate, 2.0*freq[1]/sampling_rate], btype = 'bandpass') 
     filt_el = filtfilt(m, n, el)
     return filt_el
@@ -55,14 +57,16 @@ def dejitter(slices, spike_times, spike_snapshot = [0.5, 1.0], sampling_rate = 3
         f = interp1d(x, slices[i])
         # 10-fold interpolated spike
         ynew = f(xnew)
+        orig_min = np.where(slices[i] == np.min(slices[i]))[0][0]
+        orig_min_time = x[orig_min] / (sampling_rate/1000)
         minimum = np.where(ynew == np.min(ynew))[0][0]
+        min_time = xnew[minimum] / (sampling_rate/1000)
                 # Only accept spikes if the interpolated minimum has shifted by
                 # less than 1/10th of a ms (3 samples for a 30kHz recording, 30
                 # samples after interpolation)
-        if np.abs(minimum - int((spike_snapshot[0] + 0.1)*(sampling_rate/100.0))) \
-                <= int(10.0*(sampling_rate/10000.0)):
+        if np.abs(min_time - orig_min_time) <= 0.1:
             # If minimum is too close to the end for a full snapshot then toss out spike
-            if minimum + after*10 < len(ynew):
+            if minimum + after*10 < len(ynew) and minimum - before*10 >= 0:
                 slices_dejittered.append(ynew[minimum - before*10 : minimum + after*10])
                 spike_times_dejittered.append(spike_times[i])
 

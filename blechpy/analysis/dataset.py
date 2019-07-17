@@ -35,6 +35,37 @@ def Logger(heading):
     return real_logger
 
 
+def load_dataset(file_name=None):
+    '''Loads dataset processing metadata object from dataset.p file
+
+    Parameters
+    ----------
+    file_name : str (optional), absolute path to file, if not given file
+                chooser is displayed
+
+    Returns
+    -------
+    blechpy.analysis.dataset : processing metadata object
+
+    Throws
+    ------
+    FileNotFoundError : if file_name is not a file
+    '''
+    if file_name is None:
+        file_name = eg.fileopenbox('Choose dataset.p file', \
+                                    'Choose file',filetypes=['.p'])
+    if os.path.isdir(file_name):
+        ld = os.listdir(file_name)
+        fn = [os.path.join(file_name,x) for x in ld if x.endswith('.p')]
+        file_name = fn[0]
+    if not os.path.isfile(file_name):
+        raise FileNotFoundError('%s is not a valid filename' % file_name)
+
+    with open(file_name,'rb') as f:
+        dat = pickle.load(f)
+    return dat
+
+
 class dataset(object):
     '''Stores information related to an intan recording directory and allows
     running of basic analysis script
@@ -781,4 +812,17 @@ class dataset(object):
         self.create_trial_list()
         self.common_average_reference(num_CAR_groups)
         self.blech_clust_run(data_quality, accept_params=shell, shell=shell)
+        self.save()
+
+    @Logger('Post Sorting Processing')
+    def post_sorting(self):
+        print('Post sorting processing')
+        print('Making unit plots...')
+        self.make_unit_plots()
+        print('Computing units similarity...')
+        self.units_similarity()
+        print('Making spike arrays...')
+        self.make_unit_arrays()
+        print('Making psth arrays...')
+        self.make_psth_arrays()
         self.save()

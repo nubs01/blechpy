@@ -1,5 +1,6 @@
 import numpy as np
 import tables
+from scipy.ndimage.filters import gaussian_filter1d
 
 
 def make_single_trial_psth(spike_train, win_size, win_step, time=None):
@@ -58,7 +59,7 @@ def make_mean_PSTHs(h5_file, win_size, win_step, dig_in_ch):
     return PSTHs, psth_time
 
 
-def make_psths_for_tastant(h5_file, win_size, win_step, dig_in_ch):
+def make_psths_for_tastant(h5_file, win_size, win_step, dig_in_ch, smoothing_width=3):
     dig_str = 'dig_in_%i' % dig_in_ch
     with tables.open_file(h5_file, 'r+') as hf5:
         spike_data = hf5.root.spike_trains[dig_str]
@@ -77,6 +78,9 @@ def make_psths_for_tastant(h5_file, win_size, win_step, dig_in_ch):
                     PSTHs = np.zeros((spike_array.shape[1],
                                      spike_array.shape[0],
                                      len(psth_time)))
+
+                # Smooth firing rate trace
+                tmp = gaussian_filter1d(tmp, sigma=smoothing_width)
 
                 PSTHs[ui, ti, :] = tmp
 

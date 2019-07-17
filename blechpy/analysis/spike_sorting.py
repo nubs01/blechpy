@@ -9,6 +9,7 @@ import easygui as eg
 import pylab as plt
 import datetime as dt
 from sklearn.mixture import GaussianMixture
+from sklearn.decomposition import PCA
 from blechpy.plotting import blech_waveforms_datashader
 from blechpy.dio import h5io, particles
 from blechpy.data_print import data_print as dp
@@ -63,7 +64,7 @@ def sort_units(file_dir, fs, shell=False):
         if len(clusters) == 0:
             quit_flag = True
             break
-        if clust_info['Edit Clusters'] or len(clusters) > 1:
+        if clust_info['Edit Clusters']:
             clusters = edit_clusters(clusters, fs, shell)
             if isinstance(clusters, dict):
                 clusters = [clusters]
@@ -111,19 +112,25 @@ def edit_clusters(clusters, fs, shell=False):
     while not quit_flag:
         if len(clusters) == 1:
             # One cluster, ask if they want to keep or split
-            if shell:
-                q = input('Do you want to split %s?\n(y/n/blank to abort) >> '
-                          % clusters[0]['Cluster Name'])
-                if q == 'n':
-                    return clusters[0]
-                elif q == '':
-                    return None
-            else:
-                q = eg.ynbox('Do you want to split %s?'
-                             % clusters[0]['Cluster Name'])
-                if not q:
-                    return clusters[0]
+            idx = userIO.ask_user('What would you like to do with %s?'
+                                  % clusters[0]['Cluster Name'],
+                                  choices=['Split', 'Waveform View',
+                                           'Raster View', 'Keep', 'Abort'],
+                                  shell=shell)
+            if idx == 1:
+                fig = plot_cluster(clusters[0])
+                plt.show()
+                continue
+            elif idx == 2:
+                plot_raster(clusters)
+                plt.show()
+                continue
+            elif idx == 3:
+                return clusters[0]
+            elif idx == 4:
+                return None
 
+            old_clust = clusters[0]
             clusters = split_cluster(clusters[0], fs, shell=shell)
             if clusters is None or clusters == []:
                 return None
@@ -131,23 +138,49 @@ def edit_clusters(clusters, fs, shell=False):
             for i, c in enumerate(clusters):
                 tmp_fig = plot_cluster(c, i)
                 figs.append(tmp_fig)
+
+            f2, ax2 = plot_pca_view(clusters)
             plt.show()
             query = {'Clusters to keep (indices)': []}
             query = userIO.dictIO(query, shell=shell)
             ans = query.fill_dict()
-            if ans is None:
-                return None
+            if ans['Clusters to keep (indices)'][0] == '':
+                print('Reset to before split')
+                clusters = [old_clust]
+                continue
+
             ans = [int(x) for x in ans['Clusters to keep (indices)']]
             new_clusters = [clusters[x] for x in ans]
             del clusters
             clusters = new_clusters
             del new_clusters
         else:
-            # Automatically merge multiple clusters
-            cluster = merge_clusters(clusters, fs)
-            print('%i clusters merged into %s'
-                  % (len(clusters), cluster['Cluster Name']))
-            clusters = [cluster]
+            idx = userIO.ask_user(('You have %i clusters. '
+                                  'What would you like to do?')
+                                  % len(clusters),
+                                  choices=['Merge', 'Waveform View',
+                                           'Raster View', 'Keep', 'Abort'],
+                                  shell=shell)
+            if idx == 0:
+                # Automatically merge multiple clusters
+                cluster = merge_clusters(clusters, fs)
+                print('%i clusters merged into %s'
+                      % (len(clusters), cluster['Cluster Name']))
+                clusters = [cluster]
+            elif idx == 1:
+                for c in clusters:
+                    plot_cluster(c)
+
+                plt.show()
+                continue
+            elif idx == 2:
+                plot_raster(clusters)
+                plt.show()
+                continue
+            elif idx == 3:
+                return clusters
+            elif idx == 4:
+                return None
 
 
 def get_cell_types(cluster_names, shell=True):
@@ -609,7 +642,7 @@ def plot_cluster(cluster, index=None):
     '''
     fig, ax = blech_waveforms_datashader.waveforms_datashader(
         cluster['spike_waveforms'])
-    ax.set_xlabel('Sample (30 samples per ms)')
+    ax.set_xlabel('Samples')
     ax.set_ylabel('Voltage (microvolts)')
     title_str = (('Cluster Name: %s\n2ms Violations=%0.1f%%, '
                   '1ms Violations=%0.1f%%\nNumber of Waveforms'
@@ -693,7 +726,7 @@ def delete_unit(file_dir, unit_num):
     h5_name = h5io.get_h5_filename(file_dir)
     h5_file = os.path.join(file_dir, h5_name)
     unit_numbers = get_unit_numbers(h5_file)
-    unit_name = 'units%03d' % unit_num
+    unit_name = 'unit%03d' % unit_num
     change_units = [x for x in unit_numbers if x > unit_num]
     new_units = [x-1 for x in change_units]
     new_names = ['unit%03d' % x for x in new_units]
@@ -705,11 +738,12 @@ def delete_unit(file_dir, unit_num):
     plot_dir = os.path.join(file_dir, 'unit_waveforms_plots')
 
     # Remove metrics
-    shutil.rmtree(os.path.join(metrics_dir, unit_name))
+    if os.path.exists(os.path.join(metrics_dir, unit_name)):
+        shutil.rmtree(os.path.join(metrics_dir, unit_name))
 
     # remove unit from hdf5 store
     with tables.open_file(h5_file, 'r+') as hf5:
-        hf5.remove_node('/sorted_units', name=unit_name)
+        hf5.remove_node('/sorted_units', name=unit_name, recursive=True)
         table = hf5.root.unit_descriptor
         table.remove_row(unit_num)
         # rename rest of units in hdf5 and metrics folders
@@ -722,17 +756,18 @@ def delete_unit(file_dir, unit_num):
         hf5.flush()
 
     # delete and rename plot files
-    plot_files = os.listdir(plot_dir)
-    print('Correcting names of plots and metrics...')
-    for x in plot_files:
-        if x.startswith('Unit%i' % unit_num):
-            os.remove(os.path.join(plot_dir, x))
-        elif any([x.startswith(y) for y in old_prefix]):
-            pre = [b for a, b in zip(old_prefix, new_prefix)
-                   if x.startswith(a)]
-            old_file = os.path.join(plot_dir, x)
-            new_file = os.path.join(plot_dir, x.replace(pre[0][0], pre[0][1]))
-            os.rename(old_file, new_file)
+    if os.path.exists(plot_dir):
+        plot_files = os.listdir(plot_dir)
+        print('Correcting names of plots and metrics...')
+        for x in plot_files:
+            if x.startswith('Unit%i' % unit_num):
+                os.remove(os.path.join(plot_dir, x))
+            elif any([x.startswith(y) for y in old_prefix]):
+                pre = [b for a, b in zip(old_prefix, new_prefix)
+                       if x.startswith(a)]
+                old_file = os.path.join(plot_dir, x)
+                new_file = os.path.join(plot_dir, x.replace(pre[0][0], pre[0][1]))
+                os.rename(old_file, new_file)
 
     # Compress and repack
     h5io.compress_and_repack(h5_file)
@@ -760,7 +795,7 @@ def make_spike_arrays(h5_file, params):
     pre_stim = int(params['pre_stimulus'])
     post_stim = int(params['post_stimulus'])
     pre_idx = int(pre_stim * (fs/1000))
-    post_idx = int(pre_stim * (fs/1000))
+    post_idx = int(post_stim * (fs/1000))
     n_pts = pre_stim + post_stim
 
     if dig_in_ch is None or dig_in_ch == []:
@@ -846,6 +881,9 @@ def make_spike_arrays(h5_file, params):
                     # Shift to align to trial window and convert to ms
                     spike_times = (spike_times + spike_shift) / (fs/1000)
                     spike_times = spike_times.astype(int)
+
+                    #Drop spikes that come too late after adjustment
+                    spike_times = [x for x in spike_times if x < n_pts]
                     spike_array[unit_num, spike_times] = 1
 
                 spike_train.append(spike_array)
@@ -986,3 +1024,50 @@ def calc_units_similarity(h5_file, fs, similarity_cutoff=50,
         print(violation_str, file=vf)
 
     return unit_distances
+
+def plot_pca_view(clusters):
+    fig, axs = plt.subplots(2, 2, sharex=False, sharey=False)
+
+    pca = PCA(n_components=3)
+    pca.fit(np.concatenate(tuple(x['spike_waveforms'] for x in clusters), axis=0))
+
+    colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+    for i, c in enumerate(clusters):
+        pcs = pca.transform(c['spike_waveforms'])
+
+        axs[0, 0].scatter(pcs[:, 0], pcs[:, 1], alpha=0.4, s=5,
+                          color=colors[i], label=str(i))
+        axs[0, 1].scatter(pcs[:, 0], pcs[:, 2], alpha=0.4, s=5,
+                          color=colors[i], label=str(i))
+        axs[1, 0].scatter(pcs[:, 1], pcs[:, 2], alpha=0.4, s=5,
+                          color=colors[i], label=str(i))
+
+    handles, labels = axs[0, 0].get_legend_handles_labels()
+    axs[1, 1].set_axis_off()
+    axs[1, 1].legend(handles, labels, loc='center')
+
+    axs[0, 0].set_xlabel('PC1')
+    axs[0, 0].set_ylabel('PC2')
+    axs[0, 1].set_xlabel('PC1')
+    axs[0, 1].set_ylabel('PC3')
+    axs[1, 0].set_xlabel('PC2')
+    axs[1, 0].set_ylabel('PC3')
+
+    return fig, axs
+
+def plot_raster(clusters):
+    fig = plt.figure()
+
+    pca = PCA(n_components=1)
+    pca.fit(np.concatenate(tuple(x['spike_waveforms'] for x in clusters), axis=0))
+    colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+    for i, c in enumerate(clusters):
+        pcs = pca.transform(c['spike_waveforms'])
+        st = c['spike_times']
+        plt.scatter(st, pcs[:, 0], s=5,
+                    color=colors[i], label=str(i))
+
+    plt.legend(loc='best')
+
+    return fig
+
