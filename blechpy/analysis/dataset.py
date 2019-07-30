@@ -4,6 +4,7 @@ from blechpy import dio
 from blechpy.widgets import userIO
 from blechpy.analysis import spike_sorting as ss
 from blechpy.analysis import spike_analysis
+from blechpy.plotting import data_plot as datplt
 import datetime as dt
 from blechpy.data_print import data_print as dp
 import pickle
@@ -12,6 +13,7 @@ import shutil
 import sys
 import multiprocessing
 import subprocess
+import pylab as plt
 from copy import deepcopy
 
 
@@ -309,9 +311,7 @@ class dataset(object):
                 dig_in_names = list(dig_in_names.values())
 
             if spike_array_params['laser_channels'] is None:
-                laser_dict = dict.fromkeys(['dig_in_%i' % x
-                                            for x in rec_info['dig_in']],
-                                           False)
+                laser_dict = dict.fromkeys(dig_in_names, False)
                 laser_filler = userIO.dictIO(laser_dict, shell=shell)
                 laser_dict = laser_filler.fill_dict('Select any lasers:')
                 if laser_dict is None:
@@ -322,6 +322,11 @@ class dataset(object):
                                              laser_dict.values()) if v]
 
                 spike_array_params['laser_channels'] = laser_channels
+            else:
+                laser_dict = dict.fromkeys(dig_in_names, False)
+                for lc in spike_array_params['laser_channels']:
+                    laser_dict[dig_in_names[lc]] = True
+
 
             if spike_array_params['dig_ins_to_use'] is None:
                 di = [x for x in rec_info['dig_in']
@@ -341,10 +346,12 @@ class dataset(object):
 
                 spike_array_params['dig_ins_to_use'] = spike_dig_ins
 
-            self.dig_in_mapping = pd.DataFrame([(x, y) for x, y in
-                                                zip(rec_info['dig_in'],
-                                                    dig_in_names)],
-                                               columns=['dig_in', 'name'])
+
+            dim = pd.DataFrame([(x, y) for x, y in zip(rec_info['dig_in'],
+                                                       dig_in_names)],
+                               columns=['dig_in', 'name'])
+            dim['laser'] = dim['name'].apply(lambda x: laser_dict.get(x))
+            self.dig_in_mapping = dim.copy()
 
         # Get digital output names
         if rec_info.get('dig_out'):
@@ -419,7 +426,7 @@ class dataset(object):
         self.save()
 
     @Logger('Extracting Data')
-    def extract_data(self, shell=False):
+    def extract_data(self, filename=None, shell=False):
         '''Create hdf5 store for data and read in Intan .dat files. Also create
         subfolders for processing outputs
 
@@ -434,24 +441,58 @@ class dataset(object):
         if self.rec_info['file_type'] is None:
             raise ValueError('Unsupported recording type. Cannot extract yet.')
 
+        if filename is None:
+            filename = self.h5_file
+
         print('\nExtract Intan Data\n--------------------')
         # Create h5 file
-        dio.h5io.create_empty_data_h5(self.h5_file, shell)
+        dio.h5io.create_empty_data_h5(filename, shell)
 
         # Create arrays for raw data in hdf5 store
-        dio.h5io.create_hdf_arrays(self.h5_file, self.rec_info,
+        dio.h5io.create_hdf_arrays(filename, self.rec_info,
                                    self.electrode_mapping, self.emg_mapping)
 
         # Read in data to arrays
-        dio.h5io.read_files_into_arrays(self.h5_file,
+        dio.h5io.read_files_into_arrays(filename,
                                         self.rec_info,
                                         self.electrode_mapping,
                                         self.emg_mapping)
 
         # update status
+        self.h5_file = filename
         self.process_status['extract_data'] = True
         self.save()
         print('\nData Extraction Complete\n--------------------')
+
+    def mark_dead_channels(self, dead_channels=None, shell=False):
+        '''Plots small piece of raw traces and a metric to help identify dead
+        channels. Once user marks channels as dead a new column is added to
+        electrode mapping
+
+        Parameters
+        ----------
+        dead_channels : list of int, optional
+            if this is specified then nothing is plotted, those channels are
+            simply marked as dead
+        shell : bool, optional
+        '''
+        if dead_channels is None:
+            em = self.electrode_mapping.copy()
+            plt.ion()
+            fig, ax = datplt.plot_traces_and_outliers(self.h5_file)
+            plt.draw()
+            choice = userIO.select_from_list('Select dead channels:',
+                                             em.Electrode.to_list(),
+                                             'Dead Channel Selection',
+                                             multi_select=True,
+                                             shell=shell)
+            plt.close('all')
+            plt.ioff()
+            dead_channels = list(map(int, choice))
+
+        em['dead'] = False
+        em.loc[dead_channels, 'dead'] = True
+        self.electrode_mapping = em
 
     @Logger('Running blech_clust')
     def blech_clust_run(self, data_quality=None, accept_params=False,
@@ -474,6 +515,7 @@ class dataset(object):
             tmp = deepcopy(dio.params.data_params.get(data_quality))
             if tmp:
                 self.clust_params['data_params'] = tmp
+                self.clust_params['data_quality'] = data_quality
             else:
                 raise ValueError('%s is not a valid data_quality preset. Must '
                                  'be "clean" or "noisy" or None.')
@@ -522,7 +564,8 @@ class dataset(object):
         process_path = os.path.realpath(__file__)
         process_path = os.path.join(os.path.dirname(process_path),
                                     'blech_process.py')
-        electrodes = self.electrode_mapping['Electrode'].tolist()
+        em = self.electrode_mapping
+        electrodes = em.Electrode[em['dead'] == False].tolist()
 
         my_env = os.environ
         my_env['OMP_NUM_THREADS'] = '1'  # possibly not necesary
@@ -538,7 +581,7 @@ class dataset(object):
         print('Clustering Complete\n------------------')
 
     @Logger('Common Average Referencing')
-    def common_average_reference(self, num_groups=None):
+    def common_average_reference(self, num_groups=None, shell=False):
         '''Define electrode groups and remove common average from  signals
 
         Parameters
@@ -549,9 +592,10 @@ class dataset(object):
         '''
         # Gather Common Average Reference Groups
         if num_groups is None:
-            num_groups = eg.enterbox('Enter number of common average '
-                                     'reference groups (integer only):',
-                                     'CAR Groups')
+            num_groups = userIO.get_user_input('Enter number of common average '
+                                               'reference groups (integers only):',
+                                               default='bilateral32',
+                                               shell=shell)
             if num_groups.isnumeric():
                 num_groups = int(num_groups)
 
@@ -716,6 +760,21 @@ class dataset(object):
         self.process_status['sort_units'] = True
         self.save()
 
+    def get_unit_table(self):
+        '''Returns a pandas dataframe with sorted unit information
+
+        Returns
+        --------
+        pandas.DataFrame with columns:
+            unit_name, unit_num, electrode, single_unit,
+            regular_spiking, fast_spiking
+        '''
+        unit_table = dio.h5io.get_unit_table(self.data_dir)
+        return unit_table
+
+    def palatability_calculate(self):
+        pass
+
     def extract_and_cluster(self, data_quality='clean',
                             num_CAR_groups='bilateral32', shell=False,
                             dig_in_names=None, dig_out_names=None,
@@ -826,3 +885,23 @@ class dataset(object):
         print('Making psth arrays...')
         self.make_psth_arrays()
         self.save()
+
+
+def get_palatability_ranks(dig_in_mapping, shell=True):
+    '''Queries user for palatability rankings for digital inputs (tastants) and
+    adds a column to dig_in_mapping DataFrame
+
+    Parameters
+    ----------
+    dig_in_mapping: pandas.DataFrame,
+        DataFrame with at least columns 'dig_in' and 'name', for mapping
+        digital input channel number to a str name
+    '''
+    dim = dig_in_mapping.copy()
+    tmp = dict.fromkeys(dim['name'], 0)
+    filler = userIO.dictIO(tmp, shell=shell)
+    tmp = filler.fill_dict('Rank Palatability\n1 for the lowest\n'
+                           'Leave blank to exclude from palatability analysis')
+    dim['palatability_rank'] = dim['name'].apply(lambda x: tmp.get(x))
+    return dim
+

@@ -202,6 +202,15 @@ def get_CAR_groups(num_groups,electrode_mapping, shell=False):
                 raise ValueError('Must select electrodes for CAR groups')
             car_electrodes.append([int(x.split(',')[0]) for x in tmp])
 
+    if 'dead' in electrode_mapping.columns:
+        dead_ch = electrode_mapping['Electrode'][electrode_mapping['dead']]
+        dead_ch = dead_ch.to_list()
+        for group in car_electrodes:
+            for dc in dead_ch:
+                if dc in group:
+                    group.remove(dc)
+
+
     return num_groups,car_electrodes
 
 @Timer('Writing Clustering Parameters to .params File')

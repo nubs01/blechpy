@@ -104,7 +104,7 @@ def get_intra_J3(rec_dirs):
 
         for unit in unit_names:
             print('    Computing for %s...' % unit)
-            #waves, descrip, fs = get_unit_waveforms(rd, unit)
+            # waves, descrip, fs = get_unit_waveforms(rd, unit)
             waves, descrip, fs = get_raw_unit_waveforms(rd, unit)
             if descrip['single_unit'] == 1:
                 pca = PCA(n_components=3)
@@ -143,8 +143,6 @@ def find_held_units(rec_dirs, intra_J3, percent_criterion):
         rec1 = os.path.basename(rd1)
         rec2 = os.path.basename(rd2)
         print('Comparing %s vs %s' % (rec1, rec2))
-        #fs1 = dio.rawIO.get_sampling_rate(rd1)
-        #fs2 = dio.rawIO.get_sampling_rate(rd2)
 
         with tables.open_file(h5_file1, 'r') as hf51, \
                 tables.open_file(h5_file2, 'r') as hf52:
@@ -152,14 +150,15 @@ def find_held_units(rec_dirs, intra_J3, percent_criterion):
             unit_names2 = [x._v_name for x in hf52.list_nodes('/sorted_units')]
 
         for unit1 in unit_names1:
-            #wf1, descrip1, fs1 = get_unit_waveforms(rd1, unit1)
+            # wf1, descrip1, fs1 = get_unit_waveforms(rd1, unit1)
             wf1, descrip1, fs1 = get_raw_unit_waveforms(rd1, unit1)
 
             if descrip1['single_unit'] == 1:
                 for unit2 in unit_names2:
-                    #wf2, descrip2, fs2 = get_unit_waveforms(rd2, unit2)
-                    wf2, descrip2, fs2 = get_raw_unit_waveforms(rd2, unit2,
-                                                                required_descrip=descrip1)
+                    # wf2, descrip2, fs2 = get_unit_waveforms(rd2, unit2)
+                    wf2, descrip2, fs2 = \
+                            get_raw_unit_waveforms(rd2, unit2,
+                                                   required_descrip=descrip1)
                     if descrip1 == descrip2 and wf2 is not None:
 
                         print('Comparing %s %s vs %s %s' %
@@ -240,6 +239,7 @@ def load_experiment(exp_file):
 
     return out
 
+
 class multi_dataset(object):
 
     def __init__(self, exp_dir=None, shell=False):
@@ -276,7 +276,7 @@ class multi_dataset(object):
         file_dirs = sorted(file_dirs, key=order_dict.get)
         file_dirs = [os.path.join(exp_dir, x) for x in file_dirs]
         file_dirs = [x[:-1] if x.endswith('/') else x
-                    for x in file_dirs]
+                     for x in file_dirs]
         self.recording_dirs = file_dirs
         self.experiment_dir = exp_dir
         self.shell = shell
@@ -298,7 +298,6 @@ class multi_dataset(object):
         with open(self.save_file, 'wb') as f:
             pickle.dump(self, f)
             print('Saved experiment dataset to %s' % self.save_file)
-
 
     def _order_dirs(self, shell=None):
         '''set order of redcording directories
@@ -359,7 +358,7 @@ class multi_dataset(object):
         em = self.electrode_mapping
         tmp = row.keys().to_list()
         idx = tmp.index('unit')
-        if idx==0:
+        if idx == 0:
             idx = 1
         else:
             idx = 0
@@ -374,8 +373,6 @@ class multi_dataset(object):
         row['electrode'] = electrode
         row['area'] = area
         return row
-
-
 
     def held_units_detect(self, percent_criterion=95, shell=None):
         '''Determine which units are held across recording sessions
@@ -1126,22 +1123,36 @@ def compare_held_unit(unit_name, rec1, unit1, dig_in1, rec2, unit2, dig_in2,
     nfr2 = (fr2.transpose() - baseline2).transpose()
     plot_psth(fr1, time1, ax=ax1)
     plot_psth(fr2, time2, ax=ax1)
-    if out['baseline_shift']:
-        new_time = np.arange(time_window[0], 0, comp_win) + comp_win/2
-        plot_significance(new_time, [(0, len(new_time)-1)], ax=ax1)
 
     sig_ints = find_contiguous(sig_pts).get(1)
+    new_sig_ints = []
     if sig_ints is not None:
-        plot_significance(win_starts, sig_ints, ax=ax1)
+        for iv in sig_ints:
+            i1 = np.where((s_time1 >= win_starts[iv[0]]) &
+                          (s_time1 <= win_starts[iv[1]]+comp_win))[0]
+            new_sig_ints.append((i1[0], i1[-1]))
+
+    if out['baseline_shift']:
+        i1 = np.where(s_time1 < 0)[0]
+        new_sig_ints.append((i1[0], i1[-1]))
+
+
+    if new_sig_ints != []:
+        plot_significance(s_time1, new_sig_ints, ax=ax1)
 
 
     plot_psth(nfr1, time1, ax=ax2, label=rn1)
     plot_psth(nfr2, time2, ax=ax2, label=rn2)
-
-
     n_sig_ints = find_contiguous(n_sig_pts).get(1)
+    new_sig_ints = []
     if n_sig_ints is not None:
-        plot_significance(win_starts, n_sig_ints, ax=ax2)
+        for iv in n_sig_ints:
+            i1 = np.where((s_time1 >= win_starts[iv[0]]) &
+                          (s_time1 <= win_starts[iv[1]]+comp_win))[0]
+            new_sig_ints.append((i1[0], i1[-1]))
+
+    if new_sig_ints != []:
+        plot_significance(s_time1, new_sig_ints, ax=ax2)
 
     ax2.legend(loc='lower left')
 
@@ -1198,45 +1209,6 @@ def compare_held_unit(unit_name, rec1, unit1, dig_in1, rec2, unit2, dig_in2,
     plt.close('all')
     return out
 
-    # # Plot overlay with sig-stars and correlation below
-    # fig = plt.figure(figsize=(30, 30))
-    # gs = gridspec.GridSpec(3, 1)
-    # ax1 = plt.subplot(gs[:2, :])
-    # plot_psth(fr1, time1, ax=ax1, label=rn1)
-    # plot_psth(fr2, time2, ax=ax1, label=rn2)
-    # ax1.legend(loc='upper right')
-    # plot_significance(time1, sig_ints, ax=ax1)
-    # if normalized:
-    #     ax1.set_ylabel('Mean Firing Rate\nbaseline removed', fontsize=32)
-    # else:
-    #     ax1.set_ylabel('Mean Firing Rate (Hz)', fontsize=36)
-
-    # ax1.set_title('Unit %s: %s Response\n\nTrial Averaged Firing Rate' %
-    #               (unit_name, tastant), fontsize=42)
-
-    # ax2 = plt.subplot(gs[-1, :], sharex=ax1)
-    # mean_diff, diff_sem = get_mean_difference(fr1, fr2, axis=0)
-    # #ax2.errorbar(time1, mean_diff, yerr=diff_sem, elinewidth=3, fmt='.')
-    # for x, y in zip(time1, mean_diff):
-    #     ax2.plot([x, x], [0, y], color='black', linewidth=2, alpha=0.7)
-    #     ax2.plot(x, y, color='blue', marker='.')
-
-    # plot_significance(time1, sig_ints, ax=ax2)
-    # ymax = np.max(np.abs(ax2.get_ylim()))
-    # ax2.set_ylim((-ymax, ymax))
-    # plt.grid(True)
-    # ax2.axvline(x=0, linestyle='--', color='red', alpha=0.6)
-    # # ax2.plot(time1, sr_stats)
-    # ax2.set_title('Residuals', fontsize=36)
-    # ax2.set_ylabel('Difference of means', fontsize=36)
-    # ax2.set_xlabel('Time (ms)', fontsize=36)
-    # plt.savefig(os.path.join(save_dir, 'unit_%s_%s_comparison.png' %
-    #                          (unit_name, tastant)))
-    # plt.close('all')
-
-    # return significant, out_stats
-
-
 
 def plot_spike_raster(spikes, time, **kwargs):
     ax = kwargs.pop('ax', plt.gca())
@@ -1246,6 +1218,7 @@ def plot_spike_raster(spikes, time, **kwargs):
         ax.scatter(time[idx], (i+1)*row[idx], marker='|', color='black')
 
     ax.axvline(x=0, linestyle='--', color='red', alpha=0.6)
+
 
 def plot_psth(psth_array, time, **kwargs):
     mean_psth = np.mean(psth_array, axis=0)
@@ -1259,6 +1232,7 @@ def plot_psth(psth_array, time, **kwargs):
     ax.margins(.1)
     ax.autoscale(axis='y', tight=False)
     ax.autoscale(axis='x', tight=True)
+
 
 def plot_significance(x, sig_ints, **kwargs):
     if sig_ints is None or sig_ints == []:
@@ -1279,6 +1253,7 @@ def plot_significance(x, sig_ints, **kwargs):
     ax.margins(.2)
     ax.autoscale(axis='y', tight=False)
     ax.autoscale(axis='x', tight=True)
+
 
 def find_contiguous(arr):
     cont = dict.fromkeys(np.unique(arr))
@@ -1326,6 +1301,7 @@ def get_taste_mapping(rec_dirs):
 
     return taste_map, tastants
 
+
 def get_mean_difference(A, B, axis=0):
     shape_ax = int(not axis)
 
@@ -1339,6 +1315,6 @@ def get_mean_difference(A, B, axis=0):
 
     C = m2 - m1
     SEM = np.sqrt((np.power(sd1, 2)/n1) + (np.power(sd2,2)/n2)) / \
-            np.sqrt(n1+n2)
+        np.sqrt(n1+n2)
 
     return C, SEM

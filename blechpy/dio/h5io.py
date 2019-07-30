@@ -47,8 +47,8 @@ def create_empty_data_h5(filename, shell=False):
 
     # Check if file exists, and ask to delete if it does
     if os.path.isfile(filename):
-        q = userIO.ask_user('%s already exists. Would you like to delete?',
-                            choices=['Yes', 'No'], shell=shell)
+        q = userIO.ask_user('%s already exists. Would you like to delete?' %
+                            filename, choices=['Yes', 'No'], shell=shell)
         if q == 1:
             return filename
         else:
@@ -169,10 +169,11 @@ def create_hdf_arrays(file_name, rec_info, electrode_mapping, emg_mapping,
     println('Creating empty arrays in hdf5 store for raw data...')
     sys.stdout.flush()
     atom = tables.IntAtom()
+    f_atom = tables.Float64Atom()
     with tables.open_file(file_name, 'r+') as hf5:
 
         # Create array for raw time vector
-        hf5.create_earray('/raw', 'amplifier_time', atom, (0, ))
+        hf5.create_earray('/raw', 'amplifier_time', f_atom, (0, ))
 
         # Create arrays for each electrode
         for idx, row in electrode_mapping.iterrows():
@@ -853,6 +854,10 @@ def get_unit_names(rec_dir):
     Parameters
     ----------
     rec_dir : str, full path to recording dir
+
+    Returns
+    -------
+    list of str
     '''
     h5_name = get_h5_filename(rec_dir)
     h5_file = os.path.join(rec_dir, h5_name)
@@ -864,4 +869,18 @@ def get_unit_names(rec_dir):
     return unit_names
 
 
+def get_unit_table(rec_dir):
+    units = get_unit_names(rec_dir)
+    unit_table = pd.DataFrame(units, columns=['unit_name'])
+    unit_table['unit_num'] = \
+            unit_table['unit_name'].apply(lambda x: parse_unit_number(x))
+    def add_descrip(row):
+        descrip = get_unit_descriptor(rec_dir, row['unit_num'])
+        row['electrode'] = descrip['electrode_number']
+        row['single_unit'] = bool(descrip['single_unit'])
+        row['regular_spiking'] = bool(descrip['regular_spiking'])
+        row['fast_spiking'] = bool(descrip['fast_spiking'])
+        return row
 
+    unit_table = unit_table.apply(add_descrip, axis=1)
+    return unit_table

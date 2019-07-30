@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk
 from collections.abc import Mapping
 from copy import deepcopy
+from blechpy.data_print import data_print as dp
 import easygui as eg
 import sys
 
@@ -91,6 +92,12 @@ def convert_str_to_type(item, dtype):
         return None
 
     return dtype(item)
+
+
+def fill_dict(data, prompt=None, shell=False):
+    filler = dictIO(data, shell=shell)
+    out= filler.fill_dict(prompt=prompt)
+    return out
 
 
 class dictIO(object):
@@ -263,6 +270,89 @@ def ask_user(msg, choices=['Yes', 'No'], shell=False):
         return idx
 
 
+def get_user_input(msg, default=None, shell=False):
+    '''Get single input from user.
+
+    Parameters
+    ----------
+    msg : str, prompt
+    default : str (optional)
+        value returned if user enters nothing.
+        default is None
+    shell : bool (optional)
+        True for CLI, False (default) for GUI
+    '''
+    if shell:
+        original = sys.stdout
+        sys.stdout = sys.__stdout__
+        try:
+            prompt = msg + ' '
+            if default is not None:
+                prompt += '(default=%s) ' % default
+
+            out = input(prompt)
+            if out == '':
+                out = default
+        except EOFError:
+            out = None
+
+        sys.stdout = original
+        return out
+    else:
+        out = eg.enterbox(msg)
+        if out == '':
+            out = default
+
+        return out
+
+def get_dir(prompt=None, default=None, shell=False):
+    '''Query the user to select a directory
+
+    Parameters
+    ----------
+    prompt : str (optional), user prompt
+    shell : bool (optional)
+        True for CLI, False (default) for GUI
+
+    Returns
+    -------
+    str, path to selected directory
+    '''
+    if shell:
+        out = get_user_input(prompt+'\n', default=default, shell=shell)
+        return out
+    else:
+        if default is None:
+            default == ''
+
+        out = eg.diropenbox(prompt, default=default)
+        return out
+
+def get_file(prompt=None, default=None, shell=False):
+    '''Query ther user for a file path
+
+    Parameters
+    ----------
+    prompt : str (optional), prompt for user
+    default: str (optional), default path
+    shell: bool (optional)
+        True for CLI. False (default) for GUI
+
+    Returns
+    -------
+    str, path to file
+    '''
+    if shell:
+        out = get_user_input(prompt+'\n', default=default, shell=shell)
+        return out
+    else:
+        if default is None:
+            default = ''
+
+        out = eg.fileopenbox(prompt, default=default)
+        return out
+
+
 def select_from_list(prompt, items, title='', multi_select=False, shell=False):
     '''makes a popup for list selections, can be multichoice or single choice
     default is single selection
@@ -336,3 +426,35 @@ def tell_user(msg, shell=False):
     else:
         eg.msgbox(msg)
         return True
+
+def confirm_parameter_dict(params, prompt, shell=False):
+    '''Shows user a dictionary and asks them to confirm that the values are
+    correct. If not they have an option to edit the dict.
+
+    Parameters
+    ----------
+    params: dict
+        values in dict can be int, float, str, bool, list, dict or None
+    prompt: str
+        prompt to show user
+    shell : bool (optional)
+        True to use command line interface
+        False (default) for GUI
+
+    Returns
+    -------
+    dict
+       lists are returned as lists of str so other types m ust be cast manually
+       by  user
+    '''
+    prompt = ('----------\n%s\n----------\n%s\nAre these parameters good?' %
+              (prompt, dp.print_dict(params)))
+    q = ask_user(prompt, choices=['Yes', 'Edit', 'Cancel'], shell=shell)
+    if q == 2:
+        return None
+    elif q == 0:
+        return params
+    else:
+        new_params = fill_dict(params, 'Enter new values:', shell=shell)
+        return new_params
+
