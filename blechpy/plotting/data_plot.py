@@ -5,7 +5,7 @@ import os
 from blechpy import dio
 
 
-def plot_traces_and_outliers(h5_file, window=[60, 120]):
+def plot_traces_and_outliers(h5_file, window=60):
     '''plot first 30 sec of raw data traces as well as a subplot with a metric
     to help identify dead channels (max(abs(trace)) * std(trace))
 
@@ -25,6 +25,7 @@ def plot_traces_and_outliers(h5_file, window=[60, 120]):
         time = electrodes.pop(t_idx[0])[:]
         n_electrodes = len(electrodes)
         max_amp = np.zeros(n_electrodes)
+        max_amp_idx = np.zeros(n_electrodes)
         std_amp = np.zeros(n_electrodes)
         range_amp = np.zeros(n_electrodes)
 
@@ -32,14 +33,17 @@ def plot_traces_and_outliers(h5_file, window=[60, 120]):
             i = int(node._v_name.replace('electrode',''))
             trace = node[:] * dio.rawIO.voltage_scaling
             max_amp[i] = np.max(np.abs(trace))
+            max_amp_idx[i] = int(np.argmax(np.abs(trace)))
             std_amp[i] = np.std(trace)
             range_amp[i] = np.max(trace) - np.min(trace)
 
         max_v = np.max(max_amp)
+        max_idx = int(max_amp_idx[np.argmax(max_amp)])
         metric = max_amp * std_amp
-        idx = np.where((time >= window[0]) & (time <= window[1]))[0]
+        idx = np.where((time >= time[max_idx] - window/2) &
+                       (time <= time[max_idx] + window/2))[0]
 
-        fig, ax = plt.subplots(nrows=2)
+        fig, ax = plt.subplots(nrows=2, figsize=(30,30))
         for node in electrodes:
             i = int(node._v_name.replace('electrode',''))
             trace = node[:] * dio.rawIO.voltage_scaling / max_v

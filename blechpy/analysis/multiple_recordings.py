@@ -355,15 +355,16 @@ class multi_dataset(object):
 
     def _assign_area(self, row):
         data_dir = self.experiment_dir
-        em = self.electrode_mapping
-        tmp = row.keys().to_list()
+        em = self.electrode_mapping.copy()
+        tmp_row = row.dropna()
+        tmp = tmp_row.keys().to_list()
         idx = tmp.index('unit')
         if idx == 0:
             idx = 1
         else:
             idx = 0
         rec = tmp[idx]
-        unit = row[rec]
+        unit = tmp_row[rec]
         unit_num = dio.h5io.parse_unit_number(unit)
         rec_dir = os.path.join(data_dir, rec)
         descrip = dio.h5io.get_unit_descriptor(rec_dir, unit_num)
@@ -547,6 +548,9 @@ class multi_dataset(object):
 
                 # For now only compare pairs
                 if len(t_recs) != 2:
+                    continue
+
+                if not all([isinstance(u.get(x), str) for x in t_recs]):
                     continue
 
                 sd = os.path.join(save_dir, t)

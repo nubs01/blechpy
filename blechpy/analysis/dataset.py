@@ -478,9 +478,11 @@ class dataset(object):
         '''
         if dead_channels is None:
             em = self.electrode_mapping.copy()
-            plt.ion()
             fig, ax = datplt.plot_traces_and_outliers(self.h5_file)
-            plt.draw()
+
+            save_file = os.path.join(self.data_dir, 'Electrode_Traces.png')
+            fig.savefig(save_file)
+            subprocess.call(['xdg-open', save_file])
             choice = userIO.select_from_list('Select dead channels:',
                                              em.Electrode.to_list(),
                                              'Dead Channel Selection',
@@ -493,6 +495,7 @@ class dataset(object):
         em['dead'] = False
         em.loc[dead_channels, 'dead'] = True
         self.electrode_mapping = em
+        return dead_channels
 
     @Logger('Running blech_clust')
     def blech_clust_run(self, data_quality=None, accept_params=False,
@@ -565,7 +568,10 @@ class dataset(object):
         process_path = os.path.join(os.path.dirname(process_path),
                                     'blech_process.py')
         em = self.electrode_mapping
-        electrodes = em.Electrode[em['dead'] == False].tolist()
+        if 'dead' in em.columns:
+            electrodes = em.Electrode[em['dead'] == False].tolist()
+        else:
+            electrodes = em.Electrode.tolist()
 
         my_env = os.environ
         my_env['OMP_NUM_THREADS'] = '1'  # possibly not necesary

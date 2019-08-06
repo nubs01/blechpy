@@ -30,6 +30,8 @@ def palatability_identity_calculations(rec_dir, pal_ranks=None,
     dim = dat.dig_in_mapping
     if pal_ranks is None:
         dim = get_palatability_ranks(dim, shell=shell)
+    elif 'palatability_rank' in dim.columns:
+        pass
     else:
         dim['palatability_rank'] = dim['name'].map(pal_ranks)
 

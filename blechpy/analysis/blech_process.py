@@ -252,7 +252,7 @@ for i in range(max_clusters-1):
         cluster_points = np.where(predictions[:] == cluster)[0]
         if cluster_points.shape[0] == 0:
             print('No cluster points for %s: electrode %i, cluster %i' 
-                  % (os.path.dirname(file_dir), electrode_num, cluster))
+                  % (os.path.basename(file_dir), electrode_num, cluster))
             continue
 
         fig, ax = blech_waveforms_datashader.waveforms_datashader(slices_dejittered[cluster_points, :], dir_name = "datashader_temp_el%i" % electrode_num)
