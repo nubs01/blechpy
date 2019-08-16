@@ -270,6 +270,13 @@ class dataset(object):
         if psth_params is None:
             psth_params = deepcopy(dio.params.psth_params)
 
+        # Get default palatability parameters
+        pal_params = deepcopy(dio.params.pal_id_params)
+        #self._set_palatability_params()
+
+        # Set CAR groups
+        self._set_CAR_groups()
+
         # Ask for emg port & channels
         if emg_port is None and not shell:
             q = eg.ynbox('Do you have an EMG?', 'EMG')
@@ -382,6 +389,7 @@ class dataset(object):
                              'spike_snapshot': spike_snapshot}
 
         # Store and confirm spike array parameters
+        self.pal_id_params = pal_params
         spike_array_params['sampling_rate'] = sampling_rate
         self.spike_array_params = spike_array_params
         self.psth_params = psth_params
@@ -402,6 +410,55 @@ class dataset(object):
                 self.edit_psth_parameters(shell=shell)
 
         self.save()
+
+    def _set_CAR_groups(self, group_keyword=None, group_electrodes=None,
+                        group_areas=None, num_groups=None, shell=False):
+        '''Sets that electrode groups for common average referencing and
+        defines which brain region electrodes eneded up in
+
+        Parameters
+        ----------
+        group_keyword : str
+            Keyword corresponding to a preset electrode grouping in CAR_params.json
+        group_electrodes: list of list of int
+            Shadowed by keyword. list of lists of electrodes in each group
+        group_areas: list of str
+            list of brain regions for each group
+        num_groups: int
+            number of CAR groups. Needed if no other arguments are passed
+        '''
+        if hasattr(self, 'electrode_mapping'):
+            raise ValueError('Set electrode mapping before setting CAR groups')
+
+        em = self.electrode_mapping.copy()
+
+        if group_keyword is not None:
+            group_electrodes = dio.params.get_CAR_groups(group_keyword)
+
+        if group_electrodes is not None:
+            num_groups = len(group_electrodes)
+        elif group_areas is not None:
+            num_groups = len(group_areas)
+
+        if num_groups is None:
+            raise ValueError('Must provide at least one valid argument')
+
+        if group_electrodes is None:
+            group_electrodes = dio.params.select_CAR_groups(num_groups,
+                                                            em,
+                                                            shell=shell)
+
+        if group_areas is None:
+            group_names = ['Group %i' % i for i in range(num_groups)]
+            area_dict = dict.fromkeys(group_names, '')
+            area_dict = userIO.fill_dict(area_dict, 'Set Areas for CAR groups',
+                                         shell=shell)
+        for k, v in area_dict.items():
+            i = int(k.replace('Group', ''))
+            em.loc[group_electrodes[i], 'area'] = v
+
+        self.CAR_electrodes = group_electrodes
+        self.electrode_mapping = em.copy()
 
     @Logger('Calculating Unit Similarity')
     def units_similarity(self, similarity_cutoff=50):
@@ -587,7 +644,7 @@ class dataset(object):
         print('Clustering Complete\n------------------')
 
     @Logger('Common Average Referencing')
-    def common_average_reference(self, num_groups=None, shell=False):
+    def common_average_reference(self):
         '''Define electrode groups and remove common average from  signals
 
         Parameters
@@ -596,27 +653,29 @@ class dataset(object):
             number of CAR groups, if not provided
             there's a prompt
         '''
+        if not hasattr(self, 'CAR_electrodes'):
+            raise ValueError('CAR_electrodes not set')
+
+        if not hasattr(self, 'electrode_mapping'):
+            raise ValueError('electrode_mapping not set')
+
+        car_electrodes = self.CAR_electrodes
+        em = self.electrode_mapping.copy()
+
+        if 'dead' in em.columns:
+            dead_electrodes = em.Electrode[em.dead].to_list()
+        else:
+            dead_electrodes = []
+
         # Gather Common Average Reference Groups
-        if num_groups is None:
-            num_groups = userIO.get_user_input('Enter number of common average '
-                                               'reference groups (integers only):',
-                                               default='bilateral32',
-                                               shell=shell)
-            if num_groups.isnumeric():
-                num_groups = int(num_groups)
-
-        num_groups, car_electrodes = dio.params.get_CAR_groups(
-            num_groups,
-            self.electrode_mapping)
-
-        self.car_electrodes = car_electrodes
         print('CAR Groups\n')
         headers = ['Group %i' % x for x in range(num_groups)]
         print(dp.print_list_table(car_electrodes, headers))
 
         # Reference each group
         for i, x in enumerate(car_electrodes):
-            dio.h5io.common_avg_reference(self.h5_file, x, i)
+            tmp = list(set(x) - set(dead_electrodes))
+            dio.h5io.common_avg_reference(self.h5_file, tmp, i)
 
         # Compress and repack file
         dio.h5io.compress_and_repack(self.h5_file)
@@ -778,8 +837,9 @@ class dataset(object):
         unit_table = dio.h5io.get_unit_table(self.data_dir)
         return unit_table
 
-    def palatability_calculate(self):
-        pass
+    def palatability_calculate(self, shell=False):
+        tpt.palatability_identity_calculations(self.data_dir,
+                                               params=self.pal_id_params)
 
     def extract_and_cluster(self, data_quality='clean',
                             num_CAR_groups='bilateral32', shell=False,

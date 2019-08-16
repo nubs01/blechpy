@@ -21,11 +21,10 @@ import itertools
 default_pal_id_params ={'window_size': 250, 'window_step': 25,
                         'num_comparison_bins': 5, 'comparison_bin_size': 250,
                         'discrim_p': 0.01, 'pal_deduce_start_time': 700,
-                        'pal_deduce_end_time': 1200}
+                        'pal_deduce_end_time': 1200, 'unit_type': 'Single'}
 
 def palatability_identity_calculations(rec_dir, pal_ranks=None,
-                                       unit_type=None, params=None,
-                                       shell=False):
+                                       params=None, shell=False):
     dat = dataset.load_dataset(rec_dir)
     dim = dat.dig_in_mapping
     if pal_ranks is None:
@@ -54,6 +53,7 @@ def palatability_identity_calculations(rec_dir, pal_ranks=None,
     # Get which units to use
     unit_table = h5io.get_unit_table(rec_dir)
     unit_types = ['Single', 'Multi', 'All', 'Custom']
+    unit_type = params.get('unit_type')
     if unit_type is None:
         q = userIO.ask_user('Which units do you want to use for taste '
                             'discrimination and  palatability analysis?',
@@ -81,10 +81,7 @@ def palatability_identity_calculations(rec_dir, pal_ranks=None,
 
     # Enter Parameters
     if params is None or params.keys() != default_pal_id_params.keys():
-        params = {'window_size': 250, 'window_step': 25,
-                  'num_comparison_bins': 5, 'comparison_bin_size': 250,
-                  'discrim_p': 0.01, 'pal_deduce_start_time': 700,
-                  'pal_deduce_end_time': 1200}
+        params = default_pal_id_params.copy()
         params = userIO.confirm_parameter_dict(params,
                                                ('Palatability/Identity '
                                                 'Calculation Parameters'

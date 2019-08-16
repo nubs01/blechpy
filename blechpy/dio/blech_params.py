@@ -6,6 +6,10 @@ from blechpy.dio import rawIO
 from blechpy.data_print import data_print as dp
 from blechpy.widgets import userIO
 
+script_dir = os.path.dirname(__file__)
+param_dir = os.path.join(script_dir, '..', '..', 'defaults')
+CAR_file = os.path.join(param_dir, 'CAR_params.json')
+
 clustering_params = {'Max Number of Clusters':7,
                     'Max Number of Iterations':1000,
                     'Convergence Criterion':0.001,
@@ -30,12 +34,15 @@ spike_snapshot = {'Time before spike (ms)':.5,
 
 clust_param_order = ['Max Number of Clusters','Max Number of Iterations',
                     'Convergence Criterion','GMM random restarts']
+
 data_param_order = ['V_cutoff for disconnected headstage',
                     'Max rate of cutoff breach per second',
                     'Max allowed seconds with a breach',
                     'Max allowed breaches per second',
                     'Intra-cluster waveform amp SD cutoff']
+
 band_param_order = ['Lower freq cutoff','Upper freq cutoff']
+
 spike_snap_order = ['Time before spike (ms)','Time after spike (ms)']
 
 spike_array_params = {'dig_ins_to_use': None, 'laser_channels': None,
@@ -44,6 +51,12 @@ spike_array_params = {'dig_ins_to_use': None, 'laser_channels': None,
 
 psth_params = {'window_size': 250, 'window_step': 25,
                'plot_pre_stimulus': 1000, 'plot_post_stimulus': 2500}
+
+pal_id_params ={'window_size': 250, 'window_step': 25,
+                'num_comparison_bins': 5, 'comparison_bin_size': 250,
+                'discrim_p': 0.01, 'pal_deduce_start_time': 700,
+                'pal_deduce_end_time': 1200, 'unit_type': 'Single'}
+
 
 def Timer(heading):
     def real_timer(func):
@@ -143,7 +156,7 @@ def get_din_channels(file_dir):
     return DIN
 
 @Timer('Collecting parameters for common average referencing')
-def get_CAR_groups(num_groups,electrode_mapping, shell=False):
+def select_CAR_groups(num_groups,electrode_mapping, shell=False):
     '''Returns a dict containing standard params for common average referencing
     Each dict field with fields, num groups, car_electrodes
     Can set num_groups to an integer or as unilateral or bilateral
@@ -170,22 +183,9 @@ def get_CAR_groups(num_groups,electrode_mapping, shell=False):
     ------
     ValueError : if num_groups is not a valid int (>0) or 'bilateral'
     '''
-    if num_groups=='bilateral32':
-        num_groups = 2
-        implant_type = 'bilateral32'
-    elif isinstance(num_groups,int) and num_groups>0:
-        implant_type=None
-    else:
-        raise ValueError('Num groups must be an integer >0 or a string bilateral')
-
     electrodes = electrode_mapping['Electrode'].tolist()
     car_electrodes = []
-    if implant_type=='bilateral32':
-        g1 = electrodes[:8]
-        g1.extend(electrodes[-8:])
-        g2 = electrodes[8:-8]
-        car_electrodes = [g1,g2]
-    elif num_groups==1:
+    if num_groups==1:
         car_electrodes.append(electrodes)
     else:
         select_list = []
@@ -202,16 +202,16 @@ def get_CAR_groups(num_groups,electrode_mapping, shell=False):
                 raise ValueError('Must select electrodes for CAR groups')
             car_electrodes.append([int(x.split(',')[0]) for x in tmp])
 
-    if 'dead' in electrode_mapping.columns:
-        dead_ch = electrode_mapping['Electrode'][electrode_mapping['dead']]
-        dead_ch = dead_ch.to_list()
-        for group in car_electrodes:
-            for dc in dead_ch:
-                if dc in group:
-                    group.remove(dc)
+    # if 'dead' in electrode_mapping.columns:
+    #     dead_ch = electrode_mapping['Electrode'][electrode_mapping['dead']]
+    #     dead_ch = dead_ch.to_list()
+    #     for group in car_electrodes:
+    #         for dc in dead_ch:
+    #             if dc in group:
+    #                 group.remove(dc)
 
 
-    return num_groups,car_electrodes
+    return car_electrodes
 
 @Timer('Writing Clustering Parameters to .params File')
 def write_params(file_name,params):
@@ -284,3 +284,23 @@ def flatten_channels(ports,channels,emg_port=None,emg_channels=None):
     emg_df.reset_index(drop=True,inplace=True)
     emg_df = emg_df.reset_index(drop=False).rename(columns={'index':'EMG'})
     return map_df, emg_df
+
+def get_CAR_groups(car_keyword):
+    '''reads defaults from CAR_params.json and returns the default groups
+    listed under the given keyword. If keyword is not in the defaults file,
+    returns None.
+
+    Parameters
+    ----------
+    car_keyword : str, keyword from defaults file
+
+    Returns
+    -------
+    group_electrodes : list of list of ints
+        list containing a list of electrode numbers for each CAR group
+    '''
+    with open(CAR_file, 'r') as f:
+        default_dict = json.load(f)
+
+    out = default_dict.get(car_keyword)
+    return out
