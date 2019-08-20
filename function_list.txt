@@ -1,0 +1,197 @@
+./Untitled.ipynb:    "def load_dataset(rec_dir):\n",
+./Untitled.ipynb:    "def parse_unit_number(unit_name):\n",
+./Untitled.ipynb:    "def find_contiguous(arr):\n",
+./Untitled.ipynb:    "def get_mean_difference(A, B, axis=0):\n",
+./Untitled.ipynb:    "def plot_psth(psth_array, time, **kwargs):\n",
+./Untitled.ipynb:    "def plot_significance(x, sig_ints, **kwargs):\n",
+./Untitled.ipynb:    "def f(a, row):\n",
+./blechpy/widgets/userIO.py:def center(win):
+./blechpy/widgets/userIO.py:def get_dict_shell_input(dat, type_dict=None, tabstop='', prompt=None):
+./blechpy/widgets/userIO.py:def make_type_dict(dat):
+./blechpy/widgets/userIO.py:def convert_str_to_type(item, dtype):
+./blechpy/widgets/userIO.py:def fill_dict(data, prompt=None, shell=False):
+./blechpy/widgets/userIO.py:    def __init__(self, data, types=None, shell=False):
+./blechpy/widgets/userIO.py:    def fill_dict(self, prompt=None):
+./blechpy/widgets/userIO.py:    def fill_dict_shell(self, prompt=None):
+./blechpy/widgets/userIO.py:    def get_dict(self):
+./blechpy/widgets/userIO.py:    def fill_dict_gui(self, prompt=None):
+./blechpy/widgets/userIO.py:    def submit(self):
+./blechpy/widgets/userIO.py:    def cancel(self):
+./blechpy/widgets/userIO.py:    def __init__(self, root, data, type_dict, tabstop='', *args, **kwargs):
+./blechpy/widgets/userIO.py:    def get_value_vars(self):
+./blechpy/widgets/userIO.py:    def get_values(self):
+./blechpy/widgets/userIO.py:def ask_user(msg, choices=['Yes', 'No'], shell=False):
+./blechpy/widgets/userIO.py:def get_user_input(msg, default=None, shell=False):
+./blechpy/widgets/userIO.py:def get_dir(prompt=None, default=None, shell=False):
+./blechpy/widgets/userIO.py:def get_file(prompt=None, default=None, shell=False):
+./blechpy/widgets/userIO.py:def select_from_list(prompt, items, title='', multi_select=False, shell=False):
+./blechpy/widgets/userIO.py:def tell_user(msg, shell=False):
+./blechpy/widgets/userIO.py:def confirm_parameter_dict(params, prompt, shell=False):
+./blechpy/plotting/blech_waveforms_datashader.py:def waveforms_datashader(waveforms, dir_name = "datashader_temp"):
+./blechpy/plotting/palatability_plot.py:def plot_palatability_identity(rec_dirs=None, out_dir=None, params=None, shell=False):
+./blechpy/plotting/palatability_plot.py:    def out_file(fn):
+./blechpy/plotting/data_plot.py:def plot_traces_and_outliers(h5_file, window=60):
+./blechpy/data_print/memory_monitor.py:def get_location():
+./blechpy/data_print/memory_monitor.py:def memory_usage_psutil():
+./blechpy/data_print/memory_monitor.py:def memory_usage_resource():
+./blechpy/data_print/memory_monitor.py:def report_usage(label="", logfile = sys.stderr):
+./blechpy/data_print/data_print.py:def get_datetime_from_str(date_str,accepted_formats = ['%m/%d/%y','%m/%d/%y %H:%M',
+./blechpy/data_print/data_print.py:def get_date_str(date,fmt='%m/%d/%y'):
+./blechpy/data_print/data_print.py:def print_dict(dic,tabs=0):
+./blechpy/data_print/data_print.py:def print_dataframe(df,tabs=0,idxfmt='Date'):
+./blechpy/data_print/data_print.py:def print_list_table(lis,headers=[]):
+Binary file ./blechpy/dio/.blech_params.py.swp matches
+./blechpy/dio/h5io.py:def Timer(heading):
+./blechpy/dio/h5io.py:    def real_timer(func):
+./blechpy/dio/h5io.py:        def wrapper(*args, **kwargs):
+./blechpy/dio/h5io.py:def println(txt):
+./blechpy/dio/h5io.py:def create_empty_data_h5(filename, shell=False):
+./blechpy/dio/h5io.py:def get_h5_filename(file_dir, shell=False):
+./blechpy/dio/h5io.py:def get_h5_object(file_name):
+./blechpy/dio/h5io.py:def create_hdf_arrays(file_name, rec_info, electrode_mapping, emg_mapping,
+./blechpy/dio/h5io.py:def read_files_into_arrays(file_name, rec_info, electrode_mapping, emg_mapping,
+./blechpy/dio/h5io.py:def read_in_amplifier_signal(hf5, file_dir, file_type, num_channels, el_map,
+./blechpy/dio/h5io.py:def get_unit_descriptor(rec_dir, unit_num):
+./blechpy/dio/h5io.py:def read_in_digital_signal(hf5, file_dir, file_type, channels, dig_type='in'):
+./blechpy/dio/h5io.py:def create_trial_table(h5_file, digital_map, dig_type='in'):
+./blechpy/dio/h5io.py:def common_avg_reference(h5_file, electrodes, group_num):
+./blechpy/dio/h5io.py:def compress_and_repack(h5_file, new_file=None):
+./blechpy/dio/h5io.py:def get_trial_info(h5_file):
+./blechpy/dio/h5io.py:def cleanup_clustering(file_dir):
+./blechpy/dio/h5io.py:def create_trial_data_table(h5_file, digital_map, fs, dig_type='in'):
+./blechpy/dio/h5io.py:def read_trial_data_table(h5_file, dig_type='in', channels=None):
+./blechpy/dio/h5io.py:def parse_unit_number(unit_name):
+./blechpy/dio/h5io.py:def get_unit_names(rec_dir):
+./blechpy/dio/h5io.py:def get_unit_table(rec_dir):
+./blechpy/dio/h5io.py:    def add_descrip(row):
+./blechpy/dio/blech_params.py:def Timer(heading):
+./blechpy/dio/blech_params.py:    def real_timer(func):
+./blechpy/dio/blech_params.py:        def wrapper(*args,**kwargs):
+./blechpy/dio/blech_params.py:def parse_amplifier_files(file_dir):
+./blechpy/dio/blech_params.py:def parse_board_files(file_dir):
+./blechpy/dio/blech_params.py:def get_ports(file_dir):
+./blechpy/dio/blech_params.py:def get_channels_on_port(file_dir,port):
+./blechpy/dio/blech_params.py:def get_sampling_rate(file_dir):
+./blechpy/dio/blech_params.py:def get_din_channels(file_dir):
+./blechpy/dio/blech_params.py:def select_CAR_groups(num_groups,electrode_mapping, shell=False):
+./blechpy/dio/blech_params.py:def write_params(file_name,params):
+./blechpy/dio/blech_params.py:def flatten_channels(ports,channels,emg_port=None,emg_channels=None):
+./blechpy/dio/blech_params.py:def get_CAR_groups(car_keyword):
+./blechpy/dio/rawIO.py:def get_sampling_rate(rec_dir):
+./blechpy/dio/rawIO.py:def read_rec_info(file_dir,shell=False):
+./blechpy/dio/rawIO.py:def read_time_dat(file_dir,sampling_rate=None):
+./blechpy/dio/rawIO.py:def read_amplifier_dat(file_dir,num_channels=None):
+./blechpy/dio/rawIO.py:def read_digital_dat(file_dir,dig_channels=None,dig_type='in'):
+./blechpy/dio/rawIO.py:def read_one_channel_file(file_name):
+./blechpy/dio/rawIO.py:def get_recording_filetype(file_dir,shell=False):
+./blechpy/dio/intanutil/read_header.py:def read_header(fid):
+./blechpy/dio/intanutil/notch_filter.py:def notch_filter(input, fSample, fNotch, Bandwidth):
+./blechpy/dio/intanutil/data_to_result.py:def data_to_result(header, data, data_present):
+./blechpy/dio/intanutil/get_bytes_per_data_block.py:def get_bytes_per_data_block(header):
+./blechpy/dio/intanutil/read_one_data_block.py:def read_one_data_block(data, header, indices, fid):
+./blechpy/dio/intanutil/qstring.py:def read_qstring(fid):
+./blechpy/dio/load_intan_rhd_format.py:def read_data(filename):
+./blechpy/dio/load_intan_rhd_format.py:def plural(n):
+Binary file ./blechpy/analysis/.taste_palatability_testing.py.swo matches
+./blechpy/analysis/spike_sorting.py:def sort_units(file_dir, fs, shell=False):
+./blechpy/analysis/spike_sorting.py:def edit_clusters(clusters, fs, shell=False):
+./blechpy/analysis/spike_sorting.py:def get_cell_types(cluster_names, shell=True):
+./blechpy/analysis/spike_sorting.py:def label_single_unit(hf5_file, cluster, fs, sorting_log=None,
+./blechpy/analysis/spike_sorting.py:def split_cluster(cluster, fs, params=None, shell=True):
+./blechpy/analysis/spike_sorting.py:def get_unit_metrics(file_dir, electrode_num, solution_num, cluster_num):
+./blechpy/analysis/spike_sorting.py:def get_cluster_data(file_dir, electrode_num, solution_num, cluster_num, fs,
+./blechpy/analysis/spike_sorting.py:def get_clustering_metrics(file_dir, electrode_num, solution_num):
+./blechpy/analysis/spike_sorting.py:def get_unit_numbers(hf5_file):
+./blechpy/analysis/spike_sorting.py:def parse_unit_number(unit_name):
+./blechpy/analysis/spike_sorting.py:def get_next_unit_name(hf5_file):
+./blechpy/analysis/spike_sorting.py:def get_ISI_and_violations(spike_times, fs):
+./blechpy/analysis/spike_sorting.py:def merge_clusters(clusters, fs):
+./blechpy/analysis/spike_sorting.py:def plot_cluster(cluster, index=None):
+./blechpy/analysis/spike_sorting.py:def make_unit_plots(file_dir, fs):
+./blechpy/analysis/spike_sorting.py:def delete_unit(file_dir, unit_num):
+./blechpy/analysis/spike_sorting.py:def make_spike_arrays(h5_file, params):
+./blechpy/analysis/spike_sorting.py:def count_similar_spikes(unit1_times, unit2_times):
+./blechpy/analysis/spike_sorting.py:def calc_units_similarity(h5_file, fs, similarity_cutoff=50,
+./blechpy/analysis/spike_sorting.py:def plot_pca_view(clusters):
+./blechpy/analysis/spike_sorting.py:def plot_raster(clusters):
+./blechpy/analysis/clustering.py:def get_filtered_electrode(data, freq = [300.0, 3000.0], sampling_rate = 30000.0):
+./blechpy/analysis/clustering.py:def extract_waveforms(filt_el, spike_snapshot = [0.5, 1.0], sampling_rate = 30000.0):
+./blechpy/analysis/clustering.py:def dejitter(slices, spike_times, spike_snapshot = [0.5, 1.0], sampling_rate = 30000.0):
+./blechpy/analysis/clustering.py:def scale_waveforms(slices_dejittered):
+./blechpy/analysis/clustering.py:def implement_pca(scaled_slices):
+./blechpy/analysis/clustering.py:def clusterGMM(data, n_clusters, n_iter, restarts, threshold):
+Binary file ./blechpy/analysis/.taste_palatability_testing.py.swp matches
+Binary file ./blechpy/analysis/.dataset.py.swp matches
+./blechpy/analysis/taste_palatability_testing.py:def palatability_identity_calculations(rec_dir, pal_ranks=None,
+./blechpy/analysis/taste_palatability_testing.py:def palatability_rank_order_deduction(rec_dir, response, lasers, time, window):
+./blechpy/analysis/taste_palatability_testing.py:def get_palatability_ranks(dig_in_mapping, shell=True):
+./blechpy/analysis/spike_analysis.py:def make_single_trial_psth(spike_train, win_size, win_step, time=None):
+./blechpy/analysis/spike_analysis.py:def make_mean_PSTHs(h5_file, win_size, win_step, dig_in_ch):
+./blechpy/analysis/spike_analysis.py:def make_psths_for_tastant(h5_file, win_size, win_step, dig_in_ch, smoothing_width=3):
+./blechpy/analysis/dataset.py:def Logger(heading):
+./blechpy/analysis/dataset.py:    def real_logger(func):
+./blechpy/analysis/dataset.py:        def wrapper(*args, **kwargs):
+./blechpy/analysis/dataset.py:def load_dataset(file_name=None):
+./blechpy/analysis/dataset.py:    def __init__(self, file_dir=None):
+./blechpy/analysis/dataset.py:    def __str__(self):
+./blechpy/analysis/dataset.py:    def save(self):
+./blechpy/analysis/dataset.py:    def initParams(self, data_quality='clean', emg_port=None,
+./blechpy/analysis/dataset.py:    def _set_CAR_groups(self, group_keyword=None, group_electrodes=None,
+./blechpy/analysis/dataset.py:    def units_similarity(self, similarity_cutoff=50):
+./blechpy/analysis/dataset.py:    def extract_data(self, filename=None, shell=False):
+./blechpy/analysis/dataset.py:    def mark_dead_channels(self, dead_channels=None, shell=False):
+./blechpy/analysis/dataset.py:    def blech_clust_run(self, data_quality=None, accept_params=False,
+./blechpy/analysis/dataset.py:    def common_average_reference(self):
+./blechpy/analysis/dataset.py:    def create_trial_list(self):
+./blechpy/analysis/dataset.py:    def cleanup_clustering(self):
+./blechpy/analysis/dataset.py:    def make_unit_arrays(self, shell=False):
+./blechpy/analysis/dataset.py:    def make_unit_plots(self):
+./blechpy/analysis/dataset.py:    def make_psth_arrays(self, shell=False):
+./blechpy/analysis/dataset.py:    def edit_spike_array_parameters(self, shell=False):
+./blechpy/analysis/dataset.py:    def edit_clustering_parameters(self, shell=False):
+./blechpy/analysis/dataset.py:    def edit_psth_parameters(self, shell=False):
+./blechpy/analysis/dataset.py:    def sort_units(self, shell=False):
+./blechpy/analysis/dataset.py:    def get_unit_table(self):
+./blechpy/analysis/dataset.py:    def palatability_calculate(self, shell=False):
+./blechpy/analysis/dataset.py:    def extract_and_cluster(self, data_quality='clean',
+./blechpy/analysis/dataset.py:    def post_sorting(self):
+./blechpy/analysis/dataset.py:def get_palatability_ranks(dig_in_mapping, shell=True):
+./blechpy/analysis/multiple_recordings.py:def get_next_letter(letter):
+./blechpy/analysis/multiple_recordings.py:def calc_J1(wf_day1, wf_day2):
+./blechpy/analysis/multiple_recordings.py:def calc_J2(wf_day1, wf_day2):
+./blechpy/analysis/multiple_recordings.py:def interpolate_waves(waves, fs, fs_new, axis=1):
+./blechpy/analysis/multiple_recordings.py:def calc_J3(wf_day1, wf_day2):
+./blechpy/analysis/multiple_recordings.py:def get_intra_J3(rec_dirs):
+./blechpy/analysis/multiple_recordings.py:def find_held_units(rec_dirs, intra_J3, percent_criterion):
+./blechpy/analysis/multiple_recordings.py:def load_experiment(exp_file):
+./blechpy/analysis/multiple_recordings.py:    def __init__(self, exp_dir=None, shell=False):
+./blechpy/analysis/multiple_recordings.py:    def save(self):
+./blechpy/analysis/multiple_recordings.py:    def _order_dirs(self, shell=None):
+./blechpy/analysis/multiple_recordings.py:    def _add_dir(self, new_dir=None, shell=None):
+./blechpy/analysis/multiple_recordings.py:    def _assign_area(self, row):
+./blechpy/analysis/multiple_recordings.py:    def held_units_detect(self, percent_criterion=95, shell=None):
+./blechpy/analysis/multiple_recordings.py:    def get_unit_stats(self, significance=0.01):
+./blechpy/analysis/multiple_recordings.py:    def held_units_compare(self, significance=0.05):
+./blechpy/analysis/multiple_recordings.py:    def load_held_units(self):
+./blechpy/analysis/multiple_recordings.py:def plot_J3s(intra_J3, inter_J3, save_dir, percent_criterion):
+./blechpy/analysis/multiple_recordings.py:def plot_held_units(rec_dirs, held_df, J3_df, save_dir):
+./blechpy/analysis/multiple_recordings.py:def get_unit_waveforms(rec_dir, unit_name, shell=True):
+./blechpy/analysis/multiple_recordings.py:def get_raw_unit_waveforms(rec_dir, unit_name, shell=True, required_descrip=None):
+./blechpy/analysis/multiple_recordings.py:def get_clustering_parameters(rec_dir):
+./blechpy/analysis/multiple_recordings.py:def check_changes_in_taste_responses(pre_h5, post_h5, held_df, pre_dig_in,
+./blechpy/analysis/multiple_recordings.py:def apply_test_along_axis(data1, data2, test_func=mannwhitneyu, axis=1):
+./blechpy/analysis/multiple_recordings.py:def check_taste_response(rec_dir, unit_name, din, window=1500):
+./blechpy/analysis/multiple_recordings.py:def compare_held_unit(unit_name, rec1, unit1, dig_in1, rec2, unit2, dig_in2,
+./blechpy/analysis/multiple_recordings.py:def plot_spike_raster(spikes, time, **kwargs):
+./blechpy/analysis/multiple_recordings.py:def plot_psth(psth_array, time, **kwargs):
+./blechpy/analysis/multiple_recordings.py:def plot_significance(x, sig_ints, **kwargs):
+./blechpy/analysis/multiple_recordings.py:def find_contiguous(arr):
+./blechpy/analysis/multiple_recordings.py:def get_taste_mapping(rec_dirs):
+./blechpy/analysis/multiple_recordings.py:def get_mean_difference(A, B, axis=0):
+./.ipynb_checkpoints/Untitled-checkpoint.ipynb:    "def load_dataset(rec_dir):\n",
+./.ipynb_checkpoints/Untitled-checkpoint.ipynb:    "def parse_unit_number(unit_name):\n",
+./.ipynb_checkpoints/Untitled-checkpoint.ipynb:    "def find_contiguous(arr):\n",
+./.ipynb_checkpoints/Untitled-checkpoint.ipynb:    "def get_mean_difference(A, B, axis=0):\n",
+./.ipynb_checkpoints/Untitled-checkpoint.ipynb:    "def plot_psth(psth_array, time, **kwargs):\n",
+./.ipynb_checkpoints/Untitled-checkpoint.ipynb:    "def plot_significance(x, sig_ints, **kwargs):\n",
+./.ipynb_checkpoints/Untitled-checkpoint.ipynb:    "def f(a, row):\n",

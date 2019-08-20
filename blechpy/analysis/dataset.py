@@ -2,7 +2,7 @@ import easygui as eg
 import pandas as pd
 from blechpy import dio
 from blechpy.widgets import userIO
-from blechpy.analysis import spike_sorting as ss
+from blechpy.analysis import spike_sorting as ss, taste_palatability_testing as tpt
 from blechpy.analysis import spike_analysis
 from blechpy.plotting import data_plot as datplt
 import datetime as dt
@@ -275,7 +275,16 @@ class dataset(object):
         #self._set_palatability_params()
 
         # Set CAR groups
-        self._set_CAR_groups()
+        car_keyword = userIO.get_user_input(
+            'Input keyword for CAR parameters or number of CAR groups',
+            shell=shell)
+        if car_keyword.isnumeric():
+            car_num = int(car_keyword)
+            car_keyword = None
+        else:
+            car_num = None
+
+        self._set_CAR_groups(group_keyword=car_keyword, num_group=car_num, shell=shell)
 
         # Ask for emg port & channels
         if emg_port is None and not shell:
@@ -427,7 +436,7 @@ class dataset(object):
         num_groups: int
             number of CAR groups. Needed if no other arguments are passed
         '''
-        if hasattr(self, 'electrode_mapping'):
+        if not hasattr(self, 'electrode_mapping'):
             raise ValueError('Set electrode mapping before setting CAR groups')
 
         em = self.electrode_mapping.copy()

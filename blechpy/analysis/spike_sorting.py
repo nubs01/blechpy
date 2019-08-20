@@ -654,7 +654,7 @@ def plot_cluster(cluster, index=None):
     if index is not None:
         title_str = 'Index: %i %s, ' % (index, title_str)
 
-    ax.set_title(title_str)
+    ax.set_title(title_str, fontsize=12)
     return fig, ax
 
 
