@@ -1,6 +1,5 @@
 {
- "bilateral32": {
-  "group_electrodes": [
+ "bilateral32": [
    [
     0,
     1,
@@ -38,5 +37,4 @@
     23
    ]
   ]
- }
 }

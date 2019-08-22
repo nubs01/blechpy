@@ -923,7 +923,7 @@ def compare_held_unit(unit_name, rec1, unit1, dig_in1, rec2, unit2, dig_in2,
 
     if tastant is None:
         din_map = dat1.dig_in_mapping
-        tastant = din_map['name'][din_map['dig_in'] == dig_in1].values[0]
+        tastant = din_map['name'][din_map['channel'] == dig_in1].values[0]
 
     di1 = 'dig_in_%i' % dig_in1
     di2 = 'dig_in_%i' % dig_in2
@@ -1299,7 +1299,7 @@ def get_taste_mapping(rec_dirs):
             if taste_map.get(t) is None:
                 taste_map[t] = {}
 
-            tmp = din['dig_in'][din['name'] == t]
+            tmp = din['channel'][din['name'] == t]
             if not tmp.empty:
                 taste_map[t][rn] = tmp.values[0]
 

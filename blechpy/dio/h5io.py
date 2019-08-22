@@ -395,7 +395,7 @@ def create_trial_table(h5_file, digital_map, dig_type='in'):
         path to .h5 file that data is stored in and to write to
     digital_map : pandas.DataFrame
         maps digital channel numbers to string names,
-        has columns 'dig_in' (or 'dig_out') and 'name'
+        has columns 'channel' and 'name'
     dig_type : str, {'in' (default), 'out'}
 
     Returns
@@ -419,20 +419,20 @@ def create_trial_table(h5_file, digital_map, dig_type='in'):
 
         print('Generating trial list for digital %sputs: %s' %
               (dig_type, ', '.join([str(x) for x in
-                                    digital_map[dig_str].tolist()])))
+                                    digital_map['channel'].tolist()])))
 
         # Loop through channels and get indices of digital signal onsets
         for i, row in digital_map.iterrows():
             println('Grabbing data for digital %sput %i...' %
-                    (dig_type, row[dig_str]))
-            tmp = np.diff(tree[dig_str+'_'+str(row[dig_str])][:]) > 0
+                    (dig_type, row['channel']))
+            tmp = np.diff(tree[dig_str+'_'+str(row['channel'])][:]) > 0
             tmp_idx = np.where(tmp)[0]
-            trial_map.extend([(x, row[dig_str], row['name']) for x in tmp_idx])
+            trial_map.extend([(x, row['channel'], row['name']) for x in tmp_idx])
             print('Done!')
 
         # Make dataframe and assign trial numbers
         println('Constructing DataFrame...')
-        trial_df = pd.DataFrame(trial_map, columns=['idx', dig_str, 'name'])
+        trial_df = pd.DataFrame(trial_map, columns=['idx', 'channel', 'name'])
         trial_df = trial_df.sort_values(by=['idx']).reset_index(drop=True)
         trial_df = trial_df.reset_index(drop=False).rename(
             columns={'index': 'Trial Num'})
@@ -451,7 +451,7 @@ def create_trial_table(h5_file, digital_map, dig_type='in'):
         for i, row in trial_df.iterrows():
             new_row['trial_num'] = row['Trial Num']
             new_row['name'] = row['name']
-            new_row['channel'] = row[dig_str]
+            new_row['channel'] = row['channel']
             new_row.append()
 
         hf5.flush()
@@ -698,7 +698,7 @@ def create_trial_data_table(h5_file, digital_map, fs, dig_type='in'):
     h5_file : str, full path to hdf5 store
     digital_map : pandas.DataFrame
         maps digital channel numbers to string names,
-        has columns 'dig_in' (or 'dig_out') and 'name'
+        has columns 'channel' and 'name'
     fs : float, sampling rate in Hz
     channels : list of int (optional)
         DIN or DOUT channel numbers to return data from. None (default)
@@ -721,22 +721,22 @@ def create_trial_data_table(h5_file, digital_map, fs, dig_type='in'):
 
         print('Generating trial list for digital %sputs: %s' %
               (dig_type, ', '.join([str(x) for x in
-                                    digital_map[dig_str].tolist()])))
+                                    digital_map['channel'].tolist()])))
 
         exp_start_idx = 0
         exp_end_idx = 0
         # Loop through channels and get indices of digital signal onsets
         for i, row in digital_map.iterrows():
             println('Grabbing data for digital %sput %i...' %
-                    (dig_type, row[dig_str]))
-            dig_trace = tree[dig_str+'_'+str(row[dig_str])][:]
+                    (dig_type, row['channel']))
+            dig_trace = tree[dig_str+'_'+str(row['channel'])][:]
             if len(dig_trace) > exp_end_idx:
                 exp_end_idx = len(dig_trace)
 
             dig_diff = np.diff(dig_trace)
             on_idx = np.where(dig_diff > 0)[0]
             off_idx = np.where(dig_diff < 0)[0]
-            trial_map.extend([(x, row[dig_str], row['name'], x, y, x/fs, y/fs)
+            trial_map.extend([(x, row['channel'], row['name'], x, y, x/fs, y/fs)
                               for x, y in zip(on_idx, off_idx)])
             print('Done!')
 

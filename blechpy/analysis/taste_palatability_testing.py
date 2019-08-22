@@ -15,6 +15,7 @@ from sklearn.linear_model import LinearRegression
 from sklearn.isotonic import IsotonicRegression
 import os
 import itertools
+import warnings
 
 
 
@@ -25,12 +26,14 @@ default_pal_id_params ={'window_size': 250, 'window_step': 25,
 
 def palatability_identity_calculations(rec_dir, pal_ranks=None,
                                        params=None, shell=False):
+    warnings.filterwarnings('ignore', category=UserWarning)
+    warnings.filterwarnings('ignore', category=RuntimeWarning)
     dat = dataset.load_dataset(rec_dir)
     dim = dat.dig_in_mapping
-    if pal_ranks is None:
-        dim = get_palatability_ranks(dim, shell=shell)
-    elif 'palatability_rank' in dim.columns:
+    if 'palatability_rank' in dim.columns:
         pass
+    elif pal_ranks is None:
+        dim = get_palatability_ranks(dim, shell=shell)
     else:
         dim['palatability_rank'] = dim['name'].map(pal_ranks)
 
@@ -116,7 +119,7 @@ def palatability_identity_calculations(rec_dir, pal_ranks=None,
         for i, row in dim.iterrows():
             idx = range(num_trials*i, num_trials*(i+1))
             palatability[:, :, idx] = row.palatability_rank * onesies
-            identity[:, :, idx] = row.dig_in * onesies
+            identity[:, :, idx] = row.channel * onesies
             for j, u in enumerate(chosen_units):
                 for k,t in enumerate(bin_times):
                     t_idx = np.where((time >= t) & (time <= t+win_size))[0]
@@ -394,7 +397,7 @@ def palatability_identity_calculations(rec_dir, pal_ranks=None,
                     # Identity Calculation
                     samples = []
                     for _, row in dim.iterrows():
-                        taste = row.dig_in
+                        taste = row.channel
                         samples.append([trial for trial in t
                                         if identity[j, k, trial] == taste])
 
@@ -431,10 +434,10 @@ def palatability_identity_calculations(rec_dir, pal_ranks=None,
                 lda_identity[i, j] = np.mean(test_results)
 
                 # Pairwise Identity Calculation
-                for _, r1 in dim.iterrows():
-                    for _, r2 in dim.iterrows():
-                        t1 = r1.dig_in
-                        t2 = r2.dig_in
+                for ti1, r1 in dim.iterrows():
+                    for ti2, r2 in dim.iterrows():
+                        t1 = r1.channel
+                        t2 = r2.channel
                         tmp_trials = np.where((identity[j, 0, :] == t1) |
                                               (identity[j, 0, :] == t2))[0]
                         idx = [trial for trial in t if trial in tmp_trials]
@@ -450,7 +453,7 @@ def palatability_identity_calculations(rec_dir, pal_ranks=None,
                             tmp_score = model.score(X[test, :], Y[test])
                             test_results.append(tmp_score)
 
-                        pairwise_identity[i, j, t1, t2] = np.mean(test_results)
+                        pairwise_identity[i, j, ti1, ti2] = np.mean(test_results)
 
         hf5.create_array('/ancillary_analysis', 'r_pearson', r_pearson)
         hf5.create_array('/ancillary_analysis', 'r_spearman', r_spearman)
@@ -464,6 +467,9 @@ def palatability_identity_calculations(rec_dir, pal_ranks=None,
         hf5.create_array('/ancillary_analysis', 'p_identity', p_identity)
         hf5.create_array('/ancillary_analysis', 'pairwise_NB_identity', pairwise_identity)
         hf5.flush()
+
+    warnings.filterwarnings('default', category=UserWarning)
+    warnings.filterwarnings('default', category=RuntimeWarning)
 
 
 def palatability_rank_order_deduction(rec_dir, response, lasers, time, window):
@@ -511,7 +517,7 @@ def get_palatability_ranks(dig_in_mapping, shell=True):
     Parameters
     ----------
     dig_in_mapping: pandas.DataFrame,
-        DataFrame with at least columns 'dig_in' and 'name', for mapping
+        DataFrame with at least columns 'channel' and 'name', for mapping
         digital input channel number to a str name
     '''
     dim = dig_in_mapping.copy()

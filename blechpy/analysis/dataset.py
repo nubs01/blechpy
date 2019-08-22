@@ -4,7 +4,7 @@ from blechpy import dio
 from blechpy.widgets import userIO
 from blechpy.analysis import spike_sorting as ss, taste_palatability_testing as tpt
 from blechpy.analysis import spike_analysis
-from blechpy.plotting import data_plot as datplt
+from blechpy.plotting import data_plot as datplt, palatability_plot as pal_plt
 import datetime as dt
 from blechpy.data_print import data_print as dp
 import pickle
@@ -129,6 +129,7 @@ class dataset(object):
 
         # Outline standard processing pipeline and status check
         self.processing_steps = ['extract_data', 'create_trial_list',
+                                 'mark_dead_channels',
                                  'common_average_reference', 'blech_clust_run',
                                  'cleanup_clustering',
                                  'sort_units', 'make_unit_plots',
@@ -179,12 +180,12 @@ class dataset(object):
         out.append(dp.print_dataframe(self.electrode_mapping))
         out.append('')
 
-        if hasattr(self, 'car_electrodes'):
+        if hasattr(self, 'CAR_electrodes'):
             out.append('--------------------')
             out.append('CAR Groups')
             out.append('--------------------')
-            headers = ['Group %i' % x for x in range(len(self.car_electrodes))]
-            out.append(dp.print_list_table(self.car_electrodes, headers))
+            headers = ['Group %i' % x for x in range(len(self.CAR_electrodes))]
+            out.append(dp.print_list_table(self.CAR_electrodes, headers))
             out.append('')
 
         if not self.emg_mapping.empty:
@@ -226,6 +227,12 @@ class dataset(object):
         out.append(dp.print_dict(self.psth_params))
         out.append('')
 
+        out.append('--------------------')
+        out.append('Palatability/Identity Parameters')
+        out.append('--------------------')
+        out.append(dp.print_dict(self.pal_id_params))
+        out.append('')
+
         return '\n'.join(out)
 
     def save(self):
@@ -237,11 +244,9 @@ class dataset(object):
 
     @Logger('Initializing Parameters')
     def initParams(self, data_quality='clean', emg_port=None,
-                   emg_channels=None, shell=False, dig_in_names=None,
-                   dig_out_names=None,
-                   spike_array_params=None,
-                   psth_params=None,
-                   confirm_all=False):
+                   emg_channels=None, car_keyword=None,
+                   shell=False, dig_in_names=None,
+                   dig_out_names=None, accept_params=False):
         '''
         Initializes basic default analysis parameters that can be customized
         before running processing methods
@@ -260,168 +265,79 @@ class dataset(object):
         self.rec_info = rec_info
         self.sampling_rate = sampling_rate
 
-        # Get default parameters for blech_clust
-        clustering_params = deepcopy(dio.params.clustering_params)
-        data_params = deepcopy(dio.params.data_params[data_quality])
-        bandpass_params = deepcopy(dio.params.bandpass_params)
-        spike_snapshot = deepcopy(dio.params.spike_snapshot)
-        if spike_array_params is None:
-            spike_array_params = deepcopy(dio.params.spike_array_params)
-        if psth_params is None:
-            psth_params = deepcopy(dio.params.psth_params)
+        # Get default parameters from files
+        clustering_params = dio.params.load_params('clustering_params', file_dir,
+                                                   default_keyword=data_quality)
+        spike_array_params = dio.params.load_params('spike_array_params', file_dir)
+        psth_params = dio.params.load_params('psth_params', file_dir)
+        pal_id_params = dio.params.load_params('pal_id_params', file_dir)
+        spike_array_params['sampling_rate'] = sampling_rate
+        clustering_params['file_dir'] = file_dir
+        clustering_params['sampling_rate'] = sampling_rate
 
-        # Get default palatability parameters
-        pal_params = deepcopy(dio.params.pal_id_params)
-        #self._set_palatability_params()
+        # Setup digital input mapping
+        #TODO: Setup digital output mapping...ignoring for now
+        if rec_info.get('dig_in'):
+            self._setup_din_mapping(rec_info, dig_in_names, shell)
+            dim = self.dig_in_mapping.copy()
+            spike_array_params['laser_channels'] = dim.channel[dim['laser']].to_list()
+            spike_array_params['dig_ins_to_use'] = dim.channel[dim['spike_array']].to_list()
+
+        # Setup electrode and emg mapping
+        self._setup_channel_mappings(ports, channels, emg_port,
+                                     emg_channels, shell=shell)
 
         # Set CAR groups
-        car_keyword = userIO.get_user_input(
-            'Input keyword for CAR parameters or number of CAR groups',
-            shell=shell)
-        if car_keyword.isnumeric():
-            car_num = int(car_keyword)
-            car_keyword = None
-        else:
-            car_num = None
+        self._set_CAR_groups(group_keyword=car_keyword, shell=shell)
 
-        self._set_CAR_groups(group_keyword=car_keyword, num_group=car_num, shell=shell)
+        # Confirm parameters
+        if not accept_params:
+            conf = userIO.confirm_parameter_dict
+            clustering_params = conf(clustering_params,
+                                     'Clustering Parameters', shell=shell)
+            self.spike_array_params = spike_array_params
+            self._edit_spike_array_params(shell=shell)
+            psth_params = conf(psth_params,
+                               'PSTH Parameters', shell=shell)
+            pal_id_params = conf(pal_id_params,
+                                 'Palatability/Identity Parameters\n'
+                                 'Valid unit_type is Single, Multi or All',
+                                 shell=shell)
 
-        # Ask for emg port & channels
-        if emg_port is None and not shell:
-            q = eg.ynbox('Do you have an EMG?', 'EMG')
-            if q:
-                emg_port = userIO.select_from_list('Select EMG Port:',
-                                                   ports, 'EMG Port',
-                                                   shell=shell)
-                emg_channels = userIO.select_from_list(
-                    'Select EMG Channels:',
-                    [y for x, y in
-                     zip(ports, channels)
-                     if x == emg_port],
-                    title='EMG Channels',
-                    multi_select=True, shell=shell)
-
-        elif emg_port is None and shell:
-            print('\nNo EMG port given.\n')
-
-        electrode_mapping, emg_mapping = dio.params.flatten_channels(
-            ports,
-            channels,
-            emg_port=emg_port,
-            emg_channels=emg_channels)
-        self.electrode_mapping = electrode_mapping
-        self.emg_mapping = emg_mapping
-
-        # Get digital input names and spike array parameters
-        if rec_info.get('dig_in'):
-            if dig_in_names is None:
-                dig_in_names = dict.fromkeys(['dig_in_%i' % x
-                                              for x in rec_info['dig_in']])
-                name_filler = userIO.dictIO(dig_in_names, shell=shell)
-                dig_in_names = name_filler.fill_dict('Enter names for '
-                                                     'digital inputs:')
-                if dig_in_names is None or \
-                   any([x is None for x in dig_in_names.values()]):
-                    raise ValueError('Must name all dig_ins')
-
-                dig_in_names = list(dig_in_names.values())
-
-            if spike_array_params['laser_channels'] is None:
-                laser_dict = dict.fromkeys(dig_in_names, False)
-                laser_filler = userIO.dictIO(laser_dict, shell=shell)
-                laser_dict = laser_filler.fill_dict('Select any lasers:')
-                if laser_dict is None:
-                    laser_channels = []
-                else:
-                    laser_channels = [i for i, v
-                                      in zip(rec_info['dig_in'],
-                                             laser_dict.values()) if v]
-
-                spike_array_params['laser_channels'] = laser_channels
-            else:
-                laser_dict = dict.fromkeys(dig_in_names, False)
-                for lc in spike_array_params['laser_channels']:
-                    laser_dict[dig_in_names[lc]] = True
-
-
-            if spike_array_params['dig_ins_to_use'] is None:
-                di = [x for x in rec_info['dig_in']
-                      if x not in laser_channels]
-                dn = [dig_in_names[x] for x in di]
-                spike_dig_dict = dict.fromkeys(dn, True)
-                filler = userIO.dictIO(spike_dig_dict, shell=shell)
-                spike_dig_dict = filler.fill_dict('Select digital inputs '
-                                                  'to use for making spike'
-                                                  ' arrays:')
-                if spike_dig_dict is None:
-                    spike_dig_ins = []
-                else:
-                    spike_dig_ins = [x for x, y in
-                                     zip(di, spike_dig_dict.values())
-                                     if y]
-
-                spike_array_params['dig_ins_to_use'] = spike_dig_ins
-
-
-            dim = pd.DataFrame([(x, y) for x, y in zip(rec_info['dig_in'],
-                                                       dig_in_names)],
-                               columns=['dig_in', 'name'])
-            dim['laser'] = dim['name'].apply(lambda x: laser_dict.get(x))
-            self.dig_in_mapping = dim.copy()
-
-        # Get digital output names
-        if rec_info.get('dig_out'):
-            if dig_out_names is None:
-                dig_out_names = dict.fromkeys(['dig_out_%i' % x
-                                              for x in rec_info['dig_out']])
-                name_filler = userIO.dictIO(dig_out_names, shell=shell)
-                dig_out_names = name_filler.fill_dict('Enter names for '
-                                                      'digital outputs:')
-                if dig_out_names is None or \
-                   any([x is None for x in dig_out_names.values()]):
-                    raise ValueError('Must name all dig_outs')
-
-                dig_out_names = list(dig_out_names.values())
-
-            self.dig_out_mapping = pd.DataFrame([(x, y) for x, y in
-                                                 zip(rec_info['dig_out'],
-                                                     dig_out_names)],
-                                                columns=['dig_out', 'name'])
-
-        # Store clustering parameters
-        self.clust_params = {'file_dir': file_dir,
-                             'data_quality': data_quality,
-                             'sampling_rate': sampling_rate,
-                             'clustering_params': clustering_params,
-                             'data_params': data_params,
-                             'bandpass_params': bandpass_params,
-                             'spike_snapshot': spike_snapshot}
-
-        # Store and confirm spike array parameters
-        self.pal_id_params = pal_params
-        spike_array_params['sampling_rate'] = sampling_rate
-        self.spike_array_params = spike_array_params
+        # Store parameters
+        self.clustering_params = clustering_params
+        self.pal_id_params = pal_id_params
         self.psth_params = psth_params
-        if not confirm_all:
-            prompt = ('\n----------\nSpike Array Parameters\n----------\n'
-                      + dp.print_dict(spike_array_params) +
-                      '\nAre these parameters good?')
-            q_idx = userIO.ask_user(prompt, ('Yes', 'Edit'), shell=shell)
-            if q_idx == 1:
-                self.edit_spike_array_parameters(shell=shell)
-
-            # Edit and store psth parameters
-            prompt = ('\n----------\nPSTH Parameters\n----------\n'
-                      + dp.print_dict(psth_params) +
-                      '\nAre these parameters good?')
-            q_idx = userIO.ask_user(prompt, ('Yes', 'Edit'), shell=shell)
-            if q_idx == 1:
-                self.edit_psth_parameters(shell=shell)
-
+        self._write_all_params_to_json()
         self.save()
 
-    def _set_CAR_groups(self, group_keyword=None, group_electrodes=None,
-                        group_areas=None, num_groups=None, shell=False):
+    def _edit_spike_array_params(self, shell=False):
+        '''Edit spike array parameters and adjust dig_in_mapping accordingly
+        '''
+        sa = deepcopy(self.spike_array_params)
+        tmp = userIO.fill_dict(sa, 'Spike Array Parameters\n(Times in ms)',
+                               shell=shell)
+        if tmp is None:
+            return
+
+        dim = self.dig_in_mapping
+        dim['spike_array'] = False
+        if tmp['dig_ins_to_use'] != ['']:
+            tmp['dig_ins_to_use'] = [int(x) for x in tmp['dig_ins_to_use']]
+            dim.loc[[x in tmp['dig_ins_to_use'] for x in dim.channel],
+                    'spike_array'] = True
+
+        dim['laser_channels'] = False
+        if tmp['laser_channels'] != ['']:
+            tmp['laser_channels'] = [int(x) for x in tmp['laser_channels']]
+            dim.loc[[x in tmp['laser_channels'] for x in dim.channel],
+                    'laser'] = True
+
+        self.spike_array_params = tmp.copy()
+        dio.params.write_params_to_json('spike_array_params',
+                                        self.data_dir, tmp)
+
+    def _set_CAR_groups(self, group_keyword=None, shell=False):
         '''Sets that electrode groups for common average referencing and
         defines which brain region electrodes eneded up in
 
@@ -441,33 +357,128 @@ class dataset(object):
 
         em = self.electrode_mapping.copy()
 
-        if group_keyword is not None:
-            group_electrodes = dio.params.get_CAR_groups(group_keyword)
+        car_param_file = os.path.join(self.data_dir, 'analysis_params',
+                                      'CAR_params.json')
+        if os.path.isfile(car_param_file):
+            group_electrodes = dio.params.load_params('CAR_params',
+                                                      self.data_dir)
+        else:
+            if group_keyword is None:
+                group_keyword = userIO.get_user_input(
+                    'Input keyword for CAR parameters or number of CAR groups',
+                    shell=shell)
 
-        if group_electrodes is not None:
-            num_groups = len(group_electrodes)
-        elif group_areas is not None:
-            num_groups = len(group_areas)
+            if group_keyword is None:
+                ValueError('Must provide a keyword or number of groups')
+            elif group_keyword.isnumeric():
+                num_groups = int(group_keyword)
+                group_electrodes = dio.params.select_CAR_groups(num_groups, em,
+                                                                shell=shell)
+            else:
+                group_electrodes = dio.params.load_params('CAR_params',
+                                                          self.data_dir,
+                                                          default_keyword=group_keyword)
 
-        if num_groups is None:
-            raise ValueError('Must provide at least one valid argument')
-
-        if group_electrodes is None:
-            group_electrodes = dio.params.select_CAR_groups(num_groups,
-                                                            em,
-                                                            shell=shell)
-
-        if group_areas is None:
-            group_names = ['Group %i' % i for i in range(num_groups)]
-            area_dict = dict.fromkeys(group_names, '')
-            area_dict = userIO.fill_dict(area_dict, 'Set Areas for CAR groups',
-                                         shell=shell)
+        num_groups = len(group_electrodes)
+        group_names = ['Group %i' % i for i in range(num_groups)]
+        area_dict = dict.fromkeys(group_names, '')
+        area_dict = userIO.fill_dict(area_dict, 'Set Areas for CAR groups',
+                                     shell=shell)
         for k, v in area_dict.items():
             i = int(k.replace('Group', ''))
             em.loc[group_electrodes[i], 'area'] = v
+            em.loc[group_electrodes[i], 'CAR_group'] = i
 
         self.CAR_electrodes = group_electrodes
         self.electrode_mapping = em.copy()
+
+    def _setup_din_mapping(self, rec_info, dig_in_names=None, shell=False):
+        '''sets up dig_in_mapping dataframe  and queries user to fill in columns
+        Parameters
+        ----------
+        rec_info : dict,
+        requires 'dig_in' key with list of int corresponding to digital input
+        channels
+        dig_in_names : list of str (optional)
+        shell : bool (optional)
+        True for command-line interface
+        False (default) for GUI
+        '''
+        df = pd.DataFrame()
+        df['channel'] = rec_info.get('dig_in')
+        n_dig_in = len(df)
+        # Names
+        if dig_in_names:
+            df['name'] = dig_in_names
+        else:
+            df['name'] = ''
+
+        # Parameters to query
+        df['palatability_rank'] = 0
+        df['laser'] = False
+        df['spike_array'] = True
+        df['exclude'] = False
+        # Re-format for query
+        idx = df.index
+        df.index = ['dig_in_%i' % x for x in df.channel]
+        # Query for user input
+        prompt = ('Digital Input Parameters\nSet palatability ranks from 1 to %i'
+                  '\nor blank to exclude from pal_id analysis') % len(df)
+        tmp = userIO.fill_dict(df.to_dict(), prompt=prompt, shell=shell)
+        # Reformat for storage
+        df2 = pd.DataFrame.from_dict(tmp)
+        df2 = df2.sort_values(by=['channel'])
+        df2.index = idx
+        self.dig_in_mapping = df2.copy()
+
+    def _setup_channel_mappings(self, ports, channels, emg_port, emg_channels, shell=False):
+        '''Creates electrode_mapping and emg_mapping DataFrames with columns:
+        - Electrode
+        - Port
+        - Channel
+        - Dead
+        Parameters
+        ----------
+        ports : list of str, item corresponing to each channel
+        channels : list of int, channels on each port
+        emg_port : str
+        emg_channels : list of int
+        '''
+        if emg_port is None:
+            q = userIO.ask_user('Do you have an EMG?', shell=shell)
+            if q==0:
+                emg_port = userIO.select_from_list('Select EMG Port:',
+                                                   ports, 'EMG Port',
+                                                   shell=shell)
+                emg_channels = userIO.select_from_list(
+                    'Select EMG Channels:',
+                    [y for x, y in
+                     zip(ports, channels)
+                     if x == emg_port],
+                    title='EMG Channels',
+                    multi_select=True, shell=shell)
+
+        el_map, em_map = dio.params.flatten_channels(ports, channels,
+                                                     emg_port, emg_channels)
+        self.electrode_mapping = el_map
+        self.emg_mapping = em_map
+
+    def _write_all_params_to_json(self):
+        '''Writes all parameters to json files in analysis_params folder in the
+        recording directory
+        '''
+        clustering_params = self.clustering_params
+        spike_array_params = self.spike_array_params
+        psth_params = self.psth_params
+        pal_id_params = self.pal_id_params
+        CAR_params = self.CAR_electrodes
+
+        rec_dir = self.data_dir
+        dio.params.write_params_to_json('clustering_params', rec_dir, clustering_params)
+        dio.params.write_params_to_json('spike_array_params', rec_dir, spike_array_params)
+        dio.params.write_params_to_json('psth_params', rec_dir, psth_params)
+        dio.params.write_params_to_json('pal_id_params', rec_dir, pal_id_params)
+        dio.params.write_params_to_json('CAR_params', rec_dir, CAR_params)
 
     @Logger('Calculating Unit Similarity')
     def units_similarity(self, similarity_cutoff=50):
@@ -543,19 +554,27 @@ class dataset(object):
         shell : bool, optional
         '''
         if dead_channels is None:
+            userIO.tell_user('Making traces figure for dead channel detection...',
+                             shell=True)
             em = self.electrode_mapping.copy()
             fig, ax = datplt.plot_traces_and_outliers(self.h5_file)
 
             save_file = os.path.join(self.data_dir, 'Electrode_Traces.png')
             fig.savefig(save_file)
-            subprocess.call(['xdg-open', save_file])
+            if not shell:
+                # Better to open figure outside of python since its a lot of
+                # data on figure and matplotlib is slow
+                subprocess.call(['xdg-open', save_file])
+            else:
+                userIO.tell_user('Saved figure of traces to %s for reference'
+                                 % save_file, shell=shell)
+
             choice = userIO.select_from_list('Select dead channels:',
                                              em.Electrode.to_list(),
                                              'Dead Channel Selection',
                                              multi_select=True,
                                              shell=shell)
             plt.close('all')
-            plt.ioff()
             dead_channels = list(map(int, choice))
 
         em['dead'] = False
@@ -581,37 +600,20 @@ class dataset(object):
             running
         '''
         if data_quality:
-            tmp = deepcopy(dio.params.data_params.get(data_quality))
+            tmp = dio.params.load_params('clustering_params', self.data_dir,
+                                         default_keyword=data_quality)
             if tmp:
-                self.clust_params['data_params'] = tmp
-                self.clust_params['data_quality'] = data_quality
+                self.clustering_params = tmp
             else:
                 raise ValueError('%s is not a valid data_quality preset. Must '
                                  'be "clean" or "noisy" or None.')
 
-        # Check if they are OK with the parameters that will be used
-        if not accept_params:
-            if not shell:
-                q = eg.ynbox(dp.print_dict(self.clust_params)
-                             + '\n Are these parameters OK?',
-                             'Check Extraction and Clustering Parameters')
-            else:
-                q = input(dp.print_dict(self.clust_params)
-                          + '\n Are these paramters OK? (y/n):  ')
-                if q == 'y':
-                    q = True
-                else:
-                    False
-
-            if not q:
-                return
-
         print('\nRunning Blech Clust\n-------------------')
-        print('Parameters\n%s' % dp.print_dict(self.clust_params))
+        print('Parameters\n%s' % dp.print_dict(self.clustering_params))
 
         # Write parameters into .params file
         self.param_file = os.path.join(self.data_dir, self.data_name+'.params')
-        dio.params.write_params(self.param_file, self.clust_params)
+        dio.params.write_clustering_params(self.param_file, self.clustering_params)
 
         # Create folders for saving things within recording dir
         data_dir = self.data_dir
@@ -669,6 +671,7 @@ class dataset(object):
             raise ValueError('electrode_mapping not set')
 
         car_electrodes = self.CAR_electrodes
+        num_groups = len(car_electrodes)
         em = self.electrode_mapping.copy()
 
         if 'dead' in em.columns:
@@ -740,17 +743,6 @@ class dataset(object):
     @Logger('Making Unit Arrays')
     def make_unit_arrays(self, shell=False):
         params = self.spike_array_params
-        query = ('\n----------\nParameters for Spike Array Creation'
-                 '\n----------\ntimes in ms\n%s\nWould you like to'
-                 ' continue with these parameters?') % dp.print_dict(params)
-        q_idx = userIO.ask_user(query, choices=('Continue', 'Abort', 'Edit'),
-                                shell=shell)
-        if q_idx == 1:
-            return
-        elif q_idx == 2:
-            params = self.edit_spike_array_parameters(shell=shell)
-            if params is None:
-                return
 
         print('Generating unit arrays with parameters:\n----------')
         print(dp.print_dict(params, tabs=1))
@@ -772,27 +764,10 @@ class dataset(object):
             spike_analysis.make_psths_for_tastant(self.h5_file,
                                                   params['window_size'],
                                                   params['window_step'],
-                                                  row['dig_in'])
+                                                  row['channel'])
 
         self.process_status['make_psth_arrays'] = True
         self.save()
-
-    def edit_spike_array_parameters(self, shell=False):
-        params = self.spike_array_params
-        param_filler = userIO.dictIO(params, shell=shell)
-        new_params = param_filler.fill_dict(prompt=('Input desired parameters'
-                                                    ' (Times are in ms'))
-        if new_params is None:
-            return None
-        else:
-            new_params['dig_ins_to_use'] = [int(x) for x in
-                                            new_params['dig_ins_to_use']
-                                            if x != '']
-            new_params['laser_channels'] = [int(x) for x in
-                                            new_params['laser_channels']
-                                            if x != '']
-            self.spike_array_params = new_params
-            return new_params
 
     def edit_clustering_parameters(self, shell=False):
         '''Allows user interface for editing clustering parameters
@@ -802,10 +777,12 @@ class dataset(object):
         shell : bool (optional)
             True if you want command-line interface, False for GUI (default)
         '''
-        param_filler = userIO.dictIO(self.clust_params, shell=shell)
-        tmp = param_filler.fill_dict()
+        tmp = userIO.fill_dict(self.clustering_params,
+                               'Clustering Parameters\n(Times in ms)',
+                               shell=shell)
         if tmp:
-            self.clust_params = tmp
+            self.clustering_params = tmp
+            dio.params.write_params_to_json('clustering_params', self.data_dir, tmp)
 
     def edit_psth_parameters(self, shell=False):
         '''Allows user interface for editing psth parameters
@@ -815,11 +792,27 @@ class dataset(object):
         shell : bool (optional)
             True if you want command-line interface, False for GUI (default)
         '''
-        param_filler = userIO.dictIO(self.psth_params, shell=shell)
-        tmp = param_filler.fill_dict('Edit params for making PSTHs\n'
-                                     'All times are in ms')
+        tmp = userIO.fill_dict(self.psth_params,
+                               'PSTH Parameters\n(Times in ms)',
+                               shell=shell)
         if tmp:
             self.psth_params = tmp
+            dio.params.write_params_to_json('psth_params', self.data_dir, tmp)
+
+    def edit_pal_id_parameters(self, shell=False):
+        '''Allows user interface for editing palatability/identity parameters
+
+        Parameters
+        ----------
+        shell : bool (optional)
+            True if you want command-line interface, False for GUI (default)
+        '''
+        tmp = userIO.fill_dict(self.pal_id_params,
+                               'Palatability/Identity Parameters\n(Times in ms)',
+                               shell=shell)
+        if tmp:
+            self.pal_id_params = tmp
+            dio.params.write_params_to_json('pal_id_params', self.data_dir, tmp)
 
     def sort_units(self, shell=False):
         '''Begins processes to allow labelling of clusters as sorted units
@@ -846,15 +839,23 @@ class dataset(object):
         unit_table = dio.h5io.get_unit_table(self.data_dir)
         return unit_table
 
+    @Logger('Calculating Palatability/Identity Metrics')
     def palatability_calculate(self, shell=False):
         tpt.palatability_identity_calculations(self.data_dir,
                                                params=self.pal_id_params)
+        self.process_status['palatability_calculate'] = True
+        self.save()
+
+    @Logger('Plotting Palatability/Identity Metrics')
+    def palatability_plot(self, shell=False):
+        pal_plt.plot_palatability_identity([self.data_dir], shell=shell)
+        self.process_status['palatability_plot'] = True
+        self.save()
 
     def extract_and_cluster(self, data_quality='clean',
                             num_CAR_groups='bilateral32', shell=False,
                             dig_in_names=None, dig_out_names=None,
-                            emg_port=None, emg_channels=None,
-                            spike_array_params=None, psth_params=None):
+                            emg_port=None, emg_channels=None):
         '''Runs data from raw to clustered with no fuss
 
         Parameters (all optional)
@@ -884,65 +885,9 @@ class dataset(object):
         emg_channels : list of int
             any emg channel numbers on emg_port
         '''
-        if shell:
-            # Initialize Initial Parameters
-            if dig_in_names is None:
-                num_ins = int(input('Number of digital inputs : '))
-                if dig_out_names is None:
-                    num_outs = int(input('Number of digital outputs : '))
-
-            if emg_port is False:
-                emg = False
-                emg_port = None
-            elif emg_port is None:
-                emg = bool(int(input('EMG (0 or 1)? : ')))
-            elif isinstance(emg_port, str) and isinstance(emg_channels, list):
-                emg = False
-            else:
-                raise ValueError('emg_port and emg_channels must be both set '
-                                 'or both left empty')
-
-            if emg:
-                emg_port = input('EMG Port? : ')
-                emg_channels = input('EMG Channels (comma-separated) : ')
-                emg_channels = [int(x) for x in emg_channels.split(', ')]
-
-            if dig_in_names is None:
-                dig_in_names = []
-                if num_ins > 0:
-                    print('Digital Input Names\n----------\n')
-                    for i in range(num_ins):
-                        tmp = input('dig_in_%i : ' % i)
-                        dig_in_names.append(tmp)
-
-                if dig_in_names == []:
-                    dig_in_names = None
-
-            if dig_out_names is None:
-                dig_out_names = []
-                if num_outs > 0:
-                    print('Digital Output Names\n----------\n')
-                    for i in range(num_outs):
-                        tmp = input('dig_out_%i : ' % i)
-                        dig_out_names.append(tmp)
-
-                if dig_out_names == []:
-                    dig_out_names = None
-
-            if dig_out_names is False:
-                dig_out_names = None
-
-            if dig_in_names is False:
-                dig_in_names = None
-
-            self.initParams(data_quality, emg_port, emg_channels,
-                            shell, dig_in_names, dig_out_names,
-                            spike_array_params,psth_params,True)
-        else:
-            # Initialize default parameters
-            self.initParams(shell=shell)
-
+        self.initParams(data_quality=data_quality, shell=shell)
         self.extract_data(shell=shell)
+        self.mark_dead_channels(shell=shell)
         self.create_trial_list()
         self.common_average_reference(num_CAR_groups)
         self.blech_clust_run(data_quality, accept_params=shell, shell=shell)
@@ -961,22 +906,4 @@ class dataset(object):
         self.make_psth_arrays()
         self.save()
 
-
-def get_palatability_ranks(dig_in_mapping, shell=True):
-    '''Queries user for palatability rankings for digital inputs (tastants) and
-    adds a column to dig_in_mapping DataFrame
-
-    Parameters
-    ----------
-    dig_in_mapping: pandas.DataFrame,
-        DataFrame with at least columns 'dig_in' and 'name', for mapping
-        digital input channel number to a str name
-    '''
-    dim = dig_in_mapping.copy()
-    tmp = dict.fromkeys(dim['name'], 0)
-    filler = userIO.dictIO(tmp, shell=shell)
-    tmp = filler.fill_dict('Rank Palatability\n1 for the lowest\n'
-                           'Leave blank to exclude from palatability analysis')
-    dim['palatability_rank'] = dim['name'].apply(lambda x: tmp.get(x))
-    return dim
 

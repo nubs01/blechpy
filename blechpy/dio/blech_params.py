@@ -1,4 +1,6 @@
-import os, time
+import os
+import time
+import json
 import easygui as eg
 import numpy as np
 import pandas as pd
@@ -6,9 +8,12 @@ from blechpy.dio import rawIO
 from blechpy.data_print import data_print as dp
 from blechpy.widgets import userIO
 
-script_dir = os.path.dirname(__file__)
-param_dir = os.path.join(script_dir, '..', '..', 'defaults')
-CAR_file = os.path.join(param_dir, 'CAR_params.json')
+SCRIPT_DIR = os.path.dirname(__file__)
+PARAM_DIR = os.path.join(SCRIPT_DIR, '..', '..', 'defaults')
+CAR_file = os.path.join(PARAM_DIR, 'CAR_params.json')
+PARAM_NAMES = ['CAR_params', 'pal_id_params', 'data_cutoff_params',
+               'clustering_params', 'bandpass_params', 'spike_snapshot',
+               'psth_params']
 
 clustering_params = {'Max Number of Clusters':7,
                     'Max Number of Iterations':1000,
@@ -214,7 +219,7 @@ def select_CAR_groups(num_groups,electrode_mapping, shell=False):
     return car_electrodes
 
 @Timer('Writing Clustering Parameters to .params File')
-def write_params(file_name,params):
+def write_clustering_params(file_name,params):
     '''Writes parameters into a file for use by blech_process.py
 
     Parameters
@@ -254,7 +259,7 @@ def flatten_channels(ports,channels,emg_port=None,emg_channels=None):
 
     Returns
     -------
-    electrode_mapping : pandas.DataFrame, 
+    electrode_mapping : pandas.DataFrame,
                         3 columns: Electrode, Port and Channel
     emg_mapping : pandas.DataFrame,
                     3 columns: EMG, Port, and Channel
@@ -267,7 +272,6 @@ def flatten_channels(ports,channels,emg_port=None,emg_channels=None):
     em_map = []
     ports = ports.copy()
     channels = channels.copy()
-    to_pop = []
     for idx,p in enumerate(zip(ports,channels)):
         if p[0]==emg_port and p[1] in emg_channels:
             em_map.append(p)
@@ -304,3 +308,85 @@ def get_CAR_groups(car_keyword):
 
     out = default_dict.get(car_keyword)
     return out
+
+
+def write_dict_to_json(dat, save_file):
+    '''writes a dict to a json file
+
+    Parameters
+    ----------
+    dat : dict
+    save_file : str
+    '''
+    with open(save_file, 'w') as f:
+        json.dump(dat, f, indent=True)
+
+
+def read_dict_from_json(save_file):
+    '''reads dict from json file
+
+    Parameters
+    ----------
+    save_file : str
+    '''
+    with open(save_file, 'r') as f:
+        out = json.load(f)
+
+    return out
+
+
+def load_params(param_name, rec_dir=None, default_keyword=None):
+    '''checks rec_dir (if provided) for parameters in the analysis_params
+    folder, if params do not exist then this  loads and returns the defaults
+    from the package defaults folder.
+
+    Parameters
+    ----------
+    param_name : basename of param file, i.e. CAR_params or pal_id_params
+    rec_dir : str (optional)
+        recording dir containing an analysis_params folder
+        if not provided or None (default) then defaults are loaded
+    default_keyword : str (optional)
+        if provided and a rec specific param file does not exists then  this
+        will to used to a grab a subset of params from the default file
+        This is if multiple defaults are in a single default file
+    '''
+    if not param_name.endswith('.json'):
+        param_name += '.json'
+
+    default_file = os.path.join(PARAM_DIR, param_name)
+    rec_file = os.path.join(PARAM_DIR, 'analysis_params', param_name)
+
+    if os.path.isfile(rec_file):
+        out = read_dict_from_json(rec_file)
+    elif os.path.isfile(default_file):
+        out = read_dict_from_json(default_file)
+        if out and default_keyword:
+            out = out.get(default_keyword)
+
+    else:
+        out = None
+
+    return out
+
+
+def write_params_to_json(param_name, rec_dir, params):
+    '''Writes params into a json file placed in the analysis_params folder in
+    rec_dir with the name param_name.json
+
+    Parameters
+    ----------
+    param_name : str, name of parameter file
+    rec_dir : str, recording directory
+    params : dict, paramters
+    '''
+    if not param_name.endswith('.json'):
+        param_name += '.json'
+
+    p_dir = os.path.join(rec_dir, 'analysis_params')
+    save_file = os.path.join(p_dir, param_name)
+    if not os.path.isdir(p_dir):
+        os.mkdir(p_dir)
+
+    write_dict_to_json(params, save_file)
+

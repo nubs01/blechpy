@@ -75,6 +75,7 @@ def convert_str_to_type(item, dtype):
                 out.append(hold+x)
                 hold = ''
         return out
+
     if dtype is bool:
         if item.isnumeric():
             item = int(item)
@@ -88,6 +89,7 @@ def convert_str_to_type(item, dtype):
             else:
                 raise ValueError('Boolean inputs must be true, false, '
                                  'y, n, 1 or 0')
+
     if item == '' and dtype is not str:
         return None
 
