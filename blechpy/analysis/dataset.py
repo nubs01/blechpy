@@ -42,8 +42,9 @@ def load_dataset(file_name=None):
 
     Parameters
     ----------
-    file_name : str (optional), absolute path to file, if not given file
-                chooser is displayed
+    file_name : str (optional),
+        absolute path to dataset.p file or folder containing dataset.p file
+        if not given file chooser is displayed
 
     Returns
     -------
@@ -314,6 +315,10 @@ class dataset(object):
     def _edit_spike_array_params(self, shell=False):
         '''Edit spike array parameters and adjust dig_in_mapping accordingly
         '''
+        if not hasattr(self, 'dig_in_mapping'):
+            self.spike_array_params = None
+            return
+
         sa = deepcopy(self.spike_array_params)
         tmp = userIO.fill_dict(sa, 'Spike Array Parameters\n(Times in ms)',
                                shell=shell)
@@ -553,10 +558,10 @@ class dataset(object):
             simply marked as dead
         shell : bool, optional
         '''
+        em = self.electrode_mapping.copy()
         if dead_channels is None:
             userIO.tell_user('Making traces figure for dead channel detection...',
                              shell=True)
-            em = self.electrode_mapping.copy()
             fig, ax = datplt.plot_traces_and_outliers(self.h5_file)
 
             save_file = os.path.join(self.data_dir, 'Electrode_Traces.png')
@@ -702,8 +707,7 @@ class dataset(object):
         Can only be run after data extraction
         '''
         if not self.process_status['extract_data']:
-            eg.exceptionbox('Must extract data before creating trial list',
-                            'Data Not Extracted')
+            userIO.tell_user('Must extract data before creating trial list',shell=True)
             return
 
         if self.rec_info.get('dig_in'):

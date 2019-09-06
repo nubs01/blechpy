@@ -17,6 +17,7 @@ from blechpy.widgets import userIO
 from copy import deepcopy
 from numba import jit
 import itertools
+import matplotlib
 
 
 def sort_units(file_dir, fs, shell=False):
@@ -29,6 +30,7 @@ def sort_units(file_dir, fs, shell=False):
     shell : bool
         True for command-line interface, False for GUI (default)
     '''
+    matplotlib.use('Qt5Agg')
     hf5_name = h5io.get_h5_filename(file_dir)
     hf5_file = os.path.join(file_dir, hf5_name)
     sorting_log = hf5_file.replace('.h5', '_sorting.log')
@@ -642,8 +644,8 @@ def plot_cluster(cluster, index=None):
     '''
     fig, ax = blech_waveforms_datashader.waveforms_datashader(
         cluster['spike_waveforms'])
-    ax.set_xlabel('Samples')
-    ax.set_ylabel('Voltage (microvolts)')
+    ax.set_xlabel('Samples', fontsize=12)
+    ax.set_ylabel('Voltage (microvolts)', fontsize=12)
     title_str = (('Cluster Name: %s\n2ms Violations=%0.1f%%, '
                   '1ms Violations=%0.1f%%\nNumber of Waveforms'
                   '=%i') %
@@ -655,6 +657,8 @@ def plot_cluster(cluster, index=None):
         title_str = 'Index: %i %s, ' % (index, title_str)
 
     ax.set_title(title_str, fontsize=12)
+    plt.xticks(fontsize=10)
+    plt.yticks(fontsize=10)
     return fig, ax
 
 

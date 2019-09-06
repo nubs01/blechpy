@@ -16,7 +16,9 @@ from scipy.spatial.distance import cdist
 from scipy.interpolate import interp1d
 from scipy.stats import mannwhitneyu, spearmanr, sem
 import matplotlib.gridspec as gridspec
+from collections.abc import Iterable
 import seaborn as sns
+from scipy.ndimage.filters import gaussian_filter1d
 sns.set(style='white', context='talk', font_scale=2)
 
 
@@ -267,7 +269,7 @@ class multi_dataset(object):
         tmp = userIO.dictIO(order_dict, shell=shell)
         order_dict = tmp.fill_dict(prompt=('Set order of recordings (1-%i)\n'
                                            'Leave blank to delete directory'
-                                           ' from list'))
+                                           ' from list') % len(file_dirs))
         if order_dict is None:
             return
 
@@ -283,11 +285,13 @@ class multi_dataset(object):
 
         dat = dataset.load_dataset(file_dirs[0])
         em = dat.electrode_mapping.copy()
-        ingc = userIO.select_from_list('Select all eletrodes confirmed in GC',
-                                       em['Electrode'],
-                                       multi_select=True, shell=shell)
-        ingc = list(map(int, ingc))
-        em['Area'] = np.where(em['Electrode'].isin(ingc), 'GC', 'Other')
+        if 'area' not in em.columns:
+            ingc = userIO.select_from_list('Select all eletrodes confirmed in GC',
+                                           em['Electrode'],
+                                           multi_select=True, shell=shell)
+            ingc = list(map(int, ingc))
+            em['area'] = np.where(em['Electrode'].isin(ingc), 'GC', 'Other')
+
         self.electrode_mapping = em
         self.save_file = os.path.join(exp_dir, '%s_experiment.p'
                                       % os.path.basename(exp_dir))
@@ -369,7 +373,7 @@ class multi_dataset(object):
         rec_dir = os.path.join(data_dir, rec)
         descrip = dio.h5io.get_unit_descriptor(rec_dir, unit_num)
         electrode = descrip['electrode_number']
-        area = em.query('Electrode == @electrode')['Area'].values[0]
+        area = em.query('Electrode == @electrode')['area'].values[0]
 
         row['electrode'] = electrode
         row['area'] = area
@@ -437,6 +441,12 @@ class multi_dataset(object):
         # Plot intra and inter J3
         plot_J3s(intra_J3, inter_J3, save_dir, percent_criterion)
 
+        # Cleanup tmp_raw.hdf5
+        for rd in rec_dirs:
+            tmp_file = os.path.join(rd,'tmp_raw.hdf5')
+            if os.path.isfile(tmp_file):
+                os.remove(tmp_file)
+
     def get_unit_stats(self, significance=0.01):
         '''Go through all recordings and units and get number of units in the
         correct area
@@ -460,7 +470,7 @@ class multi_dataset(object):
                 for u in units:
                     descrip = dio.h5io.get_unit_descriptor(rd, u)
                     el = descrip['electrode_number']
-                    area = em.query('Electrode == @el')['Area'].values[0]
+                    area = em.query('Electrode == @el')['area'].values[0]
 
                     taste_stat, taste_p = check_taste_response(rd, u, din,
                                                                window=1500)
@@ -518,6 +528,8 @@ class multi_dataset(object):
         out = {}
 
         # Iterate through held units and compare
+        # held_df & counts only reflect responses to Saccharin
+        # TODO: Fix hardcoding of Saccharin as only taste to keep summary stats
         held_df = self.held_units['units'].copy()
         held_dict = self.held_units['units'].to_dict(orient='records')
         sig_units = {}
@@ -526,23 +538,35 @@ class multi_dataset(object):
         held_df['taste_response2'] = False
         held_df['response_change'] = False
         held_df['norm_response_change'] = False
+        held_df['z_response_change'] = False
         held_df['divergence'] = np.nan
         held_df['norm_divergence'] = np.nan
+        held_df['z_divergence'] = np.nan
 
-        for i, unit in enumerate(held_dict):
-            u = unit.copy()
-            unit_name = u.pop('unit')
-            elecrtrode = u.pop('electrode')
-            area = u.pop('area')
-            df_idx = held_df['unit'] == unit_name
 
-            # Restrict to GC units
-            if area != 'GC':
-                continue
 
-            recs = list(u.keys())
+        for t in tastants:
+            # Summary changes
+            avg_mag_change = None
+            avg_mag_change_SEM = None
+            mag_time = None
+            avg_norm_mag_change = None
+            avg_norm_mag_change_SEM = None
+            avg_z_mag_change = None
+            avg_z_mag_change_SEM = None
+            for i, unit in enumerate(held_dict):
+                u = unit.copy()
+                unit_name = u.pop('unit')
+                elecrtrode = u.pop('electrode')
+                area = u.pop('area')
+                df_idx = held_df['unit'] == unit_name
 
-            for t in tastants:
+                # Restrict to GC units
+                if area != 'GC':
+                    continue
+
+                recs = list(u.keys())
+
                 t_recs = [x for x in recs if taste_map[t].get(x) is not None]
                 t_recs = sorted(t_recs, key=lambda x: rec_names.index(x))
 
@@ -569,38 +593,129 @@ class multi_dataset(object):
                                           tastant=t,
                                           save_dir=sd)
 
+                # Get magnitude of change
+                mc, mc_SEM, mc_time = get_response_change(unit_name, rds[0],
+                                                          uns[0], dins[0],
+                                                          rds[1], uns[1],
+                                                          dins[1])
+                if avg_mag_change is not None:
+                    avg_mag_change += np.abs(mc)
+                    avg_mag_change_SEM += np.power(mc_SEM, 2)
+                else:
+                    avg_mag_change = np.abs(mc)
+                    avg_mag_change_SEM = mc_SEM
+                    mag_time = mc_time
+
+                # Again but with baseline removed
+                mc, mc_SEM, mc_time = get_response_change(unit_name, rds[0],
+                                                          uns[0], dins[0],
+                                                          rds[1], uns[1],
+                                                          dins[1],
+                                                          norm_func=remove_baseline)
+                if avg_norm_mag_change is not None:
+                    avg_norm_mag_change += np.abs(mc)
+                    avg_norm_mag_change_SEM += np.power(mc_SEM, 2)
+                else:
+                    avg_norm_mag_change = np.abs(mc)
+                    avg_norm_mag_change_SEM = mc_SEM
+
+                # Again but Z-scored to baseline
+                mc, mc_SEM, mc_time = get_response_change(unit_name, rds[0],
+                                                          uns[0], dins[0],
+                                                          rds[1], uns[1],
+                                                          dins[1],
+                                                          norm_func=zscore_to_baseline)
+                if avg_z_mag_change is not None:
+                    avg_z_mag_change += np.abs(mc)
+                    avg_z_mag_change_SEM += np.power(mc_SEM, 2)
+                else:
+                    avg_z_mag_change = np.abs(mc)
+                    avg_z_mag_change_SEM = mc_SEM
+
+                # Save signififance stats
                 if sig_units.get(t) is None:
-                    sig_units[t] = {'rec1': rds[0], 'unit1': uns[0],
-                                    'din1': dins[0], 'rec2': rds[1],
-                                    'unit2': uns[1], 'din2': dins[1],
-                                    'baseline_shift': [],
-                                    'taste_response1': [],
-                                    'taste_response2': [],
-                                    'response_change': [],
-                                    'norm_response_change': [],
-                                    'statistics': stats}
+                    sig_units[t] = {}
+
+                if sig_units[t].get(unit_name) is None:
+                    sig_units[t][unit_name] = {'rec1': rds[0], 'unit1': uns[0],
+                                               'din1': dins[0], 'rec2': rds[1],
+                                               'unit2': uns[1], 'din2': dins[1],
+                                               'baseline_shift': [],
+                                               'taste_response1': [],
+                                               'taste_response2': [],
+                                               'response_change': [],
+                                               'norm_response_change': [],
+                                               'z_response_change': [],
+                                               'statistics': stats}
 
                 if stats['baseline_shift']:
-                    sig_units[t]['baseline_shift'].append(unit_name)
-                    held_df.loc[df_idx, 'baseline_shift'] = True
+                    sig_units[t][unit_name]['baseline_shift'].append(unit_name)
+                    if t == 'Saccharin' or t == 'saccharin':
+                        held_df.loc[df_idx, 'baseline_shift'] = True
 
                 if stats['taste_response1']:
-                    sig_units[t]['taste_response1'].append(unit_name)
-                    held_df.loc[df_idx, 'taste_response1'] = True
+                    sig_units[t][unit_name]['taste_response1'].append(unit_name)
+                    if t == 'Saccharin' or t == 'saccharin':
+                        held_df.loc[df_idx, 'taste_response1'] = True
 
                 if stats['taste_response2']:
-                    sig_units[t]['taste_response2'].append(unit_name)
-                    held_df.loc[df_idx, 'taste_response2'] = True
+                    sig_units[t][unit_name]['taste_response2'].append(unit_name)
+                    if t == 'Saccharin' or t == 'saccharin':
+                        held_df.loc[df_idx, 'taste_response2'] = True
 
                 if stats['response_change']:
-                    sig_units[t]['response_change'].append(unit_name)
-                    held_df.loc[df_idx, 'response_change'] = True
-                    held_df.loc[df_idx, 'divergence'] = stats['divergence']
+                    sig_units[t][unit_name]['response_change'].append(unit_name)
+                    if t == 'Saccharin' or t == 'saccharin':
+                        held_df.loc[df_idx, 'response_change'] = True
+                        held_df.loc[df_idx, 'divergence'] = stats['divergence']
 
                 if stats['norm_change']:
-                    sig_units[t]['norm_response_change'].append(unit_name)
-                    held_df.loc[df_idx, 'norm_response_change'] = True
-                    held_df.loc[df_idx, 'norm_divergence'] = stats['norm_divergence']
+                    sig_units[t][unit_name]['norm_response_change'].append(unit_name)
+                    if t == 'Saccharin' or t == 'saccharin':
+                        held_df.loc[df_idx, 'norm_response_change'] = True
+                        held_df.loc[df_idx, 'norm_divergence'] = stats['norm_divergence']
+
+                if stats['z_change']:
+                    sig_units[t][unit_name]['z_response_change'].append(unit_name)
+                    if t == 'Saccharin' or t == 'saccharin':
+                        held_df.loc[df_idx, 'z_response_change'] = True
+                        held_df.loc[df_idx, 'z_divergence'] = stats['z_divergence']
+
+            # Plot average magnitude of changes
+            if sig_units.get(t) is not None:
+                avg_mag_change = avg_mag_change / len(held_df)
+                avg_norm_mag_change = avg_norm_mag_change / len(held_df)
+                avg_z_mag_change = avg_z_mag_change / len(held_df)
+                avg_mag_change_SEM = np.sqrt(avg_mag_change_SEM)
+                avg_norm_mag_change_SEM = np.sqrt(avg_norm_mag_change_SEM)
+                avg_z_mag_change_SEM = np.sqrt(avg_z_mag_change_SEM)
+
+                fig, ax = plt.subplots(nrows=1, ncols=3, sharex=True, figsize=(30,10))
+                ax[0].fill_between(mag_time, avg_mag_change - avg_mag_change_SEM,
+                                   avg_mag_change + avg_mag_change_SEM, alpha=0.4)
+                ax[0].plot(mag_time, avg_mag_change, linewidth=2)
+                ax[0].axvline(x=0, linestyle='--', color='red', alpha=0.6)
+                ax[0].set_title('Average change in magnitude of response',fontsize=14)
+                ax[0].set_xlabel('Time (ms)',fontsize=14)
+                ax[0].set_ylabel('Firing Rate (Hz)',fontsize=14)
+
+                ax[1].fill_between(mag_time, avg_norm_mag_change - avg_norm_mag_change_SEM,
+                                   avg_norm_mag_change + avg_norm_mag_change_SEM, alpha=0.4)
+                ax[1].plot(mag_time, avg_norm_mag_change, linewidth=2)
+                ax[1].axvline(x=0, linestyle='--', color='red', alpha=0.6)
+                ax[1].set_title('Average change in magnitude of response\nBaseline removed',fontsize=14)
+                ax[1].set_xlabel('Time (ms)',fontsize=14)
+
+                ax[2].fill_between(mag_time, avg_z_mag_change - avg_z_mag_change_SEM,
+                                   avg_z_mag_change + avg_z_mag_change_SEM, alpha=0.4)
+                ax[2].plot(mag_time, avg_z_mag_change, linewidth=2)
+                ax[2].axvline(x=0, linestyle='--', color='red', alpha=0.6)
+                ax[2].set_title('Average change in magnitude of response\nZ-scored to baseline',fontsize=14)
+                ax[2].set_xlabel('Time (ms)',fontsize=14)
+
+                save_file = os.path.join(sd, 'Summary_Magnitude_Change.png')
+                fig.savefig(save_file)
+                plt.close('all')
 
         self.significant_units = sig_units
         self.held_units['units'] = held_df.copy()
@@ -611,21 +726,29 @@ class multi_dataset(object):
         counts['held'] = len(held_df)
         sums = held_df.groupby(['area']).sum().drop(['electrode',
                                                      'divergence',
-                                                     'norm_divergence'],axis=1)
+                                                     'norm_divergence',
+                                                     'z_divergence'],axis=1)
         counts.update(sums.to_dict(orient='records')[0])
         n_taste_gain = len(held_df.query('not taste_response1 & taste_response2'))
         n_taste_loss = len(held_df.query('taste_response1 & not taste_response2'))
         n_resp_overlap = len(held_df.query('response_change & norm_response_change'))
+        z_resp_overlap = len(held_df.query('response_change & z_response_change'))
         counts['taste_response_gain'] = n_taste_gain
         counts['taste_response_loss'] = n_taste_loss
         counts['response_change_overlap'] = n_resp_overlap
+        counts['z_response_change_overlap'] = z_resp_overlap
         counts['mean_divergence_time'] = (held_df['divergence'].mean(),
                                           held_df['divergence'].std())
         counts['mean_norm_divergence_time'] = (held_df['norm_divergence'].mean(),
                                                held_df['norm_divergence'].std())
+        counts['mean_z_divergence_time'] = (held_df['z_divergence'].mean(),
+                                               held_df['z_divergence'].std())
         self.held_units['counts'] = counts
+        counts_file = os.path.join(sd, 'held_unit_counts.json')
+        dio.params.write_dict_to_json(counts, counts_file)
 
-        return sig_units
+
+        # return sig_units
 
     def load_held_units(self):
         save_dir = os.path.join(self.experiment_dir, 'held_units')
@@ -785,10 +908,10 @@ def get_raw_unit_waveforms(rec_dir, unit_name, shell=True, required_descrip=None
     unit_num = ss.parse_unit_number(unit_name)
     dat = dataset.load_dataset(rec_dir)
     e_map = dat.electrode_mapping
-    snapshot = dat.clust_params['spike_snapshot']
+    snapshot = dat.clustering_params['spike_snapshot']
     snapshot = [snapshot['Time before spike (ms)'],
                 snapshot['Time after spike (ms)']]
-    bandpass = dat.clust_params['bandpass_params']
+    bandpass = dat.clustering_params['bandpass_params']
     bandpass = [bandpass['Lower freq cutoff'],
                 bandpass['Upper freq cutoff']]
     fs = dat.sampling_rate
@@ -848,7 +971,7 @@ def get_clustering_parameters(rec_dir):
     with open(dat_file, 'rb') as f:
         dat = pickle.load(f)
 
-    return dat.clust_params
+    return dat.clustering_params
 
 def check_changes_in_taste_responses(pre_h5, post_h5, held_df, pre_dig_in,
                                      post_dig_in):
@@ -1040,12 +1163,16 @@ def compare_held_unit(unit_name, rec1, unit1, dig_in1, rec2, unit2, dig_in2,
     resp_p = np.ones(win_starts.shape)
     norm_resp_u = np.zeros(win_starts.shape)
     norm_resp_p = np.ones(win_starts.shape)
+    z_resp_u = np.zeros(win_starts.shape)
+    z_resp_p = np.ones(win_starts.shape)
     for i, ws in enumerate(win_starts):
         idx = np.where((s_time1 >= ws) & (s_time1 <= ws+comp_win))[0]
         rate1 = 1000 * np.sum(spikes1[:, idx], axis=1) / comp_win
         nrate1 = rate1 - baseline1
+        zrate1 = (rate1 - np.mean(baseline1)) / np.std(baseline1)
         rate2 = 1000 * np.sum(spikes2[:, idx], axis=1) / comp_win
         nrate2 = rate2 - baseline2
+        zrate2 = (rate2 - np.mean(baseline2)) / np.std(baseline2)
 
         try:
             resp_u[i], resp_p[i] = mannwhitneyu(rate1, rate2,
@@ -1058,15 +1185,24 @@ def compare_held_unit(unit_name, rec1, unit1, dig_in1, rec2, unit2, dig_in2,
             norm_resp_u[i], norm_resp_p[i] = mannwhitneyu(nrate1, nrate2,
                                                           alternative='two-sided')
         except ValueError:
-            resp_u[i] = 0
-            resp_p[i] = 1
+            norm_resp_u[i] = 0
+            norm_resp_p[i] = 1
+
+        try:
+            z_resp_u[i], z_resp_p[i] = mannwhitneyu(zrate1, zrate2,
+                                                          alternative='two-sided')
+        except ValueError:
+            z_resp_u[i] = 0
+            z_resp_p[i] = 1
 
     # Bonferroni correction
     resp_p = resp_p * len(win_starts)
     norm_resp_p = norm_resp_p * len(win_starts)
+    z_resp_p = z_resp_p * len(win_starts)
 
     sig_pts = np.where(resp_p <= significance, 1, 0)
     n_sig_pts = np.where(norm_resp_p <= significance, 1, 0)
+    z_sig_pts = np.where(z_resp_p <= significance, 1, 0)
 
     out['comparison_window'] = comp_win
     out['window_starts'] = win_starts
@@ -1095,9 +1231,11 @@ def compare_held_unit(unit_name, rec1, unit1, dig_in1, rec2, unit2, dig_in2,
     if any(n_sig_pts == 1):
         tmp_idx = np.where(norm_resp_p <= significance)[0][0]
         n_init_diff = win_starts[tmp_idx]
+        n_init_p = norm_resp_p[tmp_idx]
         out['norm_change'] = True
     else:
         n_init_diff = np.nan
+        n_init_p = np.nan
         out['norm_change'] = False
 
     out['norm_response_p'] = norm_resp_p
@@ -1109,24 +1247,54 @@ def compare_held_unit(unit_name, rec1, unit1, dig_in1, rec2, unit2, dig_in2,
                      '   - Significant Change: %s\n') %  out['norm_change']
     if not np.isnan(n_init_diff):
         norm_diff_txt += ('   - Divergence time (ms): %g\n'
-                     '   - Number of different windows: %i\n'
-                     '   - Minimum p-Value: %g\n') % \
-                (n_init_diff, np.sum(n_sig_pts), np.min(norm_resp_p))
+                          '   - Number of different windows: %i\n'
+                          '   - Minimum p-Value: %g\n'
+                          '   - Inital p-Value: %g\n') % \
+                (n_init_diff, np.sum(n_sig_pts), np.min(norm_resp_p), n_init_p)
 
-    # Plot 1x2 with left being raw and right being with baseline removed & sig stars
-    fig = plt.figure(figsize=(30, 20))
-    gs = gridspec.GridSpec(4, 10)
+    if any(z_sig_pts == 1):
+        tmp_idx = np.where(z_resp_p <= significance)[0][0]
+        z_init_diff = win_starts[tmp_idx]
+        z_init_p = z_resp_p[tmp_idx]
+        out['z_change'] = True
+    else:
+        z_init_diff = np.nan
+        z_init_p = np.nan
+        out['z_change'] = False
+
+    out['z_response_p'] = z_resp_p
+    out['z_response_stat'] = z_resp_u
+    out['z_divergence'] = z_init_diff
+    out['z_sig_windows'] = np.sum(z_sig_pts)
+
+    z_diff_txt = ('Z-scored Response Change\n'
+                  '   - Significant Change: %s\n') %  out['z_change']
+    if not np.isnan(z_init_diff):
+        z_diff_txt += ('   - Divergence time (ms): %g\n'
+                       '   - Number of different windows: %i\n'
+                       '   - Minimum p-Value: %g\n'
+                       '   - Inital p-Value: %g\n') % \
+                (z_init_diff, np.sum(z_sig_pts), np.min(z_resp_p), z_init_p)
+
+    # Plot 1x3 with left being raw and center being with baseline removed &
+    # right being z-scored to baseline& sig stars
+    fig = plt.figure(figsize=(45, 20))
+    gs = gridspec.GridSpec(4, 15)
     ax1 = plt.subplot(gs[:3, :5]) # raw psth
-    ax2 = plt.subplot(gs[:3, 5:]) # relative psth
+    ax2 = plt.subplot(gs[:3, 5:10]) # relative psth
+    axz = plt.subplot(gs[:3, 10:]) # z psth
     ax3 = plt.subplot(gs[3, 0]) # Taste Responsive 1
     ax4 = plt.subplot(gs[3, 2]) # Taste Responsive 2
-    ax5 = plt.subplot(gs[3, 4]) # Baseline change
-    ax6 = plt.subplot(gs[3, 6]) # Response Change
-    ax7 = plt.subplot(gs[3, 8]) # Relative response change
+    ax5 = plt.subplot(gs[3, 5]) # Baseline change
+    ax6 = plt.subplot(gs[3, 8]) # Response Change
+    ax7 = plt.subplot(gs[3, 11]) # Relative response change
+    ax8 = plt.subplot(gs[3, 13]) # Z response change
     nfr1 = (fr1.transpose() - baseline1).transpose()
     nfr2 = (fr2.transpose() - baseline2).transpose()
-    plot_psth(fr1, time1, ax=ax1)
-    plot_psth(fr2, time2, ax=ax1)
+    zfr1 = (fr1 - np.mean(baseline1)) / np.std(baseline1)
+    zfr2 = (fr2 - np.mean(baseline2)) / np.std(baseline2)
+    plot_psth(fr1, time1, ax=ax1, label=rn1)
+    plot_psth(fr2, time2, ax=ax1, label=rn2)
 
     sig_ints = find_contiguous(sig_pts).get(1)
     new_sig_ints = []
@@ -1158,13 +1326,28 @@ def compare_held_unit(unit_name, rec1, unit1, dig_in1, rec2, unit2, dig_in2,
     if new_sig_ints != []:
         plot_significance(s_time1, new_sig_ints, ax=ax2)
 
-    ax2.legend(loc='lower left')
+    plot_psth(zfr1, time1, ax=axz)
+    plot_psth(zfr2, time2, ax=axz)
+    z_sig_ints = find_contiguous(z_sig_pts).get(1)
+    new_sig_ints = []
+    if z_sig_ints is not None:
+        for iv in z_sig_ints:
+            i1 = np.where((s_time1 >= win_starts[iv[0]]) &
+                          (s_time1 <= win_starts[iv[1]]+comp_win))[0]
+            new_sig_ints.append((i1[0], i1[-1]))
+
+    if new_sig_ints != []:
+        plot_significance(s_time1, new_sig_ints, ax=axz)
+
+    ax1.legend(loc='lower left')
 
     ax1.set_title('Smoothed Firing Rate', fontsize=24)
     ax1.set_xlabel('Time (ms)', fontsize=20)
     ax1.set_ylabel('Firing Rate (Hz)', fontsize=20)
     ax2.set_title('Smoothed Firing Rate\nBaseline removed', fontsize=24)
     ax2.set_xlabel('Time (ms)', fontsize=20)
+    axz.set_title('Smoothed Firing Rate\nZ-scored to Baseline', fontsize=24)
+    axz.set_xlabel('Time (ms)', fontsize=20)
     plt.subplots_adjust(top=0.87)
     plt.suptitle('Comparison of held unit %s\n%s %s vs %s %s'
                  % (unit_name, rn1, unit1, rn2, unit2), fontsize=34)
@@ -1174,11 +1357,13 @@ def compare_held_unit(unit_name, rec1, unit1, dig_in1, rec2, unit2, dig_in2,
     ax5.axis('off')
     ax6.axis('off')
     ax7.axis('off')
-    ax3.text(0, 0.8, taste_txt1, fontsize=16, verticalalignment='top')
-    ax4.text(0, 0.8, taste_txt2, fontsize=16, verticalalignment='top')
-    ax5.text(0, 0.8, baseline_txt, fontsize=16, verticalalignment='top')
-    ax6.text(0, 0.8, diff_txt, fontsize=16, verticalalignment='top')
-    ax7.text(0, 0.8, norm_diff_txt, fontsize=16, verticalalignment='top')
+    ax8.axis('off')
+    ax3.text(0, 0.8, taste_txt1, fontsize=18, verticalalignment='top')
+    ax4.text(0, 0.8, taste_txt2, fontsize=18, verticalalignment='top')
+    ax5.text(0, 0.8, baseline_txt, fontsize=18, verticalalignment='top')
+    ax6.text(0, 0.8, diff_txt, fontsize=18, verticalalignment='top')
+    ax7.text(0, 0.8, norm_diff_txt, fontsize=18, verticalalignment='top')
+    ax8.text(0, 0.8, z_diff_txt, fontsize=18, verticalalignment='top')
     plt.savefig(os.path.join(save_dir, 'Unit_%s_Comparison.png' % unit_name))
     plt.close('all')
 
@@ -1249,10 +1434,22 @@ def plot_significance(x, sig_ints, **kwargs):
 
     for a,b in sig_ints:
         if b-a == 0:
-            ax.text(x[a], ymax+.1, '*')
+            x1 = x[a]
+            if a+1 < len(x):
+                x2 = x[a+1]
+            else:
+                x2 = x[a]
+            x3 = (x1 + x2) / 2
+            ax.text(x3, ymax+.1, '*')
         else:
-            ax.plot([x[a], x[b]], [ymax, ymax], color='black', linewidth=3)
-            ax.text((x[a]+x[b])/2, ymax+.1, '*')
+            x1 = x[a]
+            if len(x) == b+1:
+                x2 = x[b]
+            else:
+                x2 = x[b+1]
+
+            ax.plot([x1, x2], [ymax, ymax], color='black', linewidth=3)
+            ax.text((x1+x2)/2, ymax+.1, '*')
 
     ax.margins(.2)
     ax.autoscale(axis='y', tight=False)
@@ -1322,3 +1519,280 @@ def get_mean_difference(A, B, axis=0):
         np.sqrt(n1+n2)
 
     return C, SEM
+
+
+
+def get_response_change(unit_name, rec1, unit1,
+                        din1, rec2, unit2, din2,
+                        bin_size=250, bin_step=25, norm_func=None):
+    '''Uses the spike arrays to compute the change in
+    firing rate of the response to the tastant.
+
+    Parameters
+    ----------
+    unit_name : str, name of held unit
+    rec1 : str, path to recording directory 1
+    unit1: str, name of unit in rec1
+    din1 : int, number of din to use from rec1
+    rec2 : str, path to recording directory 2
+    unit2: str, name of unit in rec2
+    din2 : int, number of din to use from rec2
+    bin_size : int, default=250
+        width of bins in units of time vector saved in hf5 spike_trains
+        usually ms
+    bin_step : int, default=25
+        step size to take from one bin to the next in same units (usually ms)
+    norm_func: function (optional)
+        function with which to normalize the firing rates before getting difference
+        must take inputs (time_vector, firing_rate_array) where time_vector is
+        1D numpy.array and firing_rate_array is a Trial x Time numpy.array
+        Must return a numpy.array with same size as firing rate array
+
+    Returns
+    -------
+    difference_of_means : numpy.array
+    SEM : numpy.array, standard error of the mean difference
+    '''
+    # Get metadata
+    dat1 = dataset.load_dataset(rec1)
+    dat2 = dataset.load_dataset(rec2)
+
+    # Get data from hf5 files
+    time1, spikes1 = dio.h5io.get_spike_data(rec1, unit1, din1)
+    time2, spikes2 = dio.h5io.get_spike_data(rec2, unit2, din2)
+
+    # Get Firing Rates
+    bin_time1, fr1 = get_binned_firing_rate(time1, spikes1, bin_size, bin_step)
+    bin_time2, fr2 = get_binned_firing_rate(time2, spikes2, bin_size, bin_step)
+
+    if not np.array_equal(bin_time1, bin_time2):
+        raise ValueError('Time of spike trains is not aligned')
+
+    # Normalize firing rates
+    if norm_func:
+        fr1 = norm_func(bin_time1, fr1)
+        fr2 = norm_func(bin_time2, fr2)
+
+    difference_of_mean, SEM = get_mean_difference(fr1, fr2, axis=0)
+
+    return difference_of_mean, SEM, bin_time1
+
+
+
+
+
+# For spike_train_analysis.py
+
+
+def get_binned_firing_rate(time, spikes, bin_size=250, bin_step=25):
+    '''Take a spike array and returns a firing rate array (row-wise)
+
+    Parameters
+    ----------
+    time :  numpy.array, time vector in ms
+    spikes : numpy.array, Trial x Time array with 1s at spike times
+    bin_size: int (optional), bin width in ms, default=250
+    bin_step : int (optional), step size in ms, default=25
+
+    Returns
+    -------
+    bin_time : numpy.array
+        time vector for binned firing rate array, times correspond to center of
+        bins in ms
+    firing_rate : numpy.array
+        Trial x Time firing rate array in Hz
+    '''
+    bin_start = np.arange(time[0], time[-1] - bin_size + bin_step, bin_step)
+    bin_time = bin_start + int(bin_size/2)
+    n_trials = spikes.shape[0]
+    n_bins = len(bin_start)
+
+    firing_rate = np.zeros((n_trials, n_bins))
+    for i, start in enumerate(bin_start):
+        idx = np.where((time >= start) & (time <= start+bin_size))[0]
+        firing_rate[:, i] = np.sum(spikes[:, idx], axis=1) / (bin_size/1000)
+
+    return bin_time, firing_rate
+
+
+def get_mean_difference(A, B, axis=0):
+    '''Returns the difference of the means of arrays A and B along an axis and
+    propogates the uncertainty of the means
+
+    Parameters
+    ----------
+    A,B : numpy.array
+    arrays to get difference between. arrays must be the same size along
+    the axis being compared. For example, if A is MxN and B is LxN and
+    axis=0 then they can be compared since axis 0 will be meaned and axis 1
+    will be subtracted.
+    axis : int, axis to be meaned
+
+    Returns
+    -------
+    difference_of_means : numpy.array, 1D array
+    SEM : numpy.array, standard error of the mean differences, 1D array
+    '''
+    shape_ax = int(not axis)
+
+    m1 = np.mean(A, axis=axis)
+    sd1 = np.std(A, axis=axis)
+    n1 = A.shape[shape_ax]
+    m2 = np.mean(B, axis=axis)
+    sd2 = np.std(B, axis=axis)
+    n2 = B.shape[shape_ax]
+    C = m2 - m1
+    SEM = np.sqrt((np.power(sd1, 2)/n1) + (np.power(sd2,2)/n2)) / \
+           np.sqrt(n1+n2)
+
+    return C, SEM
+
+
+
+def zscore_to_baseline(time, fr):
+    '''takes a firing rate array and zscores each row using the mean and st.
+    dev over all trials during times < 0
+
+    Parameters
+    ----------
+    time : numpy.array, 1D time vector
+    fr : numpy.array, Trial x Time array of firing rates
+
+    Returns
+    -------
+    norm_fr : numpy.array, array of firing rate traces
+    '''
+    idx = np.where(time < 0)[0]
+    baselines = np.mean(fr[:, idx], axis=1)
+    m = np.mean(baselines)
+    sd = np.std(baselines)
+
+    norm_fr = (fr - m) / sd
+
+    return norm_fr
+
+
+def remove_baseline(time, fr):
+    '''takes a firing rate and substracts the group baseline mean from the each
+    trials' firing rates
+
+    Parameters
+    ----------
+    time : numpy.array, 1D time vector
+    fr : numpy.array, Trial x Time array of firing rates
+
+    Returns
+    -------
+    norm_fr : numpy.array, array of firing rate traces
+    '''
+    idx = np.where(time < 0)[0]
+    baseline = np.mean(fr[:, idx])
+    norm_fr = fr - baseline
+    return norm_fr
+
+
+def plot_held_unit_firing(exp, unit_name, norm_func=None,
+                          bin_size=250, bin_step=25, tastants=None,
+                          smoothing_width=5, save_dir=None, significance=0.05):
+    if save_dir is None:
+        save_dir = os.path.join(exp.experiment_dir, 'held_unit_comparison_plots')
+
+    if not os.path.isdir(save_dir):
+        os.mkdir(save_dir)
+
+    held_df = exp.held_units['units']
+    held_df = held_df.query('unit == @unit_name')
+    held_df = held_df.dropna(axis=1)
+
+    rec_dirs = exp.recording_dirs
+    taste_map, found_tastants = get_taste_mapping(rec_dirs)
+    rec_names = [os.path.basename(x) for x in rec_dirs]
+
+    if tastants is None:
+        tastants = found_tastants
+    elif not isinstance(tastants, Iterable):
+        tastants = [tastants]
+
+    for taste in tastants:
+        t_recs = list(taste_map.get(taste).keys())
+        valid_recs = []
+        units = []
+        dins = []
+
+        for tr in t_recs:
+            tmp = held_df.get(tr)
+            if tmp is not None:
+                units.append(held_df[tr].values[0])
+                valid_recs.append(tr)
+                dins.append(taste_map.get(taste).get(tr))
+
+        if len(valid_recs) == 0:
+            continue
+
+        save_file = os.path.join(save_dir, 'Unit_%s_%s.svg' % (unit_name, taste))
+        fig = plt.figure(figsize=(20,15))
+        ax = plt.subplot(111)
+        for rec, unit, din in zip(valid_recs, units, dins):
+            rec_dir = os.path.join(exp.experiment_dir, rec)
+            unit_num = dio.h5io.parse_unit_number(unit)
+            if 'Train' in rec or 'pre' in rec:
+                rec_label = 'Pre-CTA'
+            else:
+                rec_label = 'Post-CTA'
+
+            spike_time, spike_trains = dio.h5io.get_spike_data(rec_dir,
+                                                               unit_num, din)
+            fr_time, fr = get_binned_firing_rate(spike_time, spike_trains,
+                                                 bin_size=bin_size,
+                                                 bin_step=bin_step)
+            if norm_func is not None:
+                fr = norm_func(fr_time, fr)
+
+            smooth_fr = gaussian_filter1d(fr, smoothing_width)
+            mean_fr = np.mean(smooth_fr, axis=0)
+            sd_fr = sem(smooth_fr, axis=0)
+            t_idx = np.where((fr_time>=-1500) & (fr_time<=2500))[0]
+            mean_fr = mean_fr[t_idx]
+            fr_time = fr_time[t_idx]
+            sd_fr = sd_fr[t_idx]
+            ax.fill_between(fr_time, mean_fr - sd_fr, mean_fr + sd_fr, alpha=0.4)
+            ax.plot(fr_time, mean_fr, linewidth=2, label=rec_label)
+
+        # Significance
+        if exp.significant_units.get(taste) is not None:
+            stats = exp.significant_units[taste][unit_name]['statistics']
+            resp_p = stats['norm_response_p']
+            win_starts = stats['window_starts']
+            sig_pts = np.where(resp_p <= significance, 1, 0)
+            sig_ints = find_contiguous(sig_pts).get(1)
+            plot_significance(win_starts, sig_ints, ax=ax)
+            ax.margins(.2)
+            ax.autoscale(axis='y', tight=False)
+            ax.autoscale(axis='x', tight=True)
+        else:
+            ax.margins(.2)
+            ax.autoscale(axis='y', tight=False)
+            ax.autoscale(axis='x', tight=True)
+
+
+        ax.axvline(0, linestyle='--', color='red')
+        exp_name = os.path.basename(exp.experiment_dir)
+        ax.set_title('%s: Unit %s\nResponse to %s'
+                     % (exp_name, unit_name, taste), fontsize=32)
+        ax.set_xlabel('Time (ms)', fontsize=28)
+        ax.set_ylabel('Smoothed Relative Firing Rate (Hz)', fontsize=28)
+        box = ax.get_position()
+        ax.set_position([box.x0, box.y0 + box.height * 0.1,
+                         box.width, box.height * 0.9])
+        ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1),
+                  fancybox=True, shadow=True, ncol=len(valid_recs))
+        ax.set_xlim(-1500, 2500)
+        fig.savefig(save_file)
+        plt.close('all')
+
+
+
+
+
+
+

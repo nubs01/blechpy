@@ -67,13 +67,16 @@ def create_empty_data_h5(filename, shell=False):
     return filename
 
 
-def get_h5_filename(file_dir, shell=False):
+def get_h5_filename(file_dir, shell=True):
     '''Return the name of the h5 file found in file_dir.
     Asks for selection if multiple found
 
     Parameters
     ----------
     file_dir : str, path to recording directory
+    shell : bool (optional)
+        True (default) for command line interface if multiple h5 files found
+        False for GUI
 
     Returns
     -------
@@ -884,3 +887,34 @@ def get_unit_table(rec_dir):
 
     unit_table = unit_table.apply(add_descrip, axis=1)
     return unit_table
+
+
+def get_spike_data(rec_dir, unit, din):
+    '''Opens hf5 file in rec_dir and returns a Trial x Time spike array and a
+    1D time vector
+    Parameters
+    ----------
+    rec_dir : str, path to recording directory
+    unit : str or int, unit name or unit number
+    din : int, digital input channel
+    Returns
+    -------
+    time : numpy.array
+    spike_array : numpy.array
+    '''
+    h5_name = get_h5_filename(rec_dir)
+    h5_file = os.path.join(rec_dir, h5_name)
+
+    if isinstance(unit, int):
+        unit_num = unit
+    else:
+        unit_num = parse_unit_number(unit)
+
+    with tables.open_file(h5_file, 'r') as hf5:
+        st = hf5.root.spike_trains['dig_in_%i' % din]
+        time = st['array_time'][:]
+        spike_array = st['spike_array'][:, unit_num, :]
+
+    return time, spike_array
+
+

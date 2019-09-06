@@ -104,15 +104,17 @@ if breach_rate >= max_breach_rate and secs_above_cutoff >= max_secs_above_cutoff
 fig = plt.figure()
 plt.plot(np.arange(test_el.shape[0]), np.mean(test_el, axis = 1))
 plt.plot((recording_cutoff, recording_cutoff), (np.min(np.mean(test_el, axis = 1)), np.max(np.mean(test_el, axis = 1))), 'k-', linewidth = 4.0)
-plt.xlabel('Recording time (secs)')
-plt.ylabel('Average voltage recorded per sec (microvolts)')
-plt.title('Recording cutoff time (indicated by the black horizontal line)')
+plt.xlabel('Recording time (secs)', fontsize=18)
+plt.ylabel('Average voltage recorded\nper sec (microvolts)', fontsize=18)
+plt.title('Recording cutoff time\n(indicated by the black horizontal line)', fontsize=18)
+plt.xticks(fontsize=14)
+plt.yticks(fontsize=14)
 save_file = os.path.join('.','Plots',str(electrode_num),'Plots','cutoff_time.png')
 fig.savefig(save_file, bbox_inches='tight')
 plt.close("all")
 
 # Then cut the recording accordingly
-filt_el = filt_el[:recording_cutoff*int(sampling_rate)]    
+filt_el = filt_el[:recording_cutoff*int(sampling_rate)]
 if len(filt_el)==0:
     print('Immediate Cutoff for electrode %i...exiting' % electrode_num)
     sys.exit(0)
@@ -162,9 +164,11 @@ np.save('./spike_waveforms/electrode%i/spike_amplitudes.npy' % electrode_num, am
 fig = plt.figure()
 x = np.arange(len(explained_variance_ratio))
 plt.plot(x, explained_variance_ratio)
-plt.title('Variance ratios explained by PCs')
-plt.xlabel('PC #')
-plt.ylabel('Explained variance ratio')
+plt.title('Variance ratios explained by PCs',fontsize=26)
+plt.xlabel('PC #',fontsize=24)
+plt.ylabel('Explained variance ratio',fontsize=24)
+plt.xticks(fontsize=14)
+plt.yticks(fontsize=14)
 fig.savefig('./Plots/%i/Plots/pca_variance.png' % electrode_num, bbox_inches='tight')
 plt.close("all")
 
@@ -219,6 +223,8 @@ for i in range(max_clusters-1):
                 # Produce figure legend
                 plt.legend(tuple(plt_names), tuple("Cluster %i" % cluster for cluster in range(i+2)), scatterpoints = 1, loc = 'lower left', ncol = 3, fontsize = 8)
                 plt.title("%i clusters" % (i+2))
+                plt.xticks(fontsize=14)
+                plt.yticks(fontsize=14)
                 fig.savefig('./Plots/%i/Plots/%i_clusters/feature%ivs%i.png' % (electrode_num, i+2, feature2, feature1))
                 plt.close("all")
 
@@ -240,7 +246,7 @@ for i in range(max_clusters-1):
         plt.xlabel('Mahalanobis distance')
         plt.ylabel('Frequency')
         plt.legend(loc = 'upper right', fontsize = 8)
-        plt.title('Mahalanobis distance of Cluster %i from all other clusters' % cluster)
+        plt.title('Mahalanobis distance of Cluster %i from all other clusters' % cluster, fontsize=24)
         fig.savefig('./Plots/%i/Plots/%i_clusters/Mahalonobis_cluster%i.png' % (electrode_num, i+2, cluster))
         plt.close("all")
     
@@ -256,9 +262,11 @@ for i in range(max_clusters-1):
             continue
 
         fig, ax = blech_waveforms_datashader.waveforms_datashader(slices_dejittered[cluster_points, :], dir_name = "datashader_temp_el%i" % electrode_num)
-        ax.set_xlabel('Sample ({:d} samples per ms)'.format(int(sampling_rate/1000)))
-        ax.set_ylabel('Voltage (microvolts)')
-        ax.set_title('Cluster%i' % cluster)
+        ax.set_xlabel('Sample ({:d} samples per ms)'.format(int(sampling_rate/1000)), fontsize=20)
+        ax.set_ylabel('Voltage (microvolts)', fontsize=20)
+        ax.set_title('Cluster%i' % cluster, fontsize=26)
+        plt.xticks(fontsize=14)
+        plt.yticks(fontsize=14)
         fig.savefig('./Plots/%i/Plots/%i_clusters_waveforms_ISIs/Cluster%i_waveforms' % (electrode_num, i+2, cluster))
         plt.close("all")
         
@@ -272,7 +280,9 @@ for i in range(max_clusters-1):
             print('Electrode %i clustering %i has no ISIs: %s' % (electrode_num,cluster,str(ISIs.shape)))
             sys.exit(1)
         plt.xlim([0.0, 10.0])
-        plt.title("2ms ISI violations = %.1f percent (%i/%i)" %((float(len(np.where(ISIs < 2.0)[0]))/float(len(cluster_times)))*100.0, len(np.where(ISIs < 2.0)[0]), len(cluster_times)) + '\n' + "1ms ISI violations = %.1f percent (%i/%i)" %((float(len(np.where(ISIs < 1.0)[0]))/float(len(cluster_times)))*100.0, len(np.where(ISIs < 1.0)[0]), len(cluster_times)))
+        plt.title("2ms ISI violations = %.1f percent (%i/%i)" %((float(len(np.where(ISIs < 2.0)[0]))/float(len(cluster_times)))*100.0, len(np.where(ISIs < 2.0)[0]), len(cluster_times)) + '\n' + "1ms ISI violations = %.1f percent (%i/%i)" %((float(len(np.where(ISIs < 1.0)[0]))/float(len(cluster_times)))*100.0, len(np.where(ISIs < 1.0)[0]), len(cluster_times)), fontsize=16)
+        plt.xticks(fontsize=14)
+        plt.yticks(fontsize=14)
         fig.savefig('./Plots/%i/Plots/%i_clusters_waveforms_ISIs/Cluster%i_ISIs' % (electrode_num, i+2, cluster))
         plt.close("all")        
 
