@@ -100,7 +100,35 @@ def make_psths_for_tastant(h5_file, win_size, win_step, dig_in_ch, smoothing_wid
     return PSTHs, psth_time
 
 
+def get_binned_firing_rate(time, spikes, bin_size=250, bin_step=25):
+    '''Take a spike array and returns a firing rate array (row-wise)
 
+    Parameters
+    ----------
+    time :  numpy.array, time vector in ms
+    spikes : numpy.array, Trial x Time array with 1s at spike times
+    bin_size: int (optional), bin width in ms, default=250
+    bin_step : int (optional), step size in ms, default=25
+
+    Returns
+    -------
+    bin_time : numpy.array
+        time vector for binned firing rate array, times correspond to center of
+        bins in ms
+    firing_rate : numpy.array
+        Trial x Time firing rate array in Hz
+    '''
+    bin_start = np.arange(time[0], time[-1] - bin_size + bin_step, bin_step)
+    bin_time = bin_start + int(bin_size/2)
+    n_trials = spikes.shape[0]
+    n_bins = len(bin_start)
+
+    firing_rate = np.zeros((n_trials, n_bins))
+    for i, start in enumerate(bin_start):
+        idx = np.where((time >= start) & (time <= start+bin_size))[0]
+        firing_rate[:, i] = np.sum(spikes[:, idx], axis=1) / (bin_size/1000)
+
+    return bin_time, firing_rate
 
 
 

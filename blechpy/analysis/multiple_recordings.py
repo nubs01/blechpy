@@ -14,6 +14,8 @@ from copy import deepcopy
 from sklearn.decomposition import PCA
 from scipy.spatial.distance import cdist
 from scipy.interpolate import interp1d
+from sklearn.metrics.pairwise import euclidean_distances
+from sklearn.manifold import MDS
 from scipy.stats import mannwhitneyu, spearmanr, sem
 import matplotlib.gridspec as gridspec
 from collections.abc import Iterable
@@ -516,6 +518,7 @@ class multi_dataset(object):
     def held_units_compare(self, significance=0.05):
         rec_dirs = self.recording_dirs
         rec_names = [os.path.basename(x) for x in rec_dirs]
+        exp_name = os.path.basename(self.experiment_dir)
 
         # Figure out which recording sessions had the same tastants
         taste_map, tastants = get_taste_mapping(rec_dirs)
@@ -542,8 +545,9 @@ class multi_dataset(object):
         held_df['divergence'] = np.nan
         held_df['norm_divergence'] = np.nan
         held_df['z_divergence'] = np.nan
-
-
+        perc_changed = {t: [] for t in tastants}
+        perc_changed_time = None
+        N_held = {t: 0 for t in tastants}
 
         for t in tastants:
             # Summary changes
@@ -577,6 +581,7 @@ class multi_dataset(object):
                 if not all([isinstance(u.get(x), str) for x in t_recs]):
                     continue
 
+                N_held[t] += 1
                 sd = os.path.join(save_dir, t)
                 if not os.path.exists(sd):
                     os.mkdir(sd)
@@ -648,6 +653,14 @@ class multi_dataset(object):
                                                'z_response_change': [],
                                                'statistics': stats}
 
+                if perc_changed[t] == []:
+                    perc_changed[t] = np.where(stats['norm_response_p'] <= significance, 1, 0)
+                else:
+                    perc_changed[t] += np.where(stats['norm_response_p'] <= significance, 1, 0)
+
+                if perc_changed_time is None:
+                    perc_changed_time = stats['window_starts']
+
                 if stats['baseline_shift']:
                     sig_units[t][unit_name]['baseline_shift'].append(unit_name)
                     if t == 'Saccharin' or t == 'saccharin':
@@ -683,9 +696,9 @@ class multi_dataset(object):
 
             # Plot average magnitude of changes
             if sig_units.get(t) is not None:
-                avg_mag_change = avg_mag_change / len(held_df)
-                avg_norm_mag_change = avg_norm_mag_change / len(held_df)
-                avg_z_mag_change = avg_z_mag_change / len(held_df)
+                avg_mag_change = avg_mag_change / N_held[t]
+                avg_norm_mag_change = avg_norm_mag_change / N_held[t]
+                avg_z_mag_change = avg_z_mag_change / N_held[t]
                 avg_mag_change_SEM = np.sqrt(avg_mag_change_SEM)
                 avg_norm_mag_change_SEM = np.sqrt(avg_norm_mag_change_SEM)
                 avg_z_mag_change_SEM = np.sqrt(avg_z_mag_change_SEM)
@@ -717,13 +730,28 @@ class multi_dataset(object):
                 fig.savefig(save_file)
                 plt.close('all')
 
+                # Plot % units changed at each time point
+                perc_changed[t] = 100 * perc_changed[t] / N_held[t]
+                fig, ax = plt.subplots(figsize=(14.5,7))
+                ax.step(perc_changed_time, perc_changed[t], color='black')
+                ax.set_ylabel('% GC Units Changed', fontsize=20)
+                ax.set_xlabel('Time (ms)', fontsize=20)
+                ax.set_title('%s: %% units changed\n%s, N=%i' % (exp_name, t, N_held[t]), fontsize=24)
+                plt.xticks(fontsize=12)
+                plt.yticks(fontsize=12)
+                save_file = os.path.join(sd, '%_units_changed.png')
+                fig.savefig(save_file)
+                plt.close('all')
+
         self.significant_units = sig_units
+        self.perc_changed = perc_changed
+        self.perc_changed_time = perc_changed_time
         self.held_units['units'] = held_df.copy()
         sig_file = os.path.join(sd, 'significant_units.json')
         held_df.to_json(sig_file, orient='records', lines=True)
 
         counts = {}
-        counts['held'] = len(held_df)
+        counts['held'] = N_held
         sums = held_df.groupby(['area']).sum().drop(['electrode',
                                                      'divergence',
                                                      'norm_divergence',
@@ -772,15 +800,15 @@ class multi_dataset(object):
 
 def plot_J3s(intra_J3, inter_J3, save_dir, percent_criterion):
     print('\n----------\nPlotting J3 distribution\n----------\n')
-    fig = plt.figure()
-    plt.hist([inter_J3, intra_J3], bins=20, alpha=0.3,
+    fig = plt.figure(figsize=(10,5))
+    plt.hist([inter_J3, intra_J3], bins=20, alpha=0.7,
              label=['Across-session J3', 'Within-session J3'])
     plt.legend(prop={'size':12}, loc='upper right')
-    plt.axvline(np.percentile(intra_J3, percent_criterion), linewidth=5.0,
+    plt.axvline(np.percentile(intra_J3, percent_criterion), linewidth=2,
                 color='black', linestyle='dashed')
-    plt.xlabel('J3', fontsize=35)
-    plt.ylabel('Number of single unit pairs', fontsize=35)
-    plt.tick_params(axis='both', which='major', labelsize=32)
+    plt.xlabel('J3', fontsize=18)
+    plt.ylabel('Number of single unit pairs', fontsize=18)
+    plt.tick_params(axis='both', which='major', labelsize=12)
     fig.savefig(os.path.join(save_dir, 'J3_distribution.png'),
                 bbox_inches='tight')
     plt.close('all')
@@ -1790,6 +1818,107 @@ def plot_held_unit_firing(exp, unit_name, norm_func=None,
         fig.savefig(save_file)
         plt.close('all')
 
+
+
+def compute_MDS(exp):
+    rec_dirs = exp.recording_dirs
+    held_df = exp.held_units['units'].copy()
+    rec_names = [os.path.basename(x) for x in rec_dirs]
+    held_df = held_df.select_dtypes(include=['object'])
+
+    # Only use units held over all sessions
+    held_df = held_df.dropna(axis=0)
+    N_units = len(held_df)
+
+    early_window = [0, 750]
+    late_window = [750, 1500]
+    baseline_window = [-750, 0]
+
+    taste_map, tastants = get_taste_mapping(rec_dirs)
+    N_rows = 0
+    for t, v in taste_map.items():
+        N_rows += len(v)
+
+    # Make matrix with row for each taste/session and column for each neuron
+    # with values being the average firing rate (minus baseline) of the neuron in the given time
+    # window (early or late, matrix for each)
+    early_fr = np.zeros((N_rows, N_units))
+    late_fr = np.zeros((N_rows, N_units))
+    labels = []
+    row_idx = 0
+    for rd in rec_dirs:
+        row = np.zeros((N_units,))
+        rec_name = os.path.basename(rd)
+        for t in tastants:
+            if rec_name not in taste_map[t]:
+                continue
+
+            if 'pre' in rd or 'Train' in rd:
+                labels.append((t,'pre'))
+            else:
+                labels.append((t,'post'))
+
+            for u_idx, unit in enumerate(held_df[rec_name]):
+                time, spike_train = dio.h5io.get_spike_data(rd, unit, taste_map[t][rec_name])
+                b_idx = np.where((time >= baseline_window[0]) & (time <= baseline_window[1]))[0]
+                e_idx = np.where((time >= early_window[0]) & (time <= early_window[1]))[0]
+                l_idx = np.where((time >= late_window[0]) & (time <= late_window[1]))[0]
+
+                baseline = np.mean(np.sum(spike_train[:, b_idx], axis=1) / np.diff(baseline_window)[0] / 1000)
+                early = np.mean(np.sum(spike_train[:, e_idx], axis=1) / np.diff(early_window)[0] / 1000)
+                early -= baseline
+                late = np.mean(np.sum(spike_train[:, l_idx], axis=1) / np.diff(late_window)[0] / 1000)
+                late -= baseline
+
+                early_fr[row_idx, u_idx] = float(early)
+                late_fr[row_idx, u_idx] = float(late)
+
+            row_idx+=1
+
+
+    # make symmetric distance matrix of the distances between rows
+    # sklearn.metrics.pariwise.euclidean_distances
+    # confirm its symmetric np.allclose(a, a.T)
+    early_sim = euclidean_distances(early_fr)
+    late_sim = euclidean_distances(late_fr)
+    early_sim -= np.mean(early_sim)
+    late_sim -= np.mean(late_sim)
+    early_sim = early_sim / np.max(early_sim)
+    late_sim = late_sim / np.max(late_sim)
+
+    early_mds = MDS(n_components=2, dissimilarity='precomputed')
+    early_pos = early_mds.fit_transform(1-early_sim)
+
+    late_mds = MDS(n_components=2, dissimilarity='precomputed')
+    late_pos = late_mds.fit_transform(1-late_sim)
+
+    fig, ax = plt.subplots(nrows=2)
+    cols = {'Saccharin':'green','Water':'blue','NaCl':'yellow','Citric Acid': 'orange', 'Quinine':'red'}
+    markers = {'pre':'o', 'post':'s'}
+    points = []
+    leg_entry = []
+    for l, ep, lp in zip(labels, early_pos, late_pos):
+        if l[1] == 'pre':
+            ax[0].scatter(ep[0], ep[1], label=l[0], marker='o', s=20, color=cols[l[0]])
+            p = ax[1].scatter(lp[0], lp[1], label=l[0], marker='o', s=20, color=cols[l[0]])
+            points.append(p)
+            leg_entry.append(l[0])
+        else:
+            ax[0].scatter(ep[0], ep[1], marker='s', s=20, color=cols[l[0]])
+            ax[1].scatter(lp[0], lp[1], marker='s', s=20, color=cols[l[0]])
+
+    plt.xticks(fontsize=12)
+    plt.yticks(fontsize=12)
+    ax[0].set_xlabel('Dim 1', fontsize=20)
+    ax[0].set_ylabel('Dim 2', fontsize=20)
+    ax[0].set_title('Early response', fontsize=24)
+
+    ax[1].set_xlabel('Dim 1', fontsize=20)
+    ax[1].set_ylabel('Dim 2', fontsize=20)
+    ax[1].set_title('Late response', fontsize=24)
+    ax[1].legend(points, leg_entry, fontsize=18, ncol=2, bbox_to_anchor=(-0.5, -0.5))
+
+    return fig, ax, early_mds, late_mds
 
 
 

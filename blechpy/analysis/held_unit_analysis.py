@@ -1,4 +1,30 @@
 from blechpy.analysis import dataset
+import os
+
+def compute_MDS(exp):
+    rec_dirs = exp.recording_dirs
+    held_df = exp.held_units['units'].copy()
+    rec_names = [os.path.basename(x) for x in rec_dirs]
+    held_df = held_df.select_dtypes(include=['object'])
+
+    # Only use units held over all sessions
+    held_df = held_df.dropna(axis=0)
+
+    early_window = [0, 750]
+    late_window = [750, 1500]
+    baseline_window = [-750, 0]
+
+    # Make matrix with row for each taste/session and column for each neuron
+    # with values being the average firing rate (minus baseline) of the neuron in the given time
+    # window (early or late, matrix for each)
+
+    # make symmetric distance matrix of the distances between rows
+    # sklearn.metrics.pariwise.euclidean_distances
+    # confirm its symmetric np.allclose(a, a.T)
+    #
+
+
+
 
 def get_response_change(unit_name, rec1, unit1,
                         din1, rec2, unit2, din2,
