@@ -37,6 +37,7 @@ def make_single_trial_psth(spike_train, win_size, win_step, time=None):
 
     return psth, psth_time
 
+
 def make_mean_PSTHs(h5_file, win_size, win_step, dig_in_ch):
 
     with tables.open_file(h5_file, 'r') as hf5:

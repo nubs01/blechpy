@@ -8,7 +8,7 @@ from scipy.stats import sem
 from scipy.ndimage.filters import gaussian_filter1d
 
 
-def plot_traces_and_outliers(h5_file, window=60):
+def plot_traces_and_outliers(h5_file, window=60, save_file=None):
     '''plot first 30 sec of raw data traces as well as a subplot with a metric
     to help identify dead channels (max(abs(trace)) * std(trace))
 
@@ -69,6 +69,10 @@ def plot_traces_and_outliers(h5_file, window=60):
         ax[1].set_xlabel('Electrode')
         over = np.where(metric > med+1.5*sd)[0]
         ax[1].set_title('Electrodes over line: %s' % over)
+
+    if save_file is not None:
+        fig.savefig(save_file)
+        plt.close('all')
 
     return fig, ax
 
