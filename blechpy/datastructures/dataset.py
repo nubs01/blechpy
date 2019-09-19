@@ -338,8 +338,8 @@ class dataset(object):
                     'laser'] = True
 
         self.spike_array_params = tmp.copy()
-        dio.params.write_params_to_json('spike_array_params',
-                                        self.data_dir, tmp)
+        wt.write_params_to_json('spike_array_params',
+                                self.data_dir, tmp)
 
     def edit_clustering_params(self, shell=False):
         '''Allows user interface for editing clustering parameters
@@ -354,7 +354,7 @@ class dataset(object):
                                shell=shell)
         if tmp:
             self.clustering_params = tmp
-            dio.params.write_params_to_json('clustering_params', self.data_dir, tmp)
+            wt.write_params_to_json('clustering_params', self.data_dir, tmp)
 
     def edit_psth_params(self, shell=False):
         '''Allows user interface for editing psth parameters
@@ -369,7 +369,7 @@ class dataset(object):
                                shell=shell)
         if tmp:
             self.psth_params = tmp
-            dio.params.write_params_to_json('psth_params', self.data_dir, tmp)
+            wt.write_params_to_json('psth_params', self.data_dir, tmp)
 
     def edit_pal_id_params(self, shell=False):
         '''Allows user interface for editing palatability/identity parameters
@@ -384,7 +384,7 @@ class dataset(object):
                                shell=shell)
         if tmp:
             self.pal_id_params = tmp
-            dio.params.write_params_to_json('pal_id_params', self.data_dir, tmp)
+            wt.write_params_to_json('pal_id_params', self.data_dir, tmp)
 
     def __str__(self):
         '''Put all information about dataset in string format
@@ -500,11 +500,11 @@ class dataset(object):
         CAR_params = self.CAR_electrodes
 
         rec_dir = self.data_dir
-        dio.params.write_params_to_json('clustering_params', rec_dir, clustering_params)
-        dio.params.write_params_to_json('spike_array_params', rec_dir, spike_array_params)
-        dio.params.write_params_to_json('psth_params', rec_dir, psth_params)
-        dio.params.write_params_to_json('pal_id_params', rec_dir, pal_id_params)
-        dio.params.write_params_to_json('CAR_params', rec_dir, CAR_params)
+        wt.write_params_to_json('clustering_params', rec_dir, clustering_params)
+        wt.write_params_to_json('spike_array_params', rec_dir, spike_array_params)
+        wt.write_params_to_json('psth_params', rec_dir, psth_params)
+        wt.write_params_to_json('pal_id_params', rec_dir, pal_id_params)
+        wt.write_params_to_json('CAR_params', rec_dir, CAR_params)
 
     @Logger('Extracting Data')
     def extract_data(self):
