@@ -257,7 +257,7 @@ class dataset(object):
 
         # Get parameters from info.rhd
         file_dir = self.data_dir
-        rec_info = dio.rawIO.read_rec_info(file_dir, shell)
+        rec_info = dio.rawIO.read_rec_info(file_dir)
         ports = rec_info.pop('ports')
         channels = rec_info.pop('channels')
         sampling_rate = rec_info['amplifier_sampling_rate']

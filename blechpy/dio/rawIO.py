@@ -28,7 +28,7 @@ def get_sampling_rate(rec_dir):
     return info['frequency_parameters']['amplifier_sample_rate']
 
 
-def read_rec_info(file_dir,shell=False):
+def read_rec_info(file_dir):
     '''Reads the info.rhd file to get relevant parameters.
     Parameters
     ----------
@@ -44,6 +44,9 @@ def read_rec_info(file_dir,shell=False):
     ------
     FileNotFoundError : if info.rhd is not in file_dir
     '''
+    if 'SSH_CONNECTION' in os.environ:
+        shell = True
+
     info_file = os.path.join(file_dir,'info.rhd')
     if not os.path.isfile(info_file):
         raise FileNotFoundError('info.rhd file not found in %s' % file_dir)
@@ -62,7 +65,7 @@ def read_rec_info(file_dir,shell=False):
     amp_ch = info['amplifier_channels']
     ports = [x['port_prefix'] for x in amp_ch]
     channels = [x['native_order'] for x in amp_ch]
-    
+
     out['ports'] = ports
     out['channels'] = channels
     out['num_channels'] = len(channels)
@@ -71,14 +74,14 @@ def read_rec_info(file_dir,shell=False):
         dig_in = info['board_dig_in_channels']
         din = [x['native_order'] for x in dig_in]
         out['dig_in'] = din
-    
+
     if info.get('board_dig_out_channels'):
         dig_out = info['board_dig_out_channels']
         dout = [x['native_order'] for x in dig_out]
         out['dig_out'] = dout
 
 
-    out['file_type'] = get_recording_filetype(file_dir, shell)
+    out['file_type'] = get_recording_filetype(file_dir)
 
     print('\nRecording Info\n--------------\n')
     print(dp.print_dict(out))
@@ -137,7 +140,7 @@ def read_amplifier_dat(file_dir,num_channels=None):
     if num_channels is None:
         rec_info = read_rec_info(file_dir)
         num_channels = len(rec_info['channels'])
-    
+
     amp_file = os.path.join(file_dir,'amplifier.dat')
     if not os.path.isfile(amp_file):
         raise FileNotFoundError('Could not find amplfier file at %s' % amp_file)
@@ -200,7 +203,7 @@ def read_one_channel_file(file_name):
     chan_dat = np.fromfile(file_name,dtype=np.dtype('int16'))
     return chan_dat
 
-def get_recording_filetype(file_dir,shell=False):
+def get_recording_filetype(file_dir):
     '''Check Intan recording directory to determine type of recording and thus
     extraction method to use. Asks user to confirm, and manually correct if
     incorrect
@@ -226,17 +229,20 @@ def get_recording_filetype(file_dir,shell=False):
     else:
         msg = '\"'+file_type+'\"'
 
-    query = 'Detected recording type is %s \nIs this correct?:  ' % msg
-    q = userIO.ask_user(query, choices=['Yes', 'No'],
-                        shell=shell)
+    return file_type
 
-    if q == 0:
-        return file_type
-    else:
-        choice = userIO.select_from_list('Select correct recording type',
-                                         list(support_rec_types.keys()),
-                                         'Select Recording Type',
-                                         shell=shell)
-        choice = list(support_rec_types.keys())[choice]
-        return choice
+    # Removing query since this is pretty accurate
+    #query = 'Detected recording type is %s \nIs this correct?:  ' % msg
+    #q = userIO.ask_user(query, choices=['Yes', 'No'],
+    #                    shell=shell)
+
+    #if q == 0:
+    #    return file_type
+    #else:
+    #    choice = userIO.select_from_list('Select correct recording type',
+    #                                     list(support_rec_types.keys()),
+    #                                     'Select Recording Type',
+    #                                     shell=shell)
+    #    choice = list(support_rec_types.keys())[choice]
+    #    return choice
 
