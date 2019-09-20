@@ -233,10 +233,10 @@ def get_recording_filetype(file_dir):
 
     # Removing query since this is pretty accurate
     #query = 'Detected recording type is %s \nIs this correct?:  ' % msg
-    #q = userIO.ask_user(query, choices=['Yes', 'No'],
+    #q = userIO.ask_user(query,,
     #                    shell=shell)
 
-    #if q == 0:
+    #if q == 1:
     #    return file_type
     #else:
     #    choice = userIO.select_from_list('Select correct recording type',

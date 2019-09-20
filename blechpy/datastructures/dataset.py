@@ -7,14 +7,15 @@ import sys
 import multiprocessing
 import subprocess
 from copy import deepcopy
-from blechpy.utils import print_tools as pt, write_tools as wt
+from blechpy.utils import print_tools as pt, write_tools as wt, userIO
 from blechpy.utils.decorators import Logger
 from blechpy.analysis import palatability_analysis as pal_analysis, spike_sorting as ss, spike_analysis
 from blechpy.plotting import palatability_plot as pal_plt, data_plot as datplt
-from blechpy.utils import userIO
 from blechpy import dio
+from blechpy.datastructures.objects import data_object
 
-class dataset(object):
+
+class dataset(data_object):
     '''Stores information related to an intan recording directory, allows
     executing basic processing and analysis scripts, and stores parameters data
     for those analyses
@@ -41,31 +42,10 @@ class dataset(object):
             when prompted
         NotADirectoryError : if file_dir does not exist
         '''
-        # Get file directory is not given
-        if file_dir is None:
-            file_dir = userIO.get_filedirs('Select recording directory', shell=shell)
-            if file_dir is None:
-                raise ValueError('Dataset cannot be initialized without a '
-                                 'directory')
-
-        if not os.path.isdir(file_dir):
-            raise NotADirectoryError('Could not find folder %s' % file_dir)
-
-        # Get basename of dataset from as name of file_dir
-        tmp = os.path.basename(file_dir)
-        if tmp == '':
-            file_dir = file_dir[:-1]
-            tmp = os.path.basename(file_dir)
-
-        self.data_name = tmp
-        self.data_dir = file_dir
-
-        # Make paths for analysis log file, dataset object savefile and hdf5
-        self.log_file = os.path.join(file_dir, '%s_processing.log' % tmp)
-        self.save_file = os.path.join(file_dir, '%s_dataset.p' % tmp)
-        h5_file = dio.h5io.get_h5_filename(file_dir)
+        super().__init__('dataset', file_dir)
+        h5_file = dio.h5io.get_h5_filename(self.root_dir)
         if h5_file is None:
-            h5_file = os.path.join(file_dir, '%s.h5' % tmp)
+            h5_file = os.path.join(root_dir, '%s.h5' % self.data_name)
 
         self.h5_file = h5_file
 
@@ -82,6 +62,12 @@ class dataset(object):
                                  'palatability_calculate', 'palatability_plot',
                                  'overlay_psth']
         self.process_status = dict.fromkeys(self.processing_steps, False)
+
+    def _change_root(self, new_root=None):
+        old_root = self.root_dir
+        new_root = super()._change_root(new_root)
+        self.h5_file = self.h5_file.replace(old_root, new_root)
+        return new_root
 
     @Logger('Initializing Parameters')
     def initParams(self, data_quality='clean', emg_port=None,
@@ -129,7 +115,7 @@ class dataset(object):
             calculations
         '''
         # Get parameters from info.rhd
-        file_dir = self.data_dir
+        file_dir = self.root_dir
         rec_info = dio.rawIO.read_rec_info(file_dir)
         ports = rec_info.pop('ports')
         channels = rec_info.pop('channels')
@@ -200,11 +186,11 @@ class dataset(object):
 
         em = self.electrode_mapping.copy()
 
-        car_param_file = os.path.join(self.data_dir, 'analysis_params',
+        car_param_file = os.path.join(self.root_dir, 'analysis_params',
                                       'CAR_params.json')
         if os.path.isfile(car_param_file):
             group_electrodes = dio.params.load_params('CAR_params',
-                                                      self.data_dir)
+                                                      self.root_dir)
         else:
             if group_keyword is None:
                 group_keyword = userIO.get_user_input(
@@ -219,7 +205,7 @@ class dataset(object):
                                                                 shell=shell)
             else:
                 group_electrodes = dio.params.load_params('CAR_params',
-                                                          self.data_dir,
+                                                          self.root_dir,
                                                           default_keyword=group_keyword)
 
         num_groups = len(group_electrodes)
@@ -288,7 +274,7 @@ class dataset(object):
         '''
         if emg_port is None:
             q = userIO.ask_user('Do you have an EMG?', shell=shell)
-            if q==0:
+            if q==1:
                 emg_port = userIO.select_from_list('Select EMG Port:',
                                                    ports, 'EMG Port',
                                                    shell=shell)
@@ -337,7 +323,7 @@ class dataset(object):
 
         self.spike_array_params = tmp.copy()
         wt.write_params_to_json('spike_array_params',
-                                self.data_dir, tmp)
+                                self.root_dir, tmp)
 
     def edit_clustering_params(self, shell=False):
         '''Allows user interface for editing clustering parameters
@@ -352,7 +338,7 @@ class dataset(object):
                                shell=shell)
         if tmp:
             self.clustering_params = tmp
-            wt.write_params_to_json('clustering_params', self.data_dir, tmp)
+            wt.write_params_to_json('clustering_params', self.root_dir, tmp)
 
     def edit_psth_params(self, shell=False):
         '''Allows user interface for editing psth parameters
@@ -367,7 +353,7 @@ class dataset(object):
                                shell=shell)
         if tmp:
             self.psth_params = tmp
-            wt.write_params_to_json('psth_params', self.data_dir, tmp)
+            wt.write_params_to_json('psth_params', self.root_dir, tmp)
 
     def edit_pal_id_params(self, shell=False):
         '''Allows user interface for editing palatability/identity parameters
@@ -382,7 +368,7 @@ class dataset(object):
                                shell=shell)
         if tmp:
             self.pal_id_params = tmp
-            wt.write_params_to_json('pal_id_params', self.data_dir, tmp)
+            wt.write_params_to_json('pal_id_params', self.root_dir, tmp)
 
     def __str__(self):
         '''Put all information about dataset in string format
@@ -391,16 +377,16 @@ class dataset(object):
         -------
         str : representation of dataset object
         '''
-        out = [self.data_name]
-        out.append('Data directory:  '+self.data_dir)
+        out1 = super().__str__()
+        out = []
         out.append('Object creation date: '
                    + self.dataset_creation_date.strftime('%m/%d/%y'))
-        out.append('Dataset Save File: ' + self.save_file)
 
         if hasattr(self, 'raw_h5_file'):
             out.append('Deleted Raw h5 file: '+self.raw_h5_file)
-            out.append('h5 File: '+self.h5_file)
-            out.append('')
+
+        out.append('h5 File: '+self.h5_file)
+        out.append('')
 
         out.append('--------------------')
         out.append('Processing Status')
@@ -478,14 +464,7 @@ class dataset(object):
         out.append(pt.print_dict(self.pal_id_params))
         out.append('')
 
-        return '\n'.join(out)
-
-    def _save_(self):
-        '''Saves dataset object to dataset.p file in recording directory
-        '''
-        with open(self.save_file, 'wb') as f:
-            pickle.dump(self, f)
-            print('Saved dataset processing metadata to %s' % self.save_file)
+        return out1 + '\n'.join(out)
 
     def _write_all_params_to_json(self):
         '''Writes all parameters to json files in analysis_params folder in the
@@ -497,7 +476,7 @@ class dataset(object):
         pal_id_params = self.pal_id_params
         CAR_params = self.CAR_electrodes
 
-        rec_dir = self.data_dir
+        rec_dir = self.root_dir
         wt.write_params_to_json('clustering_params', rec_dir, clustering_params)
         wt.write_params_to_json('spike_array_params', rec_dir, spike_array_params)
         wt.write_params_to_json('psth_params', rec_dir, psth_params)
@@ -593,7 +572,7 @@ class dataset(object):
         if dead_channels is None:
             userIO.tell_user('Making traces figure for dead channel detection...',
                              shell=True)
-            save_file = os.path.join(self.data_dir, 'Electrode_Traces.png')
+            save_file = os.path.join(self.root_dir, 'Electrode_Traces.png')
             fig, ax = datplt.plot_traces_and_outliers(self.h5_filei, save_file=save_file)
             if not shell:
                 # Better to open figure outside of python since its a lot of
@@ -674,7 +653,7 @@ class dataset(object):
             running
         '''
         if data_quality:
-            tmp = dio.params.load_params('clustering_params', self.data_dir,
+            tmp = dio.params.load_params('clustering_params', self.root_dir,
                                          default_keyword=data_quality)
             if tmp:
                 self.clustering_params = tmp
@@ -686,11 +665,11 @@ class dataset(object):
         print('Parameters\n%s' % pt.print_dict(self.clustering_params))
 
         # Write parameters into .params file
-        self.param_file = os.path.join(self.data_dir, self.data_name+'.params')
+        self.param_file = os.path.join(self.root_dir, self.data_name+'.params')
         dio.params.write_clustering_params(self.param_file, self.clustering_params)
 
         # Create folders for saving things within recording dir
-        data_dir = self.data_dir
+        data_dir = self.root_dir
         directories = ['spike_waveforms', 'spike_times',
                        'clustering_results',
                        'Plots', 'memory_monitor_clustering']
@@ -721,7 +700,7 @@ class dataset(object):
         process_call = ['parallel', '-k', '-j', str(cpu_count), '--noswap',
                         '--load', '100%', '--progress', '--memfree', '4G',
                         '--retry-failed', '--joblog', self.clustering_log,
-                        'python', process_path, '{1}', self.data_dir, ':::']
+                        'python', process_path, '{1}', self.root_dir, ':::']
         process_call.extend([str(x) for x in electrodes])
         subprocess.call(process_call, env=my_env)
         self.process_status['blech_clust_run'] = True
@@ -734,7 +713,7 @@ class dataset(object):
         '''Consolidates memory monitor files, removes raw and referenced data
         and setups up hdf5 store for sorted units data
         '''
-        h5_file = dio.h5io.cleanup_clustering(self.data_dir)
+        h5_file = dio.h5io.cleanup_clustering(self.root_dir)
         self.h5_file = h5_file
         self.process_status['cleanup_clustering'] = True
         self.save()
@@ -748,7 +727,7 @@ class dataset(object):
             True if command-line interfaced desired, False for GUI (default)
         '''
         fs = self.sampling_rate
-        ss.sort_units(self.data_dir, fs, shell)
+        ss.sort_units(self.root_dir, fs, shell)
         self.process_status['sort_units'] = True
         self.save()
 
@@ -768,7 +747,7 @@ class dataset(object):
     def make_unit_plots(self):
         '''Make waveform plots for each sorted unit
         '''
-        ss.make_unit_plots(self.data_dir, self.sampling_rate)
+        ss.make_unit_plots(self.root_dir, self.sampling_rate)
         self.process_status['make_unit_plots'] = True
         self.save()
 
@@ -790,14 +769,14 @@ class dataset(object):
 
     @Logger('Calculating Palatability/Identity Metrics')
     def palatability_calculate(self, shell=False):
-        pal_analysis.palatability_identity_calculations(self.data_dir,
+        pal_analysis.palatability_identity_calculations(self.root_dir,
                                                         params=self.pal_id_params)
         self.process_status['palatability_calculate'] = True
         self.save()
 
     @Logger('Plotting Palatability/Identity Metrics')
     def palatability_plot(self, shell=False):
-        pal_plt.plot_palatability_identity([self.data_dir], shell=shell)
+        pal_plt.plot_palatability_identity([self.root_dir], shell=shell)
         self.process_status['palatability_plot'] = True
         self.save()
 
@@ -810,7 +789,7 @@ class dataset(object):
             unit_name, unit_num, electrode, single_unit,
             regular_spiking, fast_spiking
         '''
-        unit_table = dio.h5io.get_unit_table(self.data_dir)
+        unit_table = dio.h5io.get_unit_table(self.root_dir)
         return unit_table
 
     def extract_and_cluster(self, shell=False):

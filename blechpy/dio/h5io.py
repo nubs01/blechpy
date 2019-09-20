@@ -31,7 +31,7 @@ def create_empty_data_h5(filename, shell=False):
     if os.path.isfile(filename):
         q = userIO.ask_user('%s already exists. Would you like to delete?' %
                             filename, choices=['Yes', 'No'], shell=shell)
-        if q == 1:
+        if q == 0:
             return filename
         else:
             println('Deleting existing h5 file...')

@@ -248,14 +248,14 @@ class dict_fill_pane(ttk.Frame):
         return deepcopy(output)
 
 
-def ask_user(msg, choices=['Yes', 'No'], shell=False):
+def ask_user(msg, choices=['No', 'Yes'], shell=False):
     '''Ask the user a question with certain choices
 
     Parameters
     ----------
     msg : str, message to show user
     choices : list or tuple with choices (optional)
-        default is ('Yes', 'No')
+        default is ('No', 'Yes')
     shell : bool (optional)
         True is command line interface for input
         False (default) for GUI
@@ -345,7 +345,7 @@ def select_from_list(prompt, items, title='', multi_select=False, shell=False):
     str (if multi_select=False): string of selected choice
     list (if multi_select=True): list of strings that were selected
     '''
-    if 'SSH_CONNECION' in os.eviron:
+    if 'SSH_CONNECION' in os.environ:
         shell = True
 
     if shell:
