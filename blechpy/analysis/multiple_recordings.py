@@ -100,8 +100,7 @@ def get_intra_J3(rec_dirs):
     intra_J3 = []
     for rd in rec_dirs:
         print('Processing single units in %s...' % rd)
-        h5_name = dio.h5io.get_h5_filename(rd)
-        h5_file = os.path.join(rd, h5_name)
+        h5_file = dio.h5io.get_h5_filename(rd)
 
         with tables.open_file(h5_file, 'r') as hf5:
             unit_names = [x._v_name for x in hf5.list_nodes('/sorted_units')]
@@ -140,10 +139,8 @@ def find_held_units(rec_dirs, intra_J3, percent_criterion):
     # type of single units on the same electrode
     inter_J3 = []
     for rd1, rd2 in rec_pairs:
-        h5_file1 = os.path.join(rd1,
-                                dio.h5io.get_h5_filename(rd1))
-        h5_file2 = os.path.join(rd2,
-                                dio.h5io.get_h5_filename(rd2))
+        h5_file1 = dio.h5io.get_h5_filename(rd1)
+        h5_file2 = dio.h5io.get_h5_filename(rd2)
         rec1 = os.path.basename(rd1)
         rec2 = os.path.basename(rd2)
         print('Comparing %s vs %s' % (rec1, rec2))
@@ -946,8 +943,7 @@ def get_raw_unit_waveforms(rec_dir, unit_name, shell=True, required_descrip=None
 
 
     # Get spike times for unit
-    h5_file = os.path.join(rec_dir,
-                           dio.h5io.get_h5_filename(rec_dir, shell=shell))
+    h5_file = dio.h5io.get_h5_filename(rec_dir, shell=shell)
     with tables.open_file(h5_file, 'r') as hf5:
         spike_times = hf5.root.sorted_units[unit_name]['times'][:]
         descriptor = hf5.root.unit_descriptor[unit_num]
@@ -1043,8 +1039,7 @@ def apply_test_along_axis(data1, data2, test_func=mannwhitneyu, axis=1):
 
 
 def check_taste_response(rec_dir, unit_name, din, window=1500):
-    h5_name = dio.h5io.get_h5_filename(rec_dir)
-    h5_file = os.path.join(rec_dir, h5_name)
+    h5_file = dio.h5io.get_h5_filename(rec_dir)
     unit_num = dio.h5io.parse_unit_number(unit_name)
     din_str = 'dig_in_%i' % din
 

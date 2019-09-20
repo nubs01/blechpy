@@ -102,6 +102,9 @@ def convert_str_to_type(item, dtype):
 
 
 def fill_dict(data, prompt=None, shell=False):
+    if 'SSH_CONNECTION' in os.environ:
+        shell = True
+
     filler = dictIO(data, shell=shell)
     out= filler.fill_dict(prompt=prompt)
     return out
@@ -109,6 +112,9 @@ def fill_dict(data, prompt=None, shell=False):
 
 class dictIO(object):
     def __init__(self, data, types=None, shell=False):
+        if 'SSH_CONNECTION' in os.environ:
+            shell = True
+
         if not isinstance(data, Mapping):
             raise TypeError(('%s is invalid data type. Requires extension of'
                              'Mapping such as dict.') % type(data))
@@ -258,6 +264,9 @@ def ask_user(msg, choices=['Yes', 'No'], shell=False):
     -------
     int : index of users choice
     '''
+    if 'SSH_CONNECTION' in os.environ:
+        shell = True
+
     if shell:
         original = sys.stdout
         sys.stdout = sys.__stdout__
@@ -289,6 +298,9 @@ def get_user_input(msg, default=None, shell=False):
     shell : bool (optional)
         True for CLI, False (default) for GUI
     '''
+    if 'SSH_CONNECTION' in os.environ:
+        shell = True
+
     if shell:
         original = sys.stdout
         sys.stdout = sys.__stdout__
@@ -312,54 +324,6 @@ def get_user_input(msg, default=None, shell=False):
 
         return out
 
-def get_dir(prompt=None, default=None, shell=False):
-    '''Query the user to select a directory
-
-    Parameters
-    ----------
-    prompt : str (optional), user prompt
-    shell : bool (optional)
-        True for CLI, False (default) for GUI
-
-    Returns
-    -------
-    str, path to selected directory
-    '''
-    if shell:
-        out = get_user_input(prompt+'\n', default=default, shell=shell)
-        return out
-    else:
-        if default is None:
-            default == ''
-
-        out = eg.diropenbox(prompt, default=default)
-        return out
-
-def get_file(prompt=None, default=None, shell=False):
-    '''Query ther user for a file path
-
-    Parameters
-    ----------
-    prompt : str (optional), prompt for user
-    default: str (optional), default path
-    shell: bool (optional)
-        True for CLI. False (default) for GUI
-
-    Returns
-    -------
-    str, path to file
-    '''
-    if shell:
-        out = get_user_input(prompt+'\n', default=default, shell=shell)
-        return out
-    else:
-        if default is None:
-            default = ''
-
-        out = eg.fileopenbox(prompt, default=default)
-        return out
-
-
 def select_from_list(prompt, items, title='', multi_select=False, shell=False):
     '''makes a popup for list selections, can be multichoice or single choice
     default is single selection
@@ -381,6 +345,9 @@ def select_from_list(prompt, items, title='', multi_select=False, shell=False):
     str (if multi_select=False): string of selected choice
     list (if multi_select=True): list of strings that were selected
     '''
+    if 'SSH_CONNECION' in os.eviron:
+        shell = True
+
     if shell:
         original = sys.stdout
         sys.stdout = sys.__stdout__
@@ -424,6 +391,9 @@ def tell_user(msg, shell=False):
     shell : bool (optional)
         True for command-line, False (default) for GUI
     '''
+    if 'SHH_CONNECTION' in os.environ:
+        shell = True
+
     if shell:
         original = sys.stdout
         sys.stdout = sys.__stdout__
@@ -518,20 +488,28 @@ def get_filedirs(prompt='', root=None, multi=False, shell=False):
     if shell:
         print(prompt)
         if multi:
-            print('Leave blank to terminate collection')
+            print('Leave blank or ctrl-c to terminate collection')
 
         print('----------')
 
     while go:
         if shell:
-            tmp = pt_prompt(' >> ', completer=path_completer, history=history,
-                            auto_suggest=AutoSuggestFromHistory())
+            if root is None:
+                root = ''
+
+            try:
+                tmp = pt_prompt(' >> ', completer=path_completer, history=history,
+                                auto_suggest=AutoSuggestFromHistory(), default=root)
+            except KeyboardInterrupt:
+                break
+
         else:
             tmp = eg.diropenbox(prompt + ' (cancel to stop collection)', default=root)
 
         if tmp == '' or tmp is None:
             go = False
         elif os.path.isdir(tmp):
+            root = os.path.dirname(tmp)
             out.append(tmp)
         else:
             print('Must enter a valid path to a directory')
@@ -579,14 +557,21 @@ def get_files(prompt='', root=None, filetypes=None, multi=False, shell=False):
     if shell:
         print(prompt)
         if multi:
-            print('Leave blank to terminate collection')
+            print('Leave blank or ctrl-c to terminate collection')
 
         print('----------')
 
     while go:
         if shell:
-            tmp = pt_prompt(' >> ', completer=path_completer, history=history,
-                            auto_suggest=AutoSuggestFromHistory())
+            if root is None:
+                root = ''
+
+            try:
+                tmp = pt_prompt(' >> ', completer=path_completer, history=history,
+                                auto_suggest=AutoSuggestFromHistory(), default=root)
+            except KeyboardInterrupt:
+                break
+
         else:
             tmp = eg.fileopenbox(prompt + ' (cancel to stop collection)',
                                  default=root, multiple=multi,
@@ -595,8 +580,10 @@ def get_files(prompt='', root=None, filetypes=None, multi=False, shell=False):
         if tmp == '' or tmp is None:
             go = False
         elif isinstance(tmp, list) and all([os.path.isfile(x) for x in tmp]):
+            root = os.path.dirname(tmp[0])
             out.extend(tmp)
         elif os.path.isfile(tmp):
+            root = os.path.dirname(tmp)
             out.append(tmp)
         else:
             print('Must enter a valid path to file')

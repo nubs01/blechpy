@@ -4,33 +4,12 @@ import os
 import time
 import sys
 import subprocess
-import easygui as eg
 import pandas as pd
 import numpy as np
-from blechpy.dio import blech_params as params, rawIO, particles
-from blechpy.data_print import data_print as dp
-from blechpy.widgets import userIO
-
-
-def Timer(heading):
-    def real_timer(func):
-        def wrapper(*args, **kwargs):
-            start = time.time()
-            print('')
-            print('----------\n%s\n----------' % heading)
-            result = func(*args, **kwargs)
-            print('Done! Elapsed Time: %1.2f' % (time.time()-start))
-            return result
-        return wrapper
-    return real_timer
-
-
-def println(txt):
-    '''Print inline without newline
-    required due to how ipython doesn't work right with print(..., end='')
-    '''
-    sys.stdout.write(txt)
-    sys.stdout.flush()
+from blechpy.dio import rawIO, particles
+from blechpy.utils import userIO
+from blechpy.utils.decorators import Timer
+from blechpy.utils.print_tools import println
 
 
 def create_empty_data_h5(filename, shell=False):
@@ -40,6 +19,9 @@ def create_empty_data_h5(filename, shell=False):
     ----------
     filename : str, absolute path to h5 file for recording
     '''
+    if 'SHH_CONNECTION' in os.environ:
+        shell = True
+
     if not filename.endswith('.h5') and not filename.endswith('.hdf5'):
         filename += '.h5'
 
@@ -83,6 +65,9 @@ def get_h5_filename(file_dir, shell=True):
     str
         filename of h5 file in directory (not full path), None if no file found
     '''
+    if 'SHH_CONNECTION' in os.environ:
+        shell = True
+
     file_list = os.listdir(file_dir)
     h5_files = [f for f in file_list if f.endswith('.h5')]
     if len(h5_files) > 1:
@@ -97,44 +82,7 @@ def get_h5_filename(file_dir, shell=True):
     elif len(h5_files) == 0:
         return None
 
-    return h5_files[0]
-
-
-def get_h5_object(file_name):
-    '''Finds and opens the h5 file in file_dir, allows selection if multiple found
-    returns tables file object with h5 data
-
-    Parameters
-    ----------
-    file_name : str
-        absolute path to h5 file OR path to recording directory (will detect h5
-        file and ask user if multiple)
-
-    Returns
-    -------
-    tables.file.File : hdf5 object
-
-    Throws
-    ------
-    FileNotFoundError : if no h5 file in given directory
-    NotADirectoryError
-        if provided file_name is neither a file nor directory str
-    '''
-    if not os.path.isfile(file_name):
-        if os.path.isdir(file_name):
-            h5_file = get_h5_filename(file_name)
-
-            if h5_file is None:
-                raise FileNotFoundError('No h5 file in %s' % file_name)
-
-            file_name = os.path.join(h5_file, file_name)
-
-        else:
-            raise NotADirectoryError('%s is neither a valid h5 file path, nor '
-                                     'directory path' % file_name)
-
-    hf5 = tables.open_file(file_name, 'r+')
-    return hf5
+    return os.path.join(file_dir, h5_files[0])
 
 
 def create_hdf_arrays(file_name, rec_info, electrode_mapping, emg_mapping,
@@ -335,8 +283,7 @@ def get_unit_descriptor(rec_dir, unit_num):
     if isinstance(unit_num , str):
         unit_num = parse_unit_number(unit_num)
 
-    h5_name = get_h5_filename(rec_dir)
-    h5_file = os.path.join(rec_dir, h5_name)
+    h5_file = get_h5_filename(rec_dir)
     with tables.open_file(h5_file, 'r') as hf5:
         descrip = hf5.root.unit_descriptor[unit_num]
 
@@ -385,82 +332,6 @@ def read_in_digital_signal(hf5, file_dir, file_type, channels, dig_type='in'):
         print('Done!')
 
     hf5.flush()
-
-
-@Timer('Generating Trial List')
-def create_trial_table(h5_file, digital_map, dig_type='in'):
-    '''Gathers digital data from hf5 for channels in digital_map and
-    creates and stores a list of trials  for easy viewing of trial order
-
-    Parameters
-    ----------
-    h5_file : str
-        path to .h5 file that data is stored in and to write to
-    digital_map : pandas.DataFrame
-        maps digital channel numbers to string names,
-        has columns 'channel' and 'name'
-    dig_type : str, {'in' (default), 'out'}
-
-    Returns
-    -------
-    pandas.DataFrame
-        listing trials in order with digital channel number and name
-        columns: 'Trial Num', 'channel', 'name'
-
-    Throws
-    ------
-    ValueError : if dig_type is not 'in' or 'out'
-    '''
-    if dig_type not in ['in', 'out']:
-        raise ValueError('Invalid digital type given.')
-
-    with tables.open_file(h5_file, 'r+') as hf5:
-        # Grab relevant digital data from hf5
-        tree = hf5.root['digital_'+dig_type]
-        dig_str = 'dig_'+dig_type
-        trial_map = []
-
-        print('Generating trial list for digital %sputs: %s' %
-              (dig_type, ', '.join([str(x) for x in
-                                    digital_map['channel'].tolist()])))
-
-        # Loop through channels and get indices of digital signal onsets
-        for i, row in digital_map.iterrows():
-            println('Grabbing data for digital %sput %i...' %
-                    (dig_type, row['channel']))
-            tmp = np.diff(tree[dig_str+'_'+str(row['channel'])][:]) > 0
-            tmp_idx = np.where(tmp)[0]
-            trial_map.extend([(x, row['channel'], row['name']) for x in tmp_idx])
-            print('Done!')
-
-        # Make dataframe and assign trial numbers
-        println('Constructing DataFrame...')
-        trial_df = pd.DataFrame(trial_map, columns=['idx', 'channel', 'name'])
-        trial_df = trial_df.sort_values(by=['idx']).reset_index(drop=True)
-        trial_df = trial_df.reset_index(drop=False).rename(
-            columns={'index': 'Trial Num'})
-        trial_df = trial_df.drop(columns=['idx'])
-        print('Done!')
-
-        # Make hf5 group and table
-        println('Writing data to h5 file...')
-        if '/trial_info' not in hf5:
-            group = hf5.create_group("/", 'trial_info', 'Trial Lists')
-
-        table = hf5.create_table('/trial_info', 'digital_%s_trials' % dig_type,
-                                 particles.trial_info_particle,
-                                 'Trial List  for Digital %sputs' % dig_type)
-        new_row = table.row
-        for i, row in trial_df.iterrows():
-            new_row['trial_num'] = row['Trial Num']
-            new_row['name'] = row['name']
-            new_row['channel'] = row['channel']
-            new_row.append()
-
-        hf5.flush()
-        print('Done!')
-
-    return trial_df
 
 
 @Timer('Common Average Referencing')
@@ -576,37 +447,6 @@ def compress_and_repack(h5_file, new_file=None):
     return new_file
 
 
-def get_trial_info(h5_file):
-    '''Opens the h5 file and returns the digital_in and digital_out trial info
-    as pandas DataFrames
-
-    Parameters
-    ----------
-    h5_file : str, path to h5_file
-
-    Returns
-    -------
-    dict  of pandas.DataFrame values and table names as keys, one key for each
-             table under /trial_info
-    '''
-    if not os.path.isfile(h5_file):
-        raise FileNotFoundError('%s was not found' % h5_file)
-
-    out = {}
-    with tables.open_file(h5_file, 'r') as hf5:
-        if '/trial_info' not in hf5:
-            return {}
-
-        trial_nodes = h5_file.list_nodes('/trial_info')
-
-        for node in trial_nodes:
-            df = pd.DataFrame.from_records(node[:])
-            df['name'] = df['name'].apply(lambda x: x.decode('utf-8'))
-            out[node.name] = df
-
-    return out
-
-
 @Timer('Clustering Cleanup')
 def cleanup_clustering(file_dir):
     '''Consolidate memory monitor files from clustering, remove raw and
@@ -643,8 +483,7 @@ def cleanup_clustering(file_dir):
     print('Done!')
 
     # Grab h5 filename
-    hdf5_name = get_h5_filename(file_dir)
-    hdf5_file = os.path.join(file_dir, hdf5_name)
+    hdf5_file = get_h5_filename(file_dir)
 
     # If raw and/or referenced data is still in h5
     # Remove raw/referenced data from hf5
@@ -862,8 +701,7 @@ def get_unit_names(rec_dir):
     -------
     list of str
     '''
-    h5_name = get_h5_filename(rec_dir)
-    h5_file = os.path.join(rec_dir, h5_name)
+    h5_file = get_h5_filename(rec_dir)
 
     with tables.open_file(h5_file, 'r') as hf5:
         units = hf5.list_nodes('/sorted_units')
@@ -873,6 +711,22 @@ def get_unit_names(rec_dir):
 
 
 def get_unit_table(rec_dir):
+    '''Returns pandas DataFrame with sorted unit info read from hdf5 store
+
+    Parameters
+    ----------
+    rec_dir : str, path to dir containing .h5 file
+
+    Returns
+    -------
+    pandas.DataFrame with columns:
+        - unit_name
+        - unit_num
+        - electrode
+        - single_unit
+        - regular_spiking
+        - fast_spiking
+    '''
     units = get_unit_names(rec_dir)
     unit_table = pd.DataFrame(units, columns=['unit_name'])
     unit_table['unit_num'] = \
@@ -902,8 +756,7 @@ def get_spike_data(rec_dir, unit, din):
     time : numpy.array
     spike_array : numpy.array
     '''
-    h5_name = get_h5_filename(rec_dir)
-    h5_file = os.path.join(rec_dir, h5_name)
+    h5_file = get_h5_filename(rec_dir)
 
     if isinstance(unit, int):
         unit_num = unit
@@ -918,3 +771,23 @@ def get_spike_data(rec_dir, unit, din):
     return time, spike_array
 
 
+def get_raw_trace(rec_dir, electrode, el_map=None):
+    '''Returns raw voltage trace for electrode from hdf5 store
+    If /raw is not in hdf5, this grabs the raw trace from the dat file if it is
+    present and electrode_mapping was provided
+
+    Parameters
+    ----------
+    rec_dir : str, recording directory
+    electrode : int
+    el_map: pd.DataFrame (optional)
+        This is required in order to pull data from .dat file.
+        If this is not given and data is not in hdf5 store then this will
+        return None
+
+    Returns
+    -------
+    np.array of the scaled raw voltage trace or None if raw trace could not be
+    obtained
+    '''
+    h5_file = get_h5_filename(rec_dir)

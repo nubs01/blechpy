@@ -83,8 +83,7 @@ def plot_palatability_identity(rec_dirs=None, out_dir=None, params=None, shell=F
     bin_times = []
     num_units = 0
     for dir_name in rec_dirs:
-        h5_name = dio.h5io.get_h5_filename(dir_name)
-        h5_file = os.path.join(dir_name, h5_name)
+        h5_file = dio.h5io.get_h5_filename(dir_name)
 
         # Open the hdf5 file
         with tables.open_file(h5_file, 'r') as hf5:

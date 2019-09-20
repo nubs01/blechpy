@@ -31,8 +31,7 @@ def sort_units(file_dir, fs, shell=False):
         True for command-line interface, False for GUI (default)
     '''
     matplotlib.use('Qt5Agg')
-    hf5_name = h5io.get_h5_filename(file_dir)
-    hf5_file = os.path.join(file_dir, hf5_name)
+    hf5_file = h5io.get_h5_filename(file_dir)
     sorting_log = hf5_file.replace('.h5', '_sorting.log')
     metrics_dir = os.path.join(file_dir, 'sorted_unit_metrics')
     if not os.path.exists(metrics_dir):
@@ -670,8 +669,7 @@ def make_unit_plots(file_dir, fs):
     file_dir : str, full path to recording directory
     fs : float, smapling rate in Hz
     '''
-    h5_name = h5io.get_h5_filename(file_dir)
-    h5_file = os.path.join(file_dir, h5_name)
+    h5_file = h5io.get_h5_filename(file_dir)
 
     plot_dir = os.path.join(file_dir, 'unit_waveforms_plots')
     if os.path.exists(plot_dir):
@@ -727,8 +725,7 @@ def delete_unit(file_dir, unit_num):
     '''
     print('\n----------\nDeleting unit %i from dataset\n----------\n'
           % unit_num)
-    h5_name = h5io.get_h5_filename(file_dir)
-    h5_file = os.path.join(file_dir, h5_name)
+    h5_file = h5io.get_h5_filename(file_dir)
     unit_numbers = get_unit_numbers(h5_file)
     unit_name = 'unit%03d' % unit_num
     change_units = [x for x in unit_numbers if x > unit_num]

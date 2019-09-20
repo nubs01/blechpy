@@ -63,11 +63,9 @@ class dataset(object):
         # Make paths for analysis log file, dataset object savefile and hdf5
         self.log_file = os.path.join(file_dir, '%s_processing.log' % tmp)
         self.save_file = os.path.join(file_dir, '%s_dataset.p' % tmp)
-        h5_name = dio.h5io.get_h5_filename(file_dir)
-        if h5_name is None:
+        h5_file = dio.h5io.get_h5_filename(file_dir)
+        if h5_file is None:
             h5_file = os.path.join(file_dir, '%s.h5' % tmp)
-        else:
-            h5_file = os.path.join(file_dir, h5_name)
 
         self.h5_file = h5_file
 
