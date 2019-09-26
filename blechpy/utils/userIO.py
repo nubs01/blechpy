@@ -2,7 +2,7 @@ import tkinter as tk
 from tkinter import ttk
 from collections.abc import Mapping
 from copy import deepcopy
-from blechpy.data_print import data_print as dp
+from blechpy.utils import print_tools as pt
 import easygui as eg
 import sys
 import os
@@ -40,11 +40,13 @@ def get_dict_shell_input(dat, type_dict=None, tabstop='', prompt=None):
         if type_dict[k] is list:
             prompt += '(comma-separated)'
 
-        if all([v is not x for x in [None, [], {}, '']]):
-            prompt += '[default = %s]' % v
-
         prompt += ' : '
-        tmp = input(prompt)
+        if any([isinstance(v, x) for x in [str, list, int, float]]):
+            default_val = str(v).replace('[','').replace(']','')
+            tmp = pt_prompt(prompt, default=default_val)
+        else:
+            tmp = pt_prompt(prompt)
+
         if tmp == 'abort':
             return None
 
@@ -306,12 +308,16 @@ def get_user_input(msg, default=None, shell=False):
         sys.stdout = sys.__stdout__
         try:
             prompt = msg + ' '
-            if default is not None:
-                prompt += '(default=%s) ' % default
+            #if default is not None:
+            #    prompt += '(default=%s) ' % default
+            if default is None:
+                default = ''
 
-            out = input(prompt)
+            prompt += ' : '
+            out = pt_prompt(prompt, default=default)
             if out == '':
                 out = default
+
         except EOFError:
             out = None
 
@@ -347,6 +353,9 @@ def select_from_list(prompt, items, title='', multi_select=False, shell=False):
     '''
     if 'SSH_CONNECION' in os.environ:
         shell = True
+
+    if not isinstance(items, list):
+        raise TypeError("Passed %s, but expected <class 'list'>" % type(items))
 
     if shell:
         original = sys.stdout
@@ -426,7 +435,7 @@ def confirm_parameter_dict(params, prompt, shell=False):
        by  user
     '''
     prompt = ('----------\n%s\n----------\n%s\nAre these parameters good?' %
-              (prompt, dp.print_dict(params)))
+              (prompt, pt.print_dict(params)))
     q = ask_user(prompt, choices=['Yes', 'Edit', 'Cancel'], shell=shell)
     if q == 2:
         return None

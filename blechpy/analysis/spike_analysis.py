@@ -1,6 +1,15 @@
 import numpy as np
 import tables
 from scipy.ndimage.filters import gaussian_filter1d
+from scipy.interpolate import interp1d
+
+
+def interpolate_waves(waves, fs, fs_new, axis=1):
+    end_time = waves.shape[axis] / (fs/1000)
+    x = np.arange(0, end_time, 1/(fs/1000))
+    x_new = np.arange(0, end_time, 1/(fs_new/1000))
+    f = interp1d(x, waves, axis=axis)
+    return f(x_new)
 
 
 def make_single_trial_psth(spike_train, win_size, win_step, time=None):

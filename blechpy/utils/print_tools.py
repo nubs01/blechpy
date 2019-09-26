@@ -103,3 +103,13 @@ def println(txt):
     '''
     sys.stdout.write(txt)
     sys.stdout.flush()
+
+
+def get_next_letter(letter):
+    '''gets next letter in the alphabet
+
+    Parameters
+    ----------
+    letter : str
+    '''
+    return bytes([bytes(letter, 'utf-8')[0] + 1]).decode('utf-8')

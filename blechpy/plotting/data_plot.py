@@ -134,3 +134,110 @@ def plot_overlay_psth(rec_dir, unit, din_map, plot_window=[-1500, 2500],
     ax.axvline(0, color='red', linestyle='--')
     fig.savefig(save_file)
     plt.close('all')
+
+
+def plot_J3s(intra_J3, inter_J3, save_dir, percent_criterion):
+    print('\n----------\nPlotting J3 distribution\n----------\n')
+    fig = plt.figure(figsize=(10,5))
+    plt.hist([inter_J3, intra_J3], bins=20, alpha=0.7,
+             label=['Across-session J3', 'Within-session J3'])
+    plt.legend(prop={'size':12}, loc='upper right')
+    plt.axvline(np.percentile(intra_J3, percent_criterion), linewidth=2,
+                color='black', linestyle='dashed')
+    plt.xlabel('J3', fontsize=18)
+    plt.ylabel('Number of single unit pairs', fontsize=18)
+    plt.tick_params(axis='both', which='major', labelsize=12)
+    fig.savefig(os.path.join(save_dir, 'J3_distribution.png'),
+                bbox_inches='tight')
+    plt.close('all')
+
+
+def plot_held_units(rec_dirs, held_df, J3_df, save_dir):
+    '''Plot waveforms of held units side-by-side
+
+    Parameters
+    ----------
+    rec_dirs : list of str
+        full paths to recording directories
+    held_df : pandas.DataFrame
+        dataframe listing held units with columns matching the names of the
+        recording directories and a unit column with the unit names
+    J3_df : pandas.DataFrame
+        dataframe with same rows and columns as held df except the values are
+        lists fo inter_J3 values for units that were found to be held
+    save_dir : str, directory to save plots in
+    '''
+
+    print('\n----------\nPlotting held units\n----------\n')
+    for idx, row in held_df.iterrows():
+        unit_name = row.pop('unit')
+        electrode = row.pop('electrode')
+        area = row.pop('area')
+        n_subplots = row.notnull().sum()
+        idx = np.where(row.notnull())[0]
+        cols = row.keys()[idx]
+        units = row.values[idx]
+
+        fig = plt.figure(figsize=(18, 6))
+        ylim = [0, 0]
+        row_ax = []
+
+        for i, x in enumerate(zip(cols, units)):
+            J3_vals = J3_df[x[0]][J3_df['unit'] == unit_name].values[0]
+            J3_str = np.array2string(np.array(J3_vals), precision=3)
+            ax = plt.subplot(1, n_subplots, i+1)
+            row_ax.append(ax)
+            rd = [y for y in rec_dirs if x[0] in y][0]
+            params = get_clustering_parameters(rd)
+            if params is None:
+                raise FileNotFoundError('No dataset pickle file for %s' % rd)
+
+            #waves, descriptor, fs = get_unit_waveforms(rd, x[1])
+            waves, descriptor, fs = get_raw_unit_waveforms(rd, x[1])
+            waves = waves[:, ::10]
+            fs = fs/10
+            time = np.arange(0, waves.shape[1], 1) / (fs/1000)
+            snapshot = params['spike_snapshot']
+            t_shift = snapshot['Time before spike (ms)']
+            time = time - t_shift
+            mean_wave = np.mean(waves, axis=0)
+            std_wave = np.std(waves, axis=0)
+            plt.plot(time, mean_wave,
+                     linewidth=5.0, color='black')
+            plt.plot(time, mean_wave - std_wave,
+                     linewidth=2.0, color='black',
+                     alpha=0.5)
+            plt.plot(time, mean_wave + std_wave,
+                     linewidth=2.0, color='black',
+                     alpha=0.5)
+            plt.xlabel('Time (ms)',
+                       fontsize=35)
+            if i==0:
+                plt.ylabel('Voltage (microvolts)', fontsize=35)
+
+            plt.title('%s %s\ntotal waveforms = %i, Electrode: %i\n'
+                      'J3: %s, Single Unit: %i, RSU: %i, FS: %i'
+                      % (x[0], x[1], waves.shape[0],
+                         descriptor['electrode_number'],
+                         J3_str,
+                         descriptor['single_unit'],
+                         descriptor['regular_spiking'],
+                         descriptor['fast_spiking']),
+                      fontsize = 20)
+            plt.tick_params(axis='both', which='major', labelsize=32)
+
+            if np.min(mean_wave - std_wave) - 20 < ylim[0]:
+                ylim[0] = np.min(mean_wave - std_wave) - 20
+
+            if np.max(mean_wave + std_wave) + 20 > ylim[1]:
+                ylim[1] = np.max(mean_wave + std_wave) + 20
+
+        for ax in row_ax:
+            ax.set_ylim(ylim)
+
+        plt.subplots_adjust(top=.7)
+        plt.suptitle('Unit %s' % unit_name)
+        fig.savefig(os.path.join(save_dir,
+                                 'Unit%s_waveforms.png' % unit_name),
+                    bbox_inches='tight')
+        plt.close('all')

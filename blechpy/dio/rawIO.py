@@ -1,9 +1,7 @@
 import numpy as np
 import os, re
 from blechpy.dio import load_intan_rhd_format
-from blechpy.data_print import data_print as dp
-from blechpy.widgets import userIO
-import easygui as eg
+from blechpy.utils import print_tools as pt, userIO
 
 support_rec_types = {'one file per channel':'amp-\S-\d*\.dat',
                      'one file per signal type':'amplifier\.dat'}
@@ -84,7 +82,7 @@ def read_rec_info(file_dir):
     out['file_type'] = get_recording_filetype(file_dir)
 
     print('\nRecording Info\n--------------\n')
-    print(dp.print_dict(out))
+    print(pt.print_dict(out))
     return out
 
 def read_time_dat(file_dir,sampling_rate=None):

@@ -1,12 +1,11 @@
 import os
 from blechpy.utils import userIO
+import pickle
 
 class data_object(object):
-    def __init__(self, data_type, root_dir=None, data_name=None, savefile=None, logfile=None):
+    def __init__(self, data_type, root_dir=None, data_name=None, savefile=None, logfile=None, shell=False):
         if 'SSH_CONNECTION' in os.environ:
             shell = True
-        else:
-            shell = False
 
         if root_dir is None:
             root_dir = userIO.get_filedirs('Select %s directory' % data_type,
@@ -23,11 +22,11 @@ class data_object(object):
 
         if savefile is None:
             savefile = os.path.join(root_dir, '%s_%s.p'
-                                    % (os.path.basename(root_dir), data_type))
+                                    % (data_name, data_type))
 
         if logfile is None:
             logfile = os.path.join(root_dir, '%s_%s.log'
-                                   % (os.path.basename(root_dir), data_type))
+                                   % (data_name, data_type))
 
         self.root_dir = root_dir
         self.data_type = data_type
@@ -38,7 +37,7 @@ class data_object(object):
     def save(self):
         with open(self.save_file, 'wb') as f:
             pickle.dump(self, f)
-            print('Saved %s to %s' % (self.name, self.save_file))
+            print('Saved %s to %s' % (self.data_name, self.save_file))
 
     def _change_root(self, new_root=None):
         if 'SSH_CONNECTION' in os.environ:
@@ -62,6 +61,11 @@ class data_object(object):
         out.append('Save File : %s' % self.save_file)
         out.append('Log File : %s' % self.log_file)
         return '\n'.join(out)
+
+    def export_to_txt(self):
+        sf = self.save_file.replace('.p', '.txt')
+        with open(sf, 'w') as f:
+            print(self, file=f)
 
 
 def load_data(data_type, file_dir=None):
@@ -107,9 +111,11 @@ def load_data(data_type, file_dir=None):
             return None
         else:
             data_file = tmp
+    else:
+        data_file = data_file[0]
 
     data_file = os.path.join(file_dir, data_file)
-    with open(data_file, 'wb') as f:
+    with open(data_file, 'rb') as f:
         out = pickle.load(f)
 
     return out

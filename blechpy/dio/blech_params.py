@@ -1,12 +1,10 @@
 import os
 import time
 import json
-import easygui as eg
 import numpy as np
 import pandas as pd
 from blechpy.dio import rawIO
-from blechpy.data_print import data_print as dp
-from blechpy.widgets import userIO
+from blechpy.utils import print_tools as pt, userIO
 
 SCRIPT_DIR = os.path.dirname(__file__)
 PARAM_DIR = os.path.join(SCRIPT_DIR, '..', '..', 'defaults')
@@ -232,7 +230,7 @@ def write_clustering_params(file_name,params):
     if not file_name.endswith('.params'):
         file_name += '.params'
     print('File: ' + file_name)
-    dp.print_dict(params)
+    pt.print_dict(params)
     with open(file_name,'w') as f:
         for c in clust_param_order:
             print(params['clustering_params'][c],file=f)
@@ -355,16 +353,29 @@ def load_params(param_name, rec_dir=None, default_keyword=None):
         param_name += '.json'
 
     default_file = os.path.join(PARAM_DIR, param_name)
-    rec_file = os.path.join(PARAM_DIR, 'analysis_params', param_name)
+    if rec_dir is not None:
+        rec_file = os.path.join(rec_dir, 'analysis_params', param_name)
+    else:
+        rec_file = None
 
     if os.path.isfile(rec_file):
         out = read_dict_from_json(rec_file)
     elif os.path.isfile(default_file):
+        print('%s not found in recording directory. Pulling parameters from defaults' % param_name)
         out = read_dict_from_json(default_file)
-        if out and default_keyword:
+        if out.get('multi') is True and default_keyword is None:
+            raise ValueError('Multple defaults in %s file, but no keyword provided' % param_name)
+
+        elif out and default_keyword:
             out = out.get(default_keyword)
+            if out is None:
+                print('No %s found for keyword %s' % (param_name, default_keyword))
+
+        elif out is None:
+            print('%s default file is empty' % param_name)
 
     else:
+        print('%s.json not found in recording directory or in defaults')
         out = None
 
     return out

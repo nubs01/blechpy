@@ -6,8 +6,9 @@ import sys
 import subprocess
 import pandas as pd
 import numpy as np
-from blechpy.dio import rawIO, particles
-from blechpy.utils import userIO
+from blechpy.dio import rawIO, blech_params as params
+from blechpy.analysis import clustering as clust
+from blechpy.utils import userIO, particles
 from blechpy.utils.decorators import Timer
 from blechpy.utils.print_tools import println
 
@@ -30,9 +31,9 @@ def create_empty_data_h5(filename, shell=False):
     # Check if file exists, and ask to delete if it does
     if os.path.isfile(filename):
         q = userIO.ask_user('%s already exists. Would you like to delete?' %
-                            filename, choices=['Yes', 'No'], shell=shell)
+                            filename, choices=['No', 'Yes'], shell=shell)
         if q == 0:
-            return filename
+            return None
         else:
             println('Deleting existing h5 file...')
             os.remove(filename)
@@ -44,6 +45,8 @@ def create_empty_data_h5(filename, shell=False):
     with tables.open_file(filename, 'w', title=basename) as hf5:
         for grp in data_groups:
             hf5.create_group('/', grp)
+
+        hf5.flush()
 
     print('Done!\n')
     return filename
@@ -801,7 +804,9 @@ def get_raw_trace(rec_dir, electrode, el_map=None):
         return out
 
     if el_map is None:
-        return out
+        el_map = get_electrode_mapping(rec_dir)
+        if el_map is None:
+            return out
 
     tmp = el_map.query('Electrode == @electrode')
     port = tmp['Port'].values[0]
@@ -842,3 +847,167 @@ def get_referenced_trace(rec_dir, electrode):
             out = None
 
     return out
+
+
+def get_raw_unit_waveforms(rec_dir, unit_name, electrode_mapping=None,
+                           clustering_params=None, shell=True,
+                           required_descrip=None):
+    '''Returns the waveforms of a single unit extracting them directly from the
+    raw data files.
+
+    Parameters
+    ----------
+    rec_dir : str
+    unit_name : str or int
+    electrode_mapping : pd.DataFrame (optional)
+        if raw data is not in hf5 this is used to get the raw data from the
+        original dat files
+        if not provided program will try to grab this from the h5 file
+    clustering_params : dict (optional)
+        requires fields 'spike_snapshot' and 'bandpass_params'
+        if not provided these will be queried from the json file written in the
+        rec_dir or from the defaults if no params are in rec_dir
+    shell : bool (optional)
+        True to CLI (default in ssh). False for GUI. Only relevant if multiple
+        h5 files in rec_dir
+    required_descrip : tuple (optional)
+        required unit description. Returns None instead of raw trace if unit
+        does not match required_descrip
+
+    Returns
+    -------
+    raw_trace, unit_descriptor, sampling_rate
+    np.array, tuple, float
+    '''
+    if unit_name.isnumeric():
+        unit_num = unit_name
+    else:
+        unit_num = parse_unit_number(unit_name)
+
+    if electrode_mapping is None:
+        electrode_mapping = get_electrode_mapping(rec_dir)
+
+    if clustering_params is None:
+        clustering_params = params.load_params('clustering_params', rec_dir)
+
+    snapshot = clustering_params['spike_snapshot']
+    snapshot = [snapshot['Time before spike (ms)'],
+                snapshot['Time after spike (ms)']]
+    bandpass = clustering_params['bandpass_params']
+    bandpass = [bandpass['Lower freq cutoff'],
+                bandpass['Upper freq cutoff']]
+    fs = clustering_params['sampling_rate']
+    if fs is None:
+        raise ValueError('clustering_params.json does not exist')
+
+
+    # Get spike times for unit
+    h5_file = get_h5_filename(rec_dir, shell=shell)
+    with tables.open_file(h5_file, 'r') as hf5:
+        spike_times = hf5.root.sorted_units[unit_name]['times'][:]
+        descriptor = hf5.root.unit_descriptor[unit_num]
+
+    if required_descrip is not None:
+        if descriptor != required_descrip:
+            return None, descriptor, fs
+
+    print('Getting raw waveforms for %s %s'
+          % (os.path.basename(rec_dir), unit_name))
+    electrode = descriptor['electrode_number']
+    raw_el = get_raw_trace(rec_dir, electrode, electrode_mapping)
+    if electrode_mapping is None and raw_el is None:
+        raise FileNotFoundError('Raw data not found in h5 file and'
+                                ' electrode_mapping not found')
+
+    if raw_el is None:
+        raise FileNotFoundError('Raw data not found')
+
+    # Filter and extract waveforms
+    filt_el = clust.get_filtered_electrode(raw_el, freq=bandpass,
+                                           sampling_rate=fs)
+    del raw_el
+    pre_pts = int((snapshot[0]+0.1) * (fs/1000))
+    post_pts = int((snapshot[1]+0.2) * (fs/1000))
+    slices = np.zeros((spike_times.shape[0], pre_pts+post_pts))
+    for i, st in enumerate(spike_times):
+        slices[i, :] = filt_el[st - pre_pts: st + post_pts]
+
+    slices_dj, times_dj = clust.dejitter(slices, spike_times, snapshot, fs)
+
+    return slices_dj, descriptor, fs*10
+
+
+def  write_electrode_map_to_h5(h5_file, electrode_map):
+    '''Writes electrode mapping DataFrame to table in hdf5 store
+    '''
+    with tables.open_file(h5_file, 'r+') as hf5:
+        if '/electrode_map' in hf5:
+            hf5.remove_node('/', 'electrode_map')
+
+        table = hf5.create_table('/', 'electrode_map',
+                                 particles.electrode_map_particle,
+                                 'Electrode Map')
+        new_row = table.row
+        for i, row in electrode_map.iterrows():
+            for k, v in row.items():
+                new_row[k] = row[k]
+
+            new_row.append()
+
+        hf5.flush()
+
+
+def write_digital_map_to_h5(h5_file, digital_map, dig_type):
+    '''Write digital input/output mapping DataFrame to table in hdf5 store
+    '''
+    dig_str = 'digital_%sput_map' % dig_type
+    with tables.open_file(h5_file, 'r+') as hf5:
+        if ('/' + dig_str) in hf5:
+            hf5.remove_node('/%s' % dig_str)
+
+        table = hf5.create_table('/', dig_str,
+                                 particles.digital_mapping_particle,
+                                 'Digital %sput Map' % dig_type)
+        new_row = table.row
+        for i, row in digital_map.iterrows():
+            for k, v in row.items():
+                new_row[k] = row[k]
+
+            new_row.append()
+
+        hf5.flush()
+
+
+def get_electrode_mapping(rec_dir):
+    h5_file = get_h5_filename(rec_dir)
+    with tables.open_file(h5_file, 'r') as hf5:
+        if '/electrode_map' not in hf5:
+            return None
+
+        table = hf5.root.electrode_map[:]
+        el_map = read_table_into_DataFrame(table)
+
+    return el_map
+
+
+def get_digital_mapping(rec_dir, dig_type):
+    h5_file = get_h5_filename(rec_dir)
+    with tables.open_file(h5_file, 'r') as hf5:
+        if ('/digital_%sput_map' % dig_type) not in hf5:
+            return None
+
+        table = hf5.root['digital_%sput_map' % dig_type][:]
+        dig_map = read_table_into_DataFrame(table)
+
+    return dig_map
+
+
+def read_table_into_DataFrame(table):
+    df = pd.DataFrame.from_records(table)
+    dt = df.dtypes
+    idx = np.where(dt == 'object')[0]
+    for i in idx:
+        k = dt.keys()[i]
+        df[k] = df[k].apply(lambda x: x.decode('utf-8'))
+
+    return df

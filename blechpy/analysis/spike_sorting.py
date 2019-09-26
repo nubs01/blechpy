@@ -5,15 +5,13 @@ import ast
 import re
 import shutil
 import numpy as np
-import easygui as eg
 import pylab as plt
 import datetime as dt
 from sklearn.mixture import GaussianMixture
 from sklearn.decomposition import PCA
 from blechpy.plotting import blech_waveforms_datashader
-from blechpy.dio import h5io, particles
-from blechpy.data_print import data_print as dp
-from blechpy.widgets import userIO
+from blechpy.dio import h5io
+from blechpy.utils import print_tools as pt, userIO
 from copy import deepcopy
 from numba import jit
 import itertools
@@ -30,6 +28,9 @@ def sort_units(file_dir, fs, shell=False):
     shell : bool
         True for command-line interface, False for GUI (default)
     '''
+    if 'SSH_CONNECTION' in os.environ:
+        shell = True
+
     matplotlib.use('Qt5Agg')
     hf5_file = h5io.get_h5_filename(file_dir)
     sorting_log = hf5_file.replace('.h5', '_sorting.log')
@@ -264,7 +265,7 @@ def label_single_unit(hf5_file, cluster, fs, sorting_log=None,
         for k, v in cluster.items():
             if isinstance(v, np.ndarray):
                 print_clust.pop(k)
-        print(dp.print_dict(print_clust), file=log)
+        print(pt.print_dict(print_clust), file=log)
         print('Saving metrics to %s' % metrics_dir, file=log)
         print('--------------', file=log)
 
@@ -304,7 +305,7 @@ def label_single_unit(hf5_file, cluster, fs, sorting_log=None,
                  dt.datetime.today().strftime('%m/%d/%y %H: %M')),
               file=log)
         print('Cluster info: \n----------', file=log)
-        print(dp.print_dict(print_clust), file=log)
+        print(pt.print_dict(print_clust), file=log)
         print('Saved metrics to %s' % metrics_dir, file=log)
         print('--------------', file=log)
 
@@ -368,7 +369,7 @@ def split_cluster(cluster, fs, params=None, shell=True):
             clust_log = cluster['manipulations'] + \
                 '\nSplit %s with parameters: ' \
                 '\n%s\nCluster %i from split results. Named %s' \
-                % (cluster['Cluster Name'], dp.print_dict(params),
+                % (cluster['Cluster Name'], pt.print_dict(params),
                    c, clust_name)
             tmp_clust['Cluster Name'] = clust_name
             tmp_clust['cluster_id'] = clust_id
@@ -979,8 +980,8 @@ def calc_units_similarity(h5_file, fs, similarity_cutoff=50,
     similarity_matrix : numpy.array
     '''
     print('\n---------\nBeginning unit similarity calculation\n----------')
-    violation_str = 'Unit Number 1\tUnit Number 2\t% Similarity\n'
     violations = 0
+    violation_pairs = []
     if violation_file is None:
         violation_file = os.path.join(os.path.dirname(h5_file),
                                       'unit_similarity_violations.txt')
@@ -1006,9 +1007,7 @@ def calc_units_similarity(h5_file, fs, similarity_cutoff=50,
 
             if u1_idx != u2_idx and tmp_dist >= similarity_cutoff:
                 violations += 1
-                violation_str += '%s\t%s\t%g\n' % (u1._v_name,
-                                                   u2._v_name,
-                                                   tmp_dist)
+                violation_pairs.append((u1._v_name, u2._v_name))
 
         print('\nSimilarity calculation done!')
         if '/unit_distances' in hf5:
@@ -1018,13 +1017,22 @@ def calc_units_similarity(h5_file, fs, similarity_cutoff=50,
         hf5.flush()
 
     if violations > 0:
-        print('Found %i violations:' % violations)
-        print('\t' + violation_str.replace('\n', '\n\t'))
+        out_str = '%i units similarity violations found:\n' % violations
+        out_str += 'Unit_1    Unit_2    Similarity\n'
+        for x,y in violation_pairs:
+            u1 = dio.h5io.parse_unit_number(x)
+            u2 = dio.h5io.parse_unit_number(y)
+            out_str += '   {:<10}{:<10}{}\n'.format(x, y,
+                                                    unit_distances[u1][u2])
 
+    else:
+        out_str = 'No unit similarity violations found!'
+
+    print(out_str)
     with open(violation_file, 'w') as vf:
-        print(violation_str, file=vf)
+        print(out_str, file=vf)
 
-    return unit_distances
+    return violation_pairs, unit_distances
 
 def plot_pca_view(clusters):
     fig, axs = plt.subplots(2, 2, sharex=False, sharey=False)

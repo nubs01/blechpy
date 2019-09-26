@@ -6,10 +6,12 @@ import shutil
 import sys
 import multiprocessing
 import subprocess
+from tqdm import tqdm
 from copy import deepcopy
 from blechpy.utils import print_tools as pt, write_tools as wt, userIO
 from blechpy.utils.decorators import Logger
 from blechpy.analysis import palatability_analysis as pal_analysis, spike_sorting as ss, spike_analysis
+from blechpy.analysis.blech_clust_process import blech_clust_process
 from blechpy.plotting import palatability_plot as pal_plt, data_plot as datplt
 from blechpy import dio
 from blechpy.datastructures.objects import data_object
@@ -27,7 +29,7 @@ class dataset(data_object):
         will popup
     '''
 
-    def __init__(self, file_dir=None):
+    def __init__(self, file_dir=None, shell=False):
         '''Initialize dataset object from file_dir, grabs basename from name of
         directory and initializes basic analysis parameters
 
@@ -42,10 +44,10 @@ class dataset(data_object):
             when prompted
         NotADirectoryError : if file_dir does not exist
         '''
-        super().__init__('dataset', file_dir)
+        super().__init__('dataset', file_dir, shell=shell)
         h5_file = dio.h5io.get_h5_filename(self.root_dir)
         if h5_file is None:
-            h5_file = os.path.join(root_dir, '%s.h5' % self.data_name)
+            h5_file = os.path.join(self.root_dir, '%s.h5' % self.data_name)
 
         self.h5_file = h5_file
 
@@ -136,14 +138,16 @@ class dataset(data_object):
         # Setup digital input mapping
         #TODO: Setup digital output mapping...ignoring for now
         if rec_info.get('dig_in'):
-            self._setup_din_mapping(rec_info, dig_in_names, shell)
+            self._setup_din_mapping(dig_in_names, shell)
             dim = self.dig_in_mapping.copy()
             spike_array_params['laser_channels'] = dim.channel[dim['laser']].to_list()
             spike_array_params['dig_ins_to_use'] = dim.channel[dim['spike_array']].to_list()
+        else:
+            self.dig_in_mapping = None
 
         # Setup electrode and emg mapping
-        self._setup_channel_mappings(ports, channels, emg_port,
-                                     emg_channels, shell=shell)
+        self._setup_channel_mapping(ports, channels, emg_port,
+                                    emg_channels, shell=shell)
 
         # Set CAR groups
         self._set_CAR_groups(group_keyword=car_keyword, shell=shell)
@@ -189,24 +193,29 @@ class dataset(data_object):
         car_param_file = os.path.join(self.root_dir, 'analysis_params',
                                       'CAR_params.json')
         if os.path.isfile(car_param_file):
-            group_electrodes = dio.params.load_params('CAR_params',
-                                                      self.root_dir)
+            tmp = dio.params.load_params('CAR_params', self.root_dir)
+            if tmp is not None:
+                group_electrodes = tmp
+            else:
+                raise ValueError('CAR_params file exists in recording dir, but is empty')
+
         else:
             if group_keyword is None:
                 group_keyword = userIO.get_user_input(
                     'Input keyword for CAR parameters or number of CAR groups',
                     shell=shell)
 
-            if group_keyword is None:
-                ValueError('Must provide a keyword or number of groups')
-            elif group_keyword.isnumeric():
-                num_groups = int(group_keyword)
-                group_electrodes = dio.params.select_CAR_groups(num_groups, em,
-                                                                shell=shell)
-            else:
-                group_electrodes = dio.params.load_params('CAR_params',
-                                                          self.root_dir,
-                                                          default_keyword=group_keyword)
+                if group_keyword is None:
+                    ValueError('Must provide a keyword or number of groups')
+
+                elif group_keyword.isnumeric():
+                    num_groups = int(group_keyword)
+                    group_electrodes = dio.params.select_CAR_groups(num_groups, em,
+                                                                    shell=shell)
+                else:
+                    group_electrodes = dio.params.load_params('CAR_params',
+                                                              self.root_dir,
+                                                              default_keyword=group_keyword)
 
         num_groups = len(group_electrodes)
         group_names = ['Group %i' % i for i in range(num_groups)]
@@ -257,7 +266,10 @@ class dataset(data_object):
         df2 = pd.DataFrame.from_dict(tmp)
         df2 = df2.sort_values(by=['channel'])
         df2.index = idx
+        df2['palatability_rank'] = df2['palatability_rank'].fillna(-1).astype('int')
         self.dig_in_mapping = df2.copy()
+        if os.path.isfile(self.h5_file):
+            dio.h5io.write_digital_map_to_h5(self.h5_file, self.dig_in_mapping, 'in')
 
     def _setup_channel_mapping(self, ports, channels, emg_port, emg_channels, shell=False):
         '''Creates electrode_mapping and emg_mapping DataFrames with columns:
@@ -290,6 +302,8 @@ class dataset(data_object):
                                                      emg_port, emg_channels)
         self.electrode_mapping = el_map
         self.emg_mapping = em_map
+        if os.path.isfile(self.h5_file):
+            dio.h5io.write_electrode_map_to_h5(self.h5_file, self.electrode_mapping)
 
     def edit_spike_array_params(self, shell=False):
         '''Edit spike array parameters and adjust dig_in_mapping accordingly
@@ -379,7 +393,7 @@ class dataset(data_object):
         '''
         out1 = super().__str__()
         out = []
-        out.append('Object creation date: '
+        out.append('\nObject creation date: '
                    + self.dataset_creation_date.strftime('%m/%d/%y'))
 
         if hasattr(self, 'raw_h5_file'):
@@ -443,7 +457,7 @@ class dataset(data_object):
         out.append('--------------------')
         out.append('Clustering Parameters')
         out.append('--------------------')
-        out.append(pt.print_dict(self.clust_params))
+        out.append(pt.print_dict(self.clustering_params))
         out.append('')
 
         out.append('--------------------')
@@ -484,7 +498,7 @@ class dataset(data_object):
         wt.write_params_to_json('CAR_params', rec_dir, CAR_params)
 
     @Logger('Extracting Data')
-    def extract_data(self):
+    def extract_data(self, filename=None, shell=False):
         '''Create hdf5 store for data and read in Intan .dat files. Also create
         subfolders for processing outputs
 
@@ -504,7 +518,9 @@ class dataset(data_object):
 
         print('\nExtract Intan Data\n--------------------')
         # Create h5 file
-        dio.h5io.create_empty_data_h5(filename, shell)
+        tmp = dio.h5io.create_empty_data_h5(filename, shell)
+        if tmp is None:
+            return
 
         # Create arrays for raw data in hdf5 store
         dio.h5io.create_hdf_arrays(filename, self.rec_info,
@@ -515,6 +531,12 @@ class dataset(data_object):
                                         self.rec_info,
                                         self.electrode_mapping,
                                         self.emg_mapping)
+
+        # Write electrode and digital input mapping into h5 file
+        # TODO: write EMG and digital output mapping into h5 file
+        dio.h5io.write_electrode_map_to_h5(self.h5_file, self.electrode_mapping)
+        if self.dig_in_mapping is not None:
+            dio.h5io.write_digital_map_to_h5(self.h5_file, self.dig_in_mapping, 'in')
 
         # update status
         self.h5_file = filename
@@ -592,6 +614,11 @@ class dataset(data_object):
         em['dead'] = False
         em.loc[dead_channels, 'dead'] = True
         self.electrode_mapping = em
+        if os.path.isfile(self.h5_file):
+            dio.h5io.write_electrode_map_to_h5(self.h5_file, self.electrode_mapping)
+
+        self.process_status['mark_dead_channels'] = True
+        self.save()
         return dead_channels
 
     @Logger('Common Average Referencing')
@@ -665,8 +692,8 @@ class dataset(data_object):
         print('Parameters\n%s' % pt.print_dict(self.clustering_params))
 
         # Write parameters into .params file
-        self.param_file = os.path.join(self.root_dir, self.data_name+'.params')
-        dio.params.write_clustering_params(self.param_file, self.clustering_params)
+        #self.param_file = os.path.join(self.root_dir, self.data_name+'.params')
+        #dio.params.write_clustering_params(self.param_file, self.clustering_params)
 
         # Create folders for saving things within recording dir
         data_dir = self.root_dir
@@ -694,18 +721,55 @@ class dataset(data_object):
         else:
             electrodes = em.Electrode.tolist()
 
-        my_env = os.environ
-        my_env['OMP_NUM_THREADS'] = '1'  # possibly not necesary
-        cpu_count = int(multiprocessing.cpu_count())-1
-        process_call = ['parallel', '-k', '-j', str(cpu_count), '--noswap',
-                        '--load', '100%', '--progress', '--memfree', '4G',
-                        '--retry-failed', '--joblog', self.clustering_log,
-                        'python', process_path, '{1}', self.root_dir, ':::']
-        process_call.extend([str(x) for x in electrodes])
-        subprocess.call(process_call, env=my_env)
+
+        pbar = tqdm(total = len(electrodes))
+        results = [(None, None, None)] * (max(electrodes)+1)
+        def update_pbar(ans):
+            if ans is not None:
+                results[ans[0]] = ans
+            else:
+                print('Unexpected error when clustering an electrode')
+
+            pbar.update()
+
+        cores = multiprocessing.cpu_count()
+        pool = multiprocessing.Pool(cores)
+        for x in electrodes:
+            pool.apply_async(blech_clust_process,
+                             args=(x, data_dir, self.clustering_params),
+                             callback=update_pbar)
+
+        pool.close()
+        pool.join()
+        pbar.close()
+
+        #my_env = os.environ
+        #my_env['OMP_NUM_THREADS'] = '1'  # possibly not necesary
+        #cpu_count = int(multiprocessing.cpu_count())-1
+        #process_call = ['parallel', '-k', '-j', str(cpu_count), '--noswap',
+        #                '--load', '100%', '--progress', '--memfree', '4G',
+        #                '--retry-failed', '--joblog', self.clustering_log,
+        #                'python', process_path, '{1}', self.root_dir, ':::']
+        #process_call.extend([str(x) for x in electrodes])
+        #subprocess.call(process_call, env=my_env)
+        print('Electrode    Result    Cutoff (s)')
+        cutoffs = {}
+        clust_res = {}
+        for x, y, z in results:
+            print('  {:<13}{:<10}{}'.format(x, y, z))
+            cutoffs[x] = z
+            clust_res[x] = y
+
+        print('1 - Sucess\n0 - No data or no spikes\n-1 - Error')
+
+        em = self.electrode_mapping.copy()
+        em['cutoff_time'] = em['Electrode'].map(cutoffs)
+        em['clustering_result'] = em['Electrode'].map(clust_res)
+        self.electrode_mapping = em.copy()
         self.process_status['blech_clust_run'] = True
         self.save()
         print('Clustering Complete\n------------------')
+        return results
 
     @Logger('Cleaning up clustering memory logs. Removing raw data and setting'
             'up hdf5 for unit sorting')
@@ -718,7 +782,7 @@ class dataset(data_object):
         self.process_status['cleanup_clustering'] = True
         self.save()
 
-    def sort_units(self):
+    def sort_units(self, shell=False):
         '''Begins processes to allow labelling of clusters as sorted units
 
         Parameters
@@ -729,6 +793,59 @@ class dataset(data_object):
         fs = self.sampling_rate
         ss.sort_units(self.root_dir, fs, shell)
         self.process_status['sort_units'] = True
+        self.save()
+
+    @Logger('Calculating Units Similarity')
+    def units_similarity(self, similarity_cutoff=50, shell=False):
+        if 'SSH_CONNECTION' in os.environ:
+            shell= True
+
+        metrics_dir = os.path.join(self.root_dir, 'sorted_unit_metrics')
+        if not os.path.isdir(metrics_dir):
+            raise ValueError('No sorted unit metrics found. Must sort units before calculating similarity')
+
+        violation_file = os.path.join(metrics_dir,
+                                      'units_similarity_violations.txt')
+        violations, sim = ss.calc_units_similarity(self.h5_file,
+                                                   self.sampling_rate,
+                                                   similarity_cutoff,
+                                                   violation_file)
+        if len(violations) == 0:
+            userIO.tell_user('No similarity violations found!', shell=shell)
+            return violations, sim
+
+        out_str = ['Units Similarity Violations Found:']
+        out_str.append('Unit_1    Unit_2    Similarity')
+        for x,y in violations:
+            u1 = dio.h5io.parse_unit_number(x)
+            u2 = dio.h5io.parse_unit_number(y)
+            out_str.append('   {:<10}{:<10}{}\n'.format(x, y, sim[u1][u2]))
+
+        out_str.append('Delete units with dataset.delete_unit(N)')
+        out_str = '\n'.join(out_str)
+        userIO.tell_user(out_str, shell=shell)
+        self.process_status['units_similarity'] = True
+        self.save()
+        return violations, sim
+
+    @Logger('Deleting Unit')
+    def delete_unit(self, unit_num, shell=False):
+        if isinstance(unit_num, str):
+            unit_num = dio.h5io.parse_unit_number(unit_num)
+
+        if unit_num is None:
+            print('No unit deleted')
+            return
+
+        q = userIO.ask_user('Are you sure you want to delete unit%03i?' % unit_num,
+                            choices = ['No','Yes'], shell=shell)
+        if q == 0:
+            print('No unit deleted')
+            return
+
+        else:
+            ss.delete_unit(self.root_dir, unit_num)
+
         self.save()
 
     @Logger('Making Unit Arrays')

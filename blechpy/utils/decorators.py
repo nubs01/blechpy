@@ -8,6 +8,7 @@ def Logger(heading):
             sys.stdout.write(heading+'...')
             sys.stdout.flush()
             if hasattr(args[0], 'log_file'):
+                print('')
                 log_file = args[0].log_file
                 with open(log_file, 'a') as f:
                     sys.stdout = f
