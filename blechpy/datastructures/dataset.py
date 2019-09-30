@@ -54,7 +54,8 @@ class dataset(data_object):
         self.dataset_creation_date = dt.datetime.today()
 
         # Outline standard processing pipeline and status check
-        self.processing_steps = ['extract_data', 'create_trial_list',
+        self.processing_steps = ['initialize parameters',
+                                 'extract_data', 'create_trial_list',
                                  'mark_dead_channels',
                                  'common_average_reference', 'blech_clust_run',
                                  'cleanup_clustering',
@@ -171,6 +172,7 @@ class dataset(data_object):
         self.pal_id_params = pal_id_params
         self.psth_params = psth_params
         self._write_all_params_to_json()
+        self.process_status['initialize parameters'] = True
         self.save()
 
     def _set_CAR_groups(self, group_keyword=None, shell=False):
@@ -392,7 +394,7 @@ class dataset(data_object):
         str : representation of dataset object
         '''
         out1 = super().__str__()
-        out = []
+        out = [out1]
         out.append('\nObject creation date: '
                    + self.dataset_creation_date.strftime('%m/%d/%y'))
 
@@ -478,12 +480,14 @@ class dataset(data_object):
         out.append(pt.print_dict(self.pal_id_params))
         out.append('')
 
-        return out1 + '\n'.join(out)
+        return '\n'.join(out)
 
+    @Logger('Writing parameters to JSON')
     def _write_all_params_to_json(self):
         '''Writes all parameters to json files in analysis_params folder in the
         recording directory
         '''
+        print('Writing all parameters to json file in analysis_params folder...')
         clustering_params = self.clustering_params
         spike_array_params = self.spike_array_params
         psth_params = self.psth_params
@@ -590,6 +594,7 @@ class dataset(data_object):
             simply marked as dead
         shell : bool, optional
         '''
+        print('Marking dead channels\n----------')
         em = self.electrode_mapping.copy()
         if dead_channels is None:
             userIO.tell_user('Making traces figure for dead channel detection...',
@@ -611,6 +616,9 @@ class dataset(data_object):
                                              shell=shell)
             dead_channels = list(map(int, choice))
 
+        print('Marking eletrodes %s as dead.\n'
+              'They will be excluded from common average referencing.'
+              % dead_channels)
         em['dead'] = False
         em.loc[dead_channels, 'dead'] = True
         self.electrode_mapping = em
@@ -663,9 +671,7 @@ class dataset(data_object):
         self.save()
 
     @Logger('Running Blech Clust')
-    def blech_clust_run(self, data_quality=None,
-                        accept_params=False, shell=False):
-
+    def blech_clust_run(self, data_quality=None):
         '''Write clustering parameters to file and
         Run blech_process on each electrode using GNU parallel
 
@@ -844,7 +850,13 @@ class dataset(data_object):
             return
 
         else:
-            ss.delete_unit(self.root_dir, unit_num)
+            tmp = ss.delete_unit(self.root_dir, unit_num)
+            if tmp is False:
+                userIO.tell_user('Unit %i not found in dataset. No unit deleted'
+                                 % unit_num, shell=shell)
+            else:
+                userIO.tell_user('Unit %i sucessfully deleted.' % unit_num,
+                                 shell=shell)
 
         self.save()
 
@@ -914,3 +926,69 @@ class dataset(data_object):
 
     def post_sorting(self):
         pass
+
+
+def port_in_dataset(rec_dir=None, shell=False):
+    '''Import an existing dataset into this framework
+    '''
+    dat = dataset(rec_dir, shell=shell)
+    # Check files that will be overwritten: log_file, save_file
+    if os.path.isfile(dat.save_file):
+        prompt = '%s already exists. Continuing will overwrite this. Continue?' % dat.save_file
+        q = userIO.ask_user(prompt, shell=shell)
+        if q == 0:
+            print('Aborted')
+            return None
+
+    # if os.path.isfile(dat.h5_file):
+    #     prompt = '%s already exists. Continuinlg will overwrite this. Continue?' % dat.h5_file
+    #     q = userIO.ask_user(prompt, shell=shell)
+    #     if q == 0:
+    #         print('Aborted')
+    #         return None
+
+    if os.path.isfile(dat.log_file):
+        prompt = '%s already exists. Continuing will append to this. Continue?' % dat.log_file
+        q = userIO.ask_user(prompt, shell=shell)
+        if q == 0:
+            print('Aborted')
+            return None
+
+    with open(dat.log_file, 'a') as f:
+        print('\n==========\nPorting dataset into blechpy format\n==========\n', file=f)
+        print(dat, file=f)
+
+    status = dat.process_status
+    dat.initParams(shell=shell)
+
+
+    user_status = status.copy()
+    user_status = userIO.fill_dict(user_status,
+                                   'Which processes have already been '
+                                   'done to the data?', shell=shell)
+
+    status.update(user_status)
+    # if h5 exists data must have been extracted
+
+    if not os.path.isfile(dat.h5_file) or status['extract_data'] == False:
+        dat.save()
+        return dat
+
+    # write eletrode map and digital input & output maps to hf5
+    dio.h5io.write_electrode_map_to_h5(dat.h5_file, dat.electrode_mapping)
+    if dat.rec_info.get('dig_in') is not None:
+        dio.h5io.write_digital_map_to_h5(dat.h5_file, dat.dig_in_mapping, 'in')
+
+    if dat.rec_info.get('dig_out') is not None:
+        dio.h5io.write_digital_map_to_h5(dat.h5_file, dat.dig_out_mapping, 'out')
+
+
+    node_list = dio.h5io.get_node_list(dat.h5_file)
+
+    if (status['create_trial_list'] == False) and ('digital_in' in node_list):
+        dat.create_trial_list()
+
+    dat.save()
+    return dat
+
+

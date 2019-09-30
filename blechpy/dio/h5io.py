@@ -940,6 +940,7 @@ def get_raw_unit_waveforms(rec_dir, unit_name, electrode_mapping=None,
 def  write_electrode_map_to_h5(h5_file, electrode_map):
     '''Writes electrode mapping DataFrame to table in hdf5 store
     '''
+    print('Writing electrode_map to %s...' % h5_file)
     with tables.open_file(h5_file, 'r+') as hf5:
         if '/electrode_map' in hf5:
             hf5.remove_node('/', 'electrode_map')
@@ -961,6 +962,7 @@ def write_digital_map_to_h5(h5_file, digital_map, dig_type):
     '''Write digital input/output mapping DataFrame to table in hdf5 store
     '''
     dig_str = 'digital_%sput_map' % dig_type
+    print('Writing %s to %s...' % (dig_str, h5_file))
     with tables.open_file(h5_file, 'r+') as hf5:
         if ('/' + dig_str) in hf5:
             hf5.remove_node('/%s' % dig_str)
@@ -1011,3 +1013,29 @@ def read_table_into_DataFrame(table):
         df[k] = df[k].apply(lambda x: x.decode('utf-8'))
 
     return df
+
+
+def get_node_list(h5_file):
+    with tables.open_file(h5_file, 'r') as hf5:
+
+        def list_nodes(node):
+            out = [node._v_name]
+            n = node._v_name
+            if not isinstance(node, tables.group.Group):
+                return out
+
+            nc = node._v_nchildren
+            if nc > 0:
+                nodes = hf5.list_nodes(node)
+                for child in nodes:
+                    out.extend(['%s.%s' % (n,x) for x in list_nodes(child)])
+
+            return out
+
+        nodes = hf5.list_nodes('/')
+        out = []
+        for node in nodes:
+            out.extend(list_nodes(node))
+
+        return out
+

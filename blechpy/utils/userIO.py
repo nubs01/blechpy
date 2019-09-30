@@ -60,6 +60,8 @@ def make_type_dict(dat):
     for k, v in dat.items():
         if isinstance(v, Mapping) and v != {}:
             tmp = make_type_dict(v)
+        elif isinstance(v, type):
+            tmp = v
         elif v is None or v == {}:
             tmp = str
         else:
@@ -210,7 +212,13 @@ class dict_fill_pane(ttk.Frame):
                 if t is list:
                     prompt += '(comma-separated)'
                 if all([v is not x for x in [None, [], {}, '']]):
-                    if t is bool:
+                    if isinstance(v, type):
+                        if t is bool:
+                            default = False
+                        else:
+                            default = ''
+
+                    elif t is bool:
                         default = v
                     else:
                         default = str(v)
@@ -218,6 +226,7 @@ class dict_fill_pane(ttk.Frame):
                             default = default[1:-1]
                 else:
                     default = ''
+
                 prompt += ' : '
                 label = ttk.Label(line, text=prompt)
                 if t is bool:
@@ -226,6 +235,7 @@ class dict_fill_pane(ttk.Frame):
                 else:
                     var = tk.StringVar(self, value=default)
                     entry = ttk.Entry(line, textvariable=var)
+
                 self.val_dict[k] = var
                 label.pack(side='left')
                 entry.pack(side='right')

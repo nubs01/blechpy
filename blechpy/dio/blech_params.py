@@ -396,6 +396,7 @@ def write_params_to_json(param_name, rec_dir, params):
 
     p_dir = os.path.join(rec_dir, 'analysis_params')
     save_file = os.path.join(p_dir, param_name)
+    print('Writing %s to %s' % (param_name, save_file))
     if not os.path.isdir(p_dir):
         os.mkdir(p_dir)
 

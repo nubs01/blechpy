@@ -200,14 +200,13 @@ def get_cell_types(cluster_names, shell=True):
         with keys 'Single unit', 'Regular spiking', 'Fast spiking' and values
         are 0 or 1 for each  key
     '''
-    query = {'Single Unit': False, 'Regular Spiking': False,
-             'Fast Spiking': False}
+    query = {'Single Unit': bool, 'Regular Spiking': bool,
+             'Fast Spiking': bool}
     new_query = {}
     for name in cluster_names:
         new_query[name] = query.copy()
 
-    query = userIO.dictIO(new_query, shell=shell)
-    ans = query.fill_dict()
+    ans = userIO.fill_dict(new_query, shell=shell)
     if ans is None:
         return None
     out = []
@@ -728,6 +727,10 @@ def delete_unit(file_dir, unit_num):
           % unit_num)
     h5_file = h5io.get_h5_filename(file_dir)
     unit_numbers = get_unit_numbers(h5_file)
+    if unit_num not in unit_numbers:
+        print('Unit %i not found in data. Nothing being deleted' % unit_num)
+        return False
+
     unit_name = 'unit%03d' % unit_num
     change_units = [x for x in unit_numbers if x > unit_num]
     new_units = [x-1 for x in change_units]
@@ -774,6 +777,7 @@ def delete_unit(file_dir, unit_num):
     # Compress and repack
     h5io.compress_and_repack(h5_file)
     print('Finished deleting unit\n----------')
+    return True
 
 
 def make_spike_arrays(h5_file, params):

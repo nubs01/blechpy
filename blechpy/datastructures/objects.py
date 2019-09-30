@@ -37,7 +37,7 @@ class data_object(object):
     def save(self):
         with open(self.save_file, 'wb') as f:
             pickle.dump(self, f)
-            print('Saved %s to %s' % (self.data_name, self.save_file))
+            print('Saved %s to %s\n' % (self.data_name, self.save_file))
 
     def _change_root(self, new_root=None):
         if 'SSH_CONNECTION' in os.environ:
