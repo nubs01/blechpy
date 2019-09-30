@@ -334,9 +334,7 @@ def get_user_input(msg, default=None, shell=False):
         sys.stdout = original
         return out
     else:
-        out = eg.enterbox(msg)
-        if out == '':
-            out = default
+        out = eg.enterbox(msg, default=default)
 
         return out
 

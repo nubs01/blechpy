@@ -5,3 +5,4 @@ datashader
 scipy
 seaborn
 scikit-learn
+tqdm

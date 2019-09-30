@@ -1,5 +1,8 @@
 import os
 import shutil
+import numpy as np
+import pandas as pd
+from blechpy import dio
 from blechpy.datastructures.objects import data_object, load_dataset
 from blechpy.utils import userIO, print_tools as pt
 from blechpy.analysis import held_unit_analysis as hua
@@ -76,7 +79,7 @@ class experiment(data_object):
                   + pt.print_dict(self.rec_labels, tabs=1))
         taste_str = ('\nTaste Mapping :\n'
                      + pt.print_dict(self.taste_map, tabs=1))
-        el_str = ('\nElectrode Mapping\n-----------------'
+        el_str = ('\nElectrode Mapping\n-----------------\n'
                   + pt.print_dataframe(self.electrode_mapping))
         return out + rd_str + taste_str + el_str
 
@@ -124,13 +127,13 @@ class experiment(data_object):
         tastants = np.unique(tastants)
         taste_map = {}
         for rl, rd in rec_labels.items():
-            dat = dataset.load_dataset(rd)
+            dat = load_dataset(rd)
             din = dat.dig_in_mapping
             for t in tastants:
                 if taste_map.get(t) is None:
                     taste_map[t] = {}
 
-                tmp = din['channel'][din['name'].lower() == t.lower()]
+                tmp = din['channel'][din['name'] == t]
                 if not tmp.empty:
                     taste_map[t][rl] = tmp.values[0]
 

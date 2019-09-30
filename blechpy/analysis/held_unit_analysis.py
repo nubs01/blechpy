@@ -1,3 +1,7 @@
+import pandas as pd
+import numpy as np
+from scipy.spatial.distance import cdist
+from sklearn.decomposition import PCA
 from blechpy.analysis import spike_analysis as sas
 from blechpy.datastructures.objects import load_dataset
 from blechpy.dio import h5io
@@ -67,7 +71,7 @@ def get_intra_J3(rec_dirs):
         unit_names = h5io.get_unit_names(rd)
 
         for un in unit_names:
-            print('    Computing for %s...' % unit)
+            print('    Computing for %s...' % un)
             # waves, descrip, fs = get_unit_waveforms(rd, unit)
             waves, descrip, fs = h5io.get_raw_unit_waveforms(rd, un)
             if descrip['single_unit'] == 1:
@@ -89,7 +93,6 @@ def find_held_units(rec_dirs, percent_criterion):
     # TODO: if any rec is 'one file per signal type' create tmp_raw.hdf5 and
     # delete after detection is finished 
 
-    print('\n----------\nComputing Intra J3s\n----------\n')
     intra_J3 = get_intra_J3(rec_dirs)
 
     print('\n----------\nComputing Inter J3s\n----------\n')

@@ -794,7 +794,7 @@ def get_raw_trace(rec_dir, electrode, el_map=None):
     obtained
     '''
     h5_file = get_h5_filename(rec_dir)
-    with tables.open_file(h5_file, 'r'):
+    with tables.open_file(h5_file, 'r') as hf5:
         if '/raw' in hf5:
             out = hf5.raw['electrode%i' % electrode][:] * rawIO.voltage_scaling
         else:
@@ -814,7 +814,7 @@ def get_raw_trace(rec_dir, electrode, el_map=None):
     filetype = rawIO.get_recording_filetype(rec_dir)
     try:
         if filetype == 'one file per channel':
-            amp_file = os.path.join(rec_dir, 'amp-%s-%03i.dat')
+            amp_file = os.path.join(rec_dir, 'amp-%s-%03i.dat' % (port, channel))
             out = rawIO.read_one_channel_file(amp_file)
         elif filetype == 'one file per signal type':
             dat = rawIO.read_amplifier_dat(rec_dir)
