@@ -703,7 +703,17 @@ class multi_dataset(object):
                 avg_norm_mag_change_SEM = np.sqrt(avg_norm_mag_change_SEM)
                 avg_z_mag_change_SEM = np.sqrt(avg_z_mag_change_SEM)
 
-                fig, ax = plt.subplots(nrows=1, ncols=3, sharex=True, figsize=(30,10))
+                np_dir = os.path.join(sd, 'metrics')
+                if not os.path.isdir(np_dir):
+                    os.mkdir(np_dir)
+
+                mag_change_file = os.path.join(np_dir, 'avg_norm_mag_change.npz')
+                np.savez(mag_change_file, avg_norm_mag_change=avg_norm_mag_change,
+                         avg_norm_mag_change_SEM=avg_norm_mag_change_SEM,
+                         mag_time=mag_time)
+                cut_win = np.array([-500, 2000])
+                t_idx = np.where((mag_time >= cut_win[0]) & (mag_time <= cut_win[1]))[0]
+                fig, ax = plt.subplots(nrows=1, ncols=2, sharex=True, figsize=(30,10))
                 ax[0].fill_between(mag_time, avg_mag_change - avg_mag_change_SEM,
                                    avg_mag_change + avg_mag_change_SEM, alpha=0.4)
                 ax[0].plot(mag_time, avg_mag_change, linewidth=2)
@@ -712,19 +722,12 @@ class multi_dataset(object):
                 ax[0].set_xlabel('Time (ms)',fontsize=14)
                 ax[0].set_ylabel('Firing Rate (Hz)',fontsize=14)
 
-                ax[1].fill_between(mag_time, avg_norm_mag_change - avg_norm_mag_change_SEM,
-                                   avg_norm_mag_change + avg_norm_mag_change_SEM, alpha=0.4)
-                ax[1].plot(mag_time, avg_norm_mag_change, linewidth=2)
+                ax[1].fill_between(mag_time[t_idx], avg_norm_mag_change[t_idx] - avg_norm_mag_change_SEM[t_idx],
+                                   avg_norm_mag_change[t_idx] + avg_norm_mag_change_SEM[t_idx], alpha=0.4)
+                ax[1].plot(mag_time[t_idx], avg_norm_mag_change[t_idx], linewidth=2)
                 ax[1].axvline(x=0, linestyle='--', color='red', alpha=0.6)
                 ax[1].set_title('Average change in magnitude of response\nBaseline removed',fontsize=14)
                 ax[1].set_xlabel('Time (ms)',fontsize=14)
-
-                ax[2].fill_between(mag_time, avg_z_mag_change - avg_z_mag_change_SEM,
-                                   avg_z_mag_change + avg_z_mag_change_SEM, alpha=0.4)
-                ax[2].plot(mag_time, avg_z_mag_change, linewidth=2)
-                ax[2].axvline(x=0, linestyle='--', color='red', alpha=0.6)
-                ax[2].set_title('Average change in magnitude of response\nZ-scored to baseline',fontsize=14)
-                ax[2].set_xlabel('Time (ms)',fontsize=14)
 
                 save_file = os.path.join(sd, 'Summary_Magnitude_Change.png')
                 fig.savefig(save_file)
@@ -1924,4 +1927,54 @@ def compute_MDS(exp):
 
 
 
+def plot_magnitude_change(exp, win=[-500, 2000], exp_labels=None, save_dir=None, shell=False):
+    if not isinstance(exp, list):
+        exp = [exp]
 
+    if save_dir is None:
+        save_dir = userIO.get_file('Select save directory', shell=shell)
+
+    tastants = set()
+    exp_names = []
+    for e in exp:
+        _, t = get_taste_mapping(e.recording_dirs)
+        tastants.update(t)
+        exp_names.append(os.path.basename(e.experiment_dir))
+
+    if exp_labels is None:
+        exp_labels = exp_names
+
+    for t in tastants:
+        fig, ax = plt.subplots(figsize=(15, 7))
+        labels = []
+        for e, exp_name in zip(exp, exp_labels):
+            if e.significant_units.get(t) is None:
+                continue
+
+            fn = os.path.join(e.experiment_dir, 'held_units_comparison',
+                              t, 'metrics', 'avg_norm_mag_change.npz')
+            mag = np.load(fn)
+            y = mag['avg_norm_mag_change']
+            time = mag['mag_time']
+            y_err = mag['avg_norm_mag_change_SEM']
+
+            t_idx = np.where((time >= win[0]) & (time <= win[1]))[0]
+            time = time[t_idx]
+            y = y[t_idx]
+            y_err = y_err[t_idx]
+
+            y = gaussian_filter1d(y, sigma=3)
+            ax.fill_between(time, y - y_err, y + y_err, alpha=0.5)
+            ax.plot(time, y, linewidth=3, label=exp_name)
+
+        ax.axvline(0, linestyle='--', color='red')
+        ax.set_xlabel('Time (ms)', fontsize=24)
+        ax.set_ylabel('Magnitude of response change (Hz)', fontsize=24)
+        ax.legend(fontsize=18)
+        ax.set_title('Response Change\n%s' % t, fontsize=28)
+        plt.xticks(fontsize=14)
+        plt.yticks(fontsize=14)
+        ax.autoscale(axis='x', tight=True)
+        save_file = os.path.join(save_dir, 'Response_Change-%s.svg' % t)
+        fig.savefig(save_file)
+        plt.close('all')
