@@ -2,6 +2,7 @@ import os
 import shutil
 import numpy as np
 import pandas as pd
+from itertools import combinations
 from blechpy import dio
 from blechpy.datastructures.objects import data_object, load_dataset
 from blechpy.utils import userIO, print_tools as pt
@@ -282,7 +283,17 @@ class experiment(data_object):
         df_file = os.path.join(save_dir, 'held_units_table.txt')
         json_file = os.path.join(save_dir, 'held_units.json')
         held_df.to_json(json_file, orient='records')
-        held_df.to_csv(df_file, header=True, sep='\t', index=False, mode='a')
+
+        # Print table of held unti to text file, separate tables by pairs of recordings
+        rec_pairs = [(rec_names[i], rec_names[i+1]) for i in range(len(rec_names) - 1)]
+        with open(df_file, 'w') as f:
+            for rec1, rec2 in rec_pairs:
+                tmp_df = held_df.copy()
+                exc = [x for x in rec_names if x not in [rec1, rec2]]
+                tmp_df = tmp_df.drop(columns=['J3', *exc]).dropna()
+                print('Units held from %s to %s\n----------' % (rec1, rec2), file=f)
+                print(pt.print_dataframe(tmp_df, tabs=1), file=f)
+                print('', file=f)
 
         np.save(os.path.join(save_dir, 'intra_J3'), np.array(intra_J3))
         np.save(os.path.join(save_dir, 'inter_J3'), np.array(inter_J3))

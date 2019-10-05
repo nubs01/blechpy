@@ -26,6 +26,7 @@ def compare_held_units(exp, response_change_significicance=0.05,
     held_dict = self.held_units['units'].to_dict(orient='records')
     sig_units = {}
     out_df = None
+    out_data = {}
 
     perc_changed = {t: [] for t in tastants}
     perc_changed_time = None
@@ -38,6 +39,7 @@ def compare_held_units(exp, response_change_significicance=0.05,
         mag_time = None
         avg_norm_mag_change = None
         avg_norm_mag_change_SEM = None
+        out_data[t] = {}
         for i, row in held_df.iterrows():
             unit_name = row['unit']
             elecrtrode = row['electrode']
@@ -52,12 +54,12 @@ def compare_held_units(exp, response_change_significicance=0.05,
             out_row['taste_resposive_2_p'] = 1.0
             out_row['response_change'] = False
             out_row['divergence_time'] = 0
-            out_row['min_p'] = 1.0
-            out_row['max_p'] = 1.0
+            out_row['response_min_p'] = 1.0
+            out_row['respons_max_p'] = 1.0
             out_row['norm_response_change'] = False
             out_row['norm_divergence_time'] = 0
-            out_row['min_norm_p'] = 1.0
-            out_row['max_norm_p'] = 1.0
+            out_row['norm_response_min_p'] = 1.0
+            out_row['norm_response_max_p'] = 1.0
 
             # Restrict to GC units
             #if area != 'GC':
@@ -79,10 +81,8 @@ def compare_held_units(exp, response_change_significicance=0.05,
                 os.mkdir(sd)
 
             rec_info = [(rec_labels.get(x), row.loc[x], taste_map[t][x]) for x in t_recs]
-            dins = [taste_map[t][x] for x in t_recs]
-            rds = [rec_labels.get(x) for x in t_recs]
-            uns = [row.loc[x] for x in t_recs]
             unit_descrip = dio.h5io.get_unit_descriptor(rec_info[0][0], rec_info[0][1])
+            out_dict = {'rec_info': rec_info, 'unit_descrip': unit_descrip}
 
             # Check taste responsiveness pre and post
             stat_pre, p_pre = stats.check_taste_response(*rec_info[0])
@@ -95,20 +95,45 @@ def compare_held_units(exp, response_change_significicance=0.05,
             if stat_post <= taste_responsive_significance:
                 out_row['taste_responsive_2'] = True
 
+            out_dict['taste_responsive_1_stat'] : stat_pre
+            out_dict['taste_responsive_1_p'] : p_pre
+            out_dict['taste_responsive_2_stat'] : stat_post
+            out_dict['taste_responsive_2_p'] : p_post
+
             # compare baseline firing rate
             base_stats, base_p = compare_baseline(*rec_info[0], *rec_info[1])
             out_row['baseline_shift_p'] = base_p
             if base_p <= taste_responsive_significance:
                 out_row['baseline_shift'] = True
 
+            out_dict['baseline_stat'] = base_stats
+            out_dict['baseline_p'] = base_p
+
 
             # Check if the response changed
             win_starts, resp_u, resp_p = compare_taste_response(*rec_info[0], *rec_info[1])
+            if any(resp_p <= response_change_significicance):
+                out_row['response_change'] = True
+                idx = np.where(resp_p <= response_change_significicance)[0]
+                out_row['divergence_time'] = win_starts[idx[0]]
+                out_row['response_min_p'] = np.min(resp_p)
+                out_row['response_max_p'] = np.max(resp_p)
+
+            out_dict['response_change_time'] = win_starts
+            out_dict['response_change_stats'] = resp_u
+            out_dict['response_change_p'] = resp_p
+
 
 
             # Check is the normalized response changed
             norm_win_starts, norm_resp_u, norm_resp_p = compare_taste_response(*rec_info[0], *rec_info[0],
                                                                                norm_func=stats.remove_baseline)
+            if any(norm_resp_p <= response_change_significicance):
+                out_row['norm_response_change'] = True
+                idx = np.where(norm_resp_p <= response_change_significicance)[0]
+                out_row['norm_divergence_time'] = norm_win_starts[idx[0]]
+                out_row['norm_response_min_p'] = np.min(norm_resp_p)
+                out_row['norm_response_max_p'] = np.max(norm_resp_p)
 
             # Get magnitude of change
             mc, mc_SEM, mc_time = get_response_change(unit_name, *rec_info[0], *rec_info[1])
@@ -121,6 +146,7 @@ def compare_held_units(exp, response_change_significicance=0.05,
                 avg_mag_change_SEM = np.power(mc_SEM, 2)
                 mag_time = mc_time
 
+            # Now with the baseline removed
             mc, mc_SEM, mc_time = get_response_change(unit_name, *rec_info[0], *rec_info[1],
                                                       norm_func=stats.remove_baseline)
             if avg_norm_mag_change is not None:
@@ -129,6 +155,15 @@ def compare_held_units(exp, response_change_significicance=0.05,
             else:
                 avg_norm_mag_change = np.abs(mc)
                 avg_norm_mag_change_SEM = np.power(mc_SEM,2)
+
+
+            # Save metrics
+            # Update out Row
+            # Add row to output_df
+            if out_df is None:
+                out_df = pd.DataFrame([out_row])
+            else:
+                out_df = out_df.append(out_row)
 
             # Save signififance stats
             if sig_units.get(t) is None:
