@@ -86,7 +86,7 @@ class experiment(data_object):
         out.append(pt.print_dataframe(self.electrode_mapping))
         if hasattr(self, 'held_units'):
             out.append('\nHeld Units :')
-            out.append(pt.print_dataframe(self.held_units))
+            out.append(pt.print_dataframe(self.held_units.drop(columns=['J3'])))
 
         return '\n'.join(out)
 
