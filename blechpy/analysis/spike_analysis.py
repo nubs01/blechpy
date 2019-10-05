@@ -141,4 +141,77 @@ def get_binned_firing_rate(time, spikes, bin_size=250, bin_step=25):
     return bin_time, firing_rate
 
 
+def get_mean_difference(A, B, axis=0):
+    '''Returns the difference of the means of arrays A and B along an axis and
+    propogates the uncertainty of the means
 
+    Parameters
+    ----------
+    A,B : numpy.array
+    arrays to get difference between. arrays must be the same size along
+    the axis being compared. For example, if A is MxN and B is LxN and
+    axis=0 then they can be compared since axis 0 will be meaned and axis 1
+    will be subtracted.
+    axis : int, axis to be meaned
+
+    Returns
+    -------
+    difference_of_means : numpy.array, 1D array
+    SEM : numpy.array, standard error of the mean differences, 1D array
+    '''
+    shape_ax = int(not axis)
+
+    m1 = np.mean(A, axis=axis)
+    sd1 = np.std(A, axis=axis)
+    n1 = A.shape[shape_ax]
+    m2 = np.mean(B, axis=axis)
+    sd2 = np.std(B, axis=axis)
+    n2 = B.shape[shape_ax]
+    C = m2 - m1
+    SEM = np.sqrt((np.power(sd1, 2)/n1) + (np.power(sd2,2)/n2)) / \
+           np.sqrt(n1+n2)
+
+    return C, SEM
+
+
+
+def zscore_to_baseline(time, fr):
+    '''takes a firing rate array and zscores each row using the mean and st.
+    dev over all trials during times < 0
+
+    Parameters
+    ----------
+    time : numpy.array, 1D time vector
+    fr : numpy.array, Trial x Time array of firing rates
+
+    Returns
+    -------
+    norm_fr : numpy.array, array of firing rate traces
+    '''
+    idx = np.where(time < 0)[0]
+    baselines = np.mean(fr[:, idx], axis=1)
+    m = np.mean(baselines)
+    sd = np.std(baselines)
+
+    norm_fr = (fr - m) / sd
+
+    return norm_fr
+
+
+def remove_baseline(time, fr):
+    '''takes a firing rate and substracts the group baseline mean from the each
+    trials' firing rates
+
+    Parameters
+    ----------
+    time : numpy.array, 1D time vector
+    fr : numpy.array, Trial x Time array of firing rates
+
+    Returns
+    -------
+    norm_fr : numpy.array, array of firing rate traces
+    '''
+    idx = np.where(time < 0)[0]
+    baseline = np.mean(fr[:, idx])
+    norm_fr = fr - baseline
+    return norm_fr

@@ -797,11 +797,9 @@ def get_raw_trace(rec_dir, electrode, el_map=None):
     with tables.open_file(h5_file, 'r') as hf5:
         if '/raw' in hf5:
             out = hf5.raw['electrode%i' % electrode][:] * rawIO.voltage_scaling
+            return out
         else:
             out = None
-
-    if out is not None:
-        return out
 
     if el_map is None:
         el_map = get_electrode_mapping(rec_dir)
@@ -879,8 +877,9 @@ def get_raw_unit_waveforms(rec_dir, unit_name, electrode_mapping=None,
     raw_trace, unit_descriptor, sampling_rate
     np.array, tuple, float
     '''
-    if unit_name.isnumeric():
+    if isinstance(unit_name, int):
         unit_num = unit_name
+        unit_name = 'unit%03i' % unit_num
     else:
         unit_num = parse_unit_number(unit_name)
 
@@ -935,6 +934,23 @@ def get_raw_unit_waveforms(rec_dir, unit_name, electrode_mapping=None,
     slices_dj, times_dj = clust.dejitter(slices, spike_times, snapshot, fs)
 
     return slices_dj, descriptor, fs*10
+
+
+def get_unit_waveforms(file_dir, unit):
+    if isinstance(unit, int):
+        un = '%03i' % unit
+    else:
+        un = unit
+        unit = parse_unit_number(un)
+
+    h5_file = get_h5_filename(file_dir)
+    clustering_params = params.load_params('clustering_params', file_dir)
+    fs = clustering_params['sampling_rate']
+    with tables.open_file(h5_file, 'r') as hf5:
+        waveforms = hf5.root.sorted_units[un].waveforms[:]
+        descriptor = hf5.root.unit_descriptor[unit]
+
+    return waveforms, descriptor, fs*10
 
 
 def  write_electrode_map_to_h5(h5_file, electrode_map):
@@ -1039,3 +1055,19 @@ def get_node_list(h5_file):
 
         return out
 
+
+def read_unit_description(unit_description):
+    try:
+        rsu = bool(unit_description['regular_spiking'])
+        fsu = bool(unit_description['fast_spiking'])
+    except ValueError:
+        raise ValueError('Not a proper unit description')
+
+    if rsu and fsu:
+        return 'Mislabelled'
+    elif rsu:
+        return 'Regular-spiking'
+    elif fsu:
+        return 'Fast-spiking'
+    else:
+        return 'Unlabelled'

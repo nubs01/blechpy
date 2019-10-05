@@ -7,6 +7,7 @@ from blechpy.datastructures.objects import data_object, load_dataset
 from blechpy.utils import userIO, print_tools as pt
 from blechpy.analysis import held_unit_analysis as hua
 from blechpy.plotting import data_plot as dplt
+from blechpy.utils.decorators import Logger
 
 
 class experiment(data_object):
@@ -74,14 +75,19 @@ class experiment(data_object):
         return new_root
 
     def __str__(self):
-        out = super().__str__() + '\nAnalysis Directory: %s' % self.analysis_dir
-        rd_str = ('\nRecording Directories :\n'
-                  + pt.print_dict(self.rec_labels, tabs=1))
-        taste_str = ('\nTaste Mapping :\n'
-                     + pt.print_dict(self.taste_map, tabs=1))
-        el_str = ('\nElectrode Mapping\n-----------------\n'
-                  + pt.print_dataframe(self.electrode_mapping))
-        return out + rd_str + taste_str + el_str
+        out = [super().__str__()]
+        out.append('Analysis Directory: %s' % self.analysis_dir)
+        out.append('Recording Directories :')
+        out.append(pt.print_dict(self.rec_labels, tabs=1))
+        out.append('\nTaste Mapping :')
+        out.append(pt.print_dict(self.taste_map, tabs=1))
+        out.append('\nElectrode Mapping\n----------------')
+        out.append(pt.print_dataframe(self.electrode_mapping))
+        if hasattr(self, 'held_units'):
+            out.append('\nHeld Units :')
+            out.append(pt.print_dataframe(self.held_units))
+
+        return '\n'.join(out)
 
     def _order_dirs(self, shell=None):
         '''set order of redcording directories
@@ -225,6 +231,7 @@ class experiment(data_object):
         print('Removed recording: %s' % rec_dir)
         self.save()
 
+    @Logger('Detecting held units')
     def detect_held_units(self, percent_criterion=95, shell=False):
         '''Determine which units are held across recording sessions
         Grabs single units from each recording and compares consecutive
@@ -251,8 +258,14 @@ class experiment(data_object):
         os.mkdir(save_dir)
 
         rec_dirs = self.recording_dirs
+        rec_labels = self.rec_labels
+        rec_names = list(rec_labels.keys())
 
-        held_df, intra_J3, inter_J3, J3_df = hua.find_held_units(rec_dirs,
+        print('Detecting held units for :')
+        print('\t' + '\n\t'.join(rec_names))
+        print('Saving output to : %s' % save_dir)
+
+        held_df, intra_J3, inter_J3 = hua.find_held_units(rec_dirs,
                                                                  percent_criterion)
         rl_dict = {os.path.basename(v) : k for k, v in self.rec_labels.items()}
         held_df = held_df.rename(columns=rl_dict)
@@ -262,9 +275,8 @@ class experiment(data_object):
 
 
         self.held_units = held_df
-        self.held_unit_stats = {'J3_df': J3_df,
-                                'intra_J3': intra_J3,
-                                'inter_J3': inter_J3}
+        self.J3_values = {'intra_J3': intra_J3,
+                          'inter_J3': inter_J3}
 
         # Write dataframe of held units to text file
         df_file = os.path.join(save_dir, 'held_units_table.txt')
@@ -272,14 +284,11 @@ class experiment(data_object):
         held_df.to_json(json_file, orient='records')
         held_df.to_csv(df_file, header=True, sep='\t', index=False, mode='a')
 
-        j3_file = df_file.replace('table.txt', 'J3.txt')
-        J3_df.to_csv(j3_file, header=True, sep='\t', index=False, mode='a')
-
         np.save(os.path.join(save_dir, 'intra_J3'), np.array(intra_J3))
         np.save(os.path.join(save_dir, 'inter_J3'), np.array(inter_J3))
 
         # For each held unit, plot waveforms side by side
-        dplt.plot_held_units(rec_dirs, held_df, J3_df, save_dir)
+        dplt.plot_held_units(rec_dirs, held_df, save_dir, rec_names=rec_names)
 
         # Plot intra and inter J3
         dplt.plot_J3s(intra_J3, inter_J3, save_dir, percent_criterion)
@@ -300,8 +309,8 @@ class experiment(data_object):
             row['electrode'] = float('nan')
             return row
 
-        unit_num = h5io.parse_unit_number(unit)
-        descrip = h5io.get_unit_descriptor(rec, unit_num)
+        unit_num = dio.h5io.parse_unit_number(unit)
+        descrip = dio.h5io.get_unit_descriptor(rec, unit_num)
         electrode = descrip['electrode_number']
         area = em.query('Electrode == @electrode')['area'].values[0]
 

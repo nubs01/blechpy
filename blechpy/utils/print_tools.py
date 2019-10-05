@@ -107,9 +107,25 @@ def println(txt):
 
 def get_next_letter(letter):
     '''gets next letter in the alphabet
+    Z -> AA, AZ -> BA, etc
+    Preserves case of input, allows mixed-case
 
     Parameters
     ----------
     letter : str
     '''
-    return bytes([bytes(letter, 'utf-8')[0] + 1]).decode('utf-8')
+    letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+    if letter[-1].islower():
+        letters = letters.lower()
+
+    idx = letters.rfind(letter[-1])
+    if len(letter) == 1 and idx < (len(letters) - 1):
+        return letters[idx+1]
+    elif len(letter) == 1:
+        return letters[0]*2
+    elif len(letter) > 1 and idx < (len(letters) -1):
+        return letter[:-1] + letters[idx+1]
+    else:
+        out = get_next_letter(letter[:-1])
+        return out+letters[0]
+

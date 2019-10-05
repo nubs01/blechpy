@@ -11,10 +11,10 @@ import pylab as plt
 import matplotlib.cm as cm
 from scipy.spatial.distance import mahalanobis
 from scipy import linalg
-from blechpy.data_print import memory_monitor as mm
+from blechpy.utils import memory_monitor as mm
 from blechpy.plotting import blech_waveforms_datashader
 from blechpy import dio
-from blechpy.analysis.clustering import *
+from blechpy.analysis import clustering as clust
 
 def blech_clust_process(electrode_num, file_dir, params):
 
@@ -58,18 +58,17 @@ def blech_clust_process(electrode_num, file_dir, params):
 
     # Open up hdf5 file, and load this electrode number
     # Check if referenced data exists, if not grab raw
-    with tables.open_file(h5_file,'r') as hf5:
-        if '/referenced/electrode%i' % electrode_num in hf5:
-            raw_el = hf5.root.referenced['electrode%i' % electrode_num][:]
-        elif '/raw/electrode%i' % electrode_num in  hf5:
-            raw_el = hf5.root.raw['electrode%i' % electrode_num][:]
-        else:
-            raise KeyError('Neither /raw/electrode{0} nor /referenced/electrode{0} found in {1}'. \
+    raw_el = h5io.get_referenced_trace(file_dir, electrode_num)
+    if raw_el is None:
+        raw_el = h5io.get_raw_trace(file_dir, electrode_num)
+
+    if raw_el is None:
+        raise KeyError('Neither /raw/electrode{0} nor /referenced/electrode{0} found in {1}'. \
                             format(electrode_num,hdf5_file))
 
 
     # High bandpass filter the raw electrode recordings
-    filt_el = get_filtered_electrode(raw_el, freq = [bandpass_lower_cutoff, bandpass_upper_cutoff], sampling_rate = sampling_rate)
+    filt_el = clust.get_filtered_electrode(raw_el, freq = [bandpass_lower_cutoff, bandpass_upper_cutoff], sampling_rate = sampling_rate)
 
     # Delete raw electrode recording from memory
     del raw_el
@@ -111,7 +110,7 @@ def blech_clust_process(electrode_num, file_dir, params):
         return electrode_num, 0, recording_cutoff
 
     # Slice waveforms out of the filtered electrode recordings
-    slices, spike_times = extract_waveforms(filt_el, spike_snapshot = [spike_snapshot_before, spike_snapshot_after], sampling_rate = sampling_rate)
+    slices, spike_times = clust.extract_waveforms(filt_el, spike_snapshot = [spike_snapshot_before, spike_snapshot_after], sampling_rate = sampling_rate)
     if len(slices)==0:
         print('No spikes found for electrode %i...exiting' % electrode_num)
         return electrode_num, 0, recording_cutoff
@@ -120,7 +119,7 @@ def blech_clust_process(electrode_num, file_dir, params):
     del filt_el, test_el
 
     # Dejitter these spike waveforms, and get their maximum amplitudes
-    slices_dejittered, times_dejittered = dejitter(slices, spike_times, spike_snapshot = [spike_snapshot_before, spike_snapshot_after], sampling_rate = sampling_rate)
+    slices_dejittered, times_dejittered = clust.dejitter(slices, spike_times, spike_snapshot = [spike_snapshot_before, spike_snapshot_after], sampling_rate = sampling_rate)
     try:
         amplitudes = np.min(slices_dejittered, axis = 1)
     except:
@@ -144,10 +143,10 @@ def blech_clust_process(electrode_num, file_dir, params):
     np.save(os.path.join(time_dir, 'spike_times.npy'), times_dejittered)
 
     # Scale the dejittered slices by the energy of the waveforms
-    scaled_slices, energy = scale_waveforms(slices_dejittered)
+    scaled_slices, energy = clust.scale_waveforms(slices_dejittered)
 
     # Run PCA on the scaled waveforms
-    pca_slices, explained_variance_ratio = implement_pca(scaled_slices)
+    pca_slices, explained_variance_ratio = clust.implement_pca(scaled_slices)
 
     # Save the pca_slices, energy and amplitudes to the spike_waveforms folder for this electrode
     np.save(os.path.join(wave_dir, 'pca_waveforms.npy'), pca_slices)
@@ -178,7 +177,7 @@ def blech_clust_process(electrode_num, file_dir, params):
     # Run GMM, from 2 to max_clusters
     for i in range(max_clusters-1):
         try:
-            model, predictions, bic = clusterGMM(data, n_clusters = i+2, n_iter = num_iter, restarts = num_restarts, threshold = thresh)
+            model, predictions, bic = clust.clusterGMM(data, n_clusters = i+2, n_iter = num_iter, restarts = num_restarts, threshold = thresh)
         except:
             #print "Clustering didn't work - solution with %i clusters most likely didn't converge" % (i+2)
             continue

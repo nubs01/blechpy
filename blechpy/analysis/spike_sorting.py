@@ -661,59 +661,6 @@ def plot_cluster(cluster, index=None):
     return fig, ax
 
 
-def make_unit_plots(file_dir, fs):
-    '''Makes waveform plots for sorted unit in unit_waveforms_plots
-
-    Parameters
-    ----------
-    file_dir : str, full path to recording directory
-    fs : float, smapling rate in Hz
-    '''
-    h5_file = h5io.get_h5_filename(file_dir)
-
-    plot_dir = os.path.join(file_dir, 'unit_waveforms_plots')
-    if os.path.exists(plot_dir):
-        shutil.rmtree(plot_dir, ignore_errors=True)
-    os.mkdir(plot_dir)
-    fs_str = '(%g samples per ms)' % (fs/1000.0)
-    unit_numbers = get_unit_numbers(h5_file)
-    with tables.open_file(h5_file, 'r+') as hf5:
-        units = hf5.list_nodes('/sorted_units')
-        for i, unit in zip(unit_numbers, units):
-            # plot all waveforms
-            waveforms = unit.waveforms[:]
-            descriptor = hf5.root.unit_descriptor[i]
-            fig, ax = blech_waveforms_datashader.waveforms_datashader(
-                waveforms)
-            ax.set_xlabel('Samples (%s)' % fs_str)
-            ax.set_ylabel('Voltage (microvolts)')
-            unit_title = (('Unit %i, total waveforms = %i\nElectrode: %i, '
-                           'Single Unit: %i, RSU: %i, FSU: %i') %
-                          (i, waveforms.shape[0],
-                           descriptor['electrode_number'],
-                           descriptor['single_unit'],
-                           descriptor['regular_spiking'],
-                           descriptor['fast_spiking']))
-            ax.set_title(unit_title)
-            fig.savefig(os.path.join(plot_dir, 'Unit%i.png' % i))
-            plt.close('all')
-
-            # Plot mean and SEM of waveforms
-            # Downsample by 10 to remove upsampling from de-jittering
-            fig = plt.figure()
-            mean_wave = np.mean(waveforms[:, ::10], axis=0)
-            std_wave = np.std(waveforms[:, ::10], axis=0)
-            mean_x = np.arange(mean_wave.shape[0]) + 1
-            plt.plot(mean_x, mean_wave, linewidth=4.0)
-            plt.fill_between(mean_x, mean_wave - std_wave,
-                             mean_wave + std_wave, alpha=0.4)
-            plt.xlabel('Samples (%s)' % fs_str)
-            plt.ylabel('Voltage (microvolts)')
-            plt.title(unit_title)
-            fig.savefig(os.path.join(plot_dir, 'Unit%i_mean_sd.png' % i))
-            plt.close('all')
-
-
 def delete_unit(file_dir, unit_num):
     '''Delete a sorted unit and re-label all following units. Also relabel all
     associated plots and data in sorted_unit_metrics and unit_waveform_plots

@@ -876,7 +876,15 @@ class dataset(data_object):
     def make_unit_plots(self):
         '''Make waveform plots for each sorted unit
         '''
-        ss.make_unit_plots(self.root_dir, self.sampling_rate)
+        unit_table = self.get_unit_table()
+        save_dir = os.path.join(self.root_dir, 'unit_waveforms_plots')
+        if os.path.isdir(save_dir):
+            shutil.rmtree(save_dir)
+
+        os.mkdir(save_dir)
+        for i, row in unit_table.iterrows():
+            datplt.make_unit_plots(self.root_dir, row['unit_name'], save_dir=save_dir)
+
         self.process_status['make_unit_plots'] = True
         self.save()
 
