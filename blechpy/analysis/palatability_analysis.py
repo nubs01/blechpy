@@ -1,7 +1,6 @@
-from blechpy.analysis import dataset
+from blechpy.datastructures.objects import load_dataset
 from blechpy.dio import h5io
-from blechpy.data_print import data_print as dp
-from blechpy.widgets import userIO
+from blechpy.utils import print_tools as pt, userIO
 import numpy as np
 import pandas as pd
 import tables
@@ -28,7 +27,7 @@ def palatability_identity_calculations(rec_dir, pal_ranks=None,
                                        params=None, shell=False):
     warnings.filterwarnings('ignore', category=UserWarning)
     warnings.filterwarnings('ignore', category=RuntimeWarning)
-    dat = dataset.load_dataset(rec_dir)
+    dat = load_dataset(rec_dir)
     dim = dat.dig_in_mapping
     if 'palatability_rank' in dim.columns:
         pass
@@ -38,6 +37,7 @@ def palatability_identity_calculations(rec_dir, pal_ranks=None,
         dim['palatability_rank'] = dim['name'].map(pal_ranks)
 
     dim = dim.dropna(subset=['palatability_rank'])
+    dim = dim[dim['palatability_rank'] > 0]
     dim = dim.reset_index(drop=True)
     num_tastes = len(dim)
     taste_names = dim.name.to_list()
@@ -93,7 +93,7 @@ def palatability_identity_calculations(rec_dir, pal_ranks=None,
     win_size = params['window_size']
     win_step = params['window_step']
     print('Running palatability/identity calculations with parameters:\n%s' %
-          dp.print_dict(params))
+          pt.print_dict(params))
 
     with tables.open_file(dat.h5_file, 'r+') as hf5:
         trains_dig_in = hf5.list_nodes('/spike_trains')

@@ -1,14 +1,72 @@
 import pylab as plt
+import pandas as pd
 import numpy as np
 import tables
 import os
 from blechpy import dio
 from blechpy.analysis import spike_analysis as sas
+from blechpy.dio import h5io
 from scipy.stats import sem
 from scipy.ndimage.filters import gaussian_filter1d
+from blechpy.plotting import blech_waveforms_datashader
+import matplotlib
+
+plot_params = {'xtick.labelsize': 14, 'ytick.labelsize': 14,
+               'axes.titlesize': 26, 'figure.titlesize': 28,
+               'axes.labelsize': 24}
+
+def make_unit_plots(file_dir, unit_name, save_dir=None):
+    '''Makes waveform plots for sorted unit in unit_waveforms_plots
+
+    Parameters
+    ----------
+    file_dir : str, full path to recording directory
+    fs : float, smapling rate in Hz
+    '''
+    matplotlib.use('Qt5Agg')
+    matplotlib.rcParams.update(plot_params)
+
+    if isinstance(unit_name, int):
+        unit_num = unit_name
+        unit_name = 'unit%03i' % unit_num
+    else:
+        unit_num = dio.h5io.parse_unit_number(unit_name)
+
+    waveforms, descriptor, fs = dio.h5io.get_unit_waveforms(file_dir, unit_name)
+    fs_str = '%g samples per ms' % (fs/10/1000.0)  # since both theses plots
+                                                   # downsample by 10 and then to convert to samples/ms
+
+    fig, ax = blech_waveforms_datashader.waveforms_datashader(waveforms)
+    ax.set_xlabel('Samples (%s)' % fs_str)
+    ax.set_ylabel('Voltage (microvolts)')
+    unit_title = (('Unit %i, total waveforms = %i\nElectrode: %i, '
+                   'Single Unit: %i, RSU: %i, FSU: %i') %
+                  (unit_num, waveforms.shape[0],
+                   descriptor['electrode_number'],
+                   descriptor['single_unit'],
+                   descriptor['regular_spiking'],
+                   descriptor['fast_spiking']))
+    ax.set_title(unit_title)
+    fig.savefig(os.path.join(save_dir, 'Unit%i.png' % unit_num))
+    plt.close('all')
+
+    # Plot mean and SEM of waveforms
+    # Downsample by 10 to remove upsampling from de-jittering
+    fig, ax = plt.subplots(figsize=(12,8))
+    mean_wave = np.mean(waveforms[:, ::10], axis=0)
+    std_wave = np.std(waveforms[:, ::10], axis=0)
+    mean_x = np.arange(mean_wave.shape[0]) + 1
+    ax.plot(mean_x, mean_wave, linewidth=4.0)
+    ax.fill_between(mean_x, mean_wave - std_wave,
+                     mean_wave + std_wave, alpha=0.4)
+    ax.set_xlabel('Samples (%s)' % fs_str)
+    ax.set_ylabel('Voltage (microvolts)')
+    ax.set_title(unit_title)
+    fig.savefig(os.path.join(save_dir, 'Unit%i_mean_sd.png' % unit_num))
+    plt.close('all')
 
 
-def plot_traces_and_outliers(h5_file, window=60):
+def plot_traces_and_outliers(h5_file, window=60, save_file=None):
     '''plot first 30 sec of raw data traces as well as a subplot with a metric
     to help identify dead channels (max(abs(trace)) * std(trace))
 
@@ -70,6 +128,10 @@ def plot_traces_and_outliers(h5_file, window=60):
         over = np.where(metric > med+1.5*sd)[0]
         ax[1].set_title('Electrodes over line: %s' % over)
 
+    if save_file is not None:
+        fig.savefig(save_file)
+        plt.close('all')
+
     return fig, ax
 
 
@@ -130,3 +192,133 @@ def plot_overlay_psth(rec_dir, unit, din_map, plot_window=[-1500, 2500],
     ax.axvline(0, color='red', linestyle='--')
     fig.savefig(save_file)
     plt.close('all')
+
+
+def plot_J3s(intra_J3, inter_J3, save_dir, percent_criterion):
+    print('\n----------\nPlotting J3 distribution\n----------\n')
+    fig = plt.figure(figsize=(10,5))
+    plt.hist([inter_J3, intra_J3], bins=20, alpha=0.7,
+             label=['Across-session J3', 'Within-session J3'])
+    plt.legend(prop={'size':12}, loc='upper right')
+    plt.axvline(np.percentile(intra_J3, percent_criterion), linewidth=2,
+                color='black', linestyle='dashed')
+    plt.xlabel('J3', fontsize=18)
+    plt.ylabel('Number of single unit pairs', fontsize=18)
+    plt.tick_params(axis='both', which='major', labelsize=12)
+    fig.savefig(os.path.join(save_dir, 'J3_distribution.png'),
+                bbox_inches='tight')
+    plt.close('all')
+
+
+def plot_held_units(rec_dirs, held_df, save_dir, rec_names=None):
+    '''Plot waveforms of held units side-by-side
+
+    Parameters
+    ----------
+    rec_dirs : list of str
+        full paths to recording directories
+    held_df : pandas.DataFrame
+        dataframe listing held units with columns matching the names of the
+        recording directories or the given rec_names. Also colulmns:
+            - unit : str, unit name
+            - single_unit : bool
+            - unit_type : str, unit_type
+            - electrode : int
+            - J3 : list of float, J3 values for the held unit
+    save_dir : str, directory to save plots in
+    rec_names : list of str (optional)
+        abbreviated rec_names if any were used for held_df creation
+        if not given, rec_names are assumed to be the basenames of rec_dirs
+    '''
+    matplotlib.use('Qt5Agg')
+    if rec_names is None:
+        rec_names = [os.path.basename(x) for x in rec_dirs]
+
+    rec_labels = {x: y for x, y in zip(rec_names, rec_dirs)}
+
+    print('\n----------\nPlotting held units\n----------\n')
+    for idx, row in held_df.iterrows():
+        n_subplots = 0
+        units = {}
+        for rn in rec_names:
+            if not pd.isna(row.get(rn)):
+                n_subplots += 1
+                units[rn] = row.get(rn)
+
+        if n_subplots == 0:
+            continue
+
+        single_unit = row['single_unit']
+        if single_unit:
+            single_str = 'single-unit'
+        else:
+            single_str = 'multi-unit'
+
+        unit_type = row['unit_type']
+        unit_name = row['unit']
+        electrode = row['electrode']
+        area = row['area']
+        J3_vals = row['J3']
+        J3_str = np.array2string(np.array(J3_vals), precision=3)
+        print('Plotting Unit %s...' % unit_name)
+
+        title_str = 'Unit %s\nElectrode %i: %s %s\nJ3: %s' % (unit_name, electrode,
+                                                              unit_type,
+                                                              single_str, J3_str)
+
+
+        fig, fig_ax = plt.subplots(ncols=n_subplots, figsize=(20, 10))
+        ylim = [0, 0]
+        row_ax = []
+
+        for ax, unit_info in zip(fig_ax, units.items()):
+            rl = unit_info[0]
+            u = unit_info[1]
+            rd = rec_labels.get(rl)
+            params = dio.params.load_params('clustering_params', rd)
+            if params is None:
+                raise FileNotFoundError('No dataset pickle file for %s' % rd)
+
+            #waves, descriptor, fs = get_unit_waveforms(rd, x[1])
+            waves, descriptor, fs = dio.h5io.get_raw_unit_waveforms(rd, u)
+            waves = waves[:, ::10]
+            fs = fs/10
+            time = np.arange(0, waves.shape[1], 1) / (fs/1000)
+            snapshot = params['spike_snapshot']
+            t_shift = snapshot['Time before spike (ms)']
+            time = time - t_shift
+            mean_wave = np.mean(waves, axis=0)
+            std_wave = np.std(waves, axis=0)
+            ax.plot(time, mean_wave,
+                    linewidth=5.0, color='black')
+            ax.plot(time, mean_wave - std_wave,
+                    linewidth=2.0, color='black',
+                    alpha=0.5)
+            ax.plot(time, mean_wave + std_wave,
+                    linewidth=2.0, color='black',
+                    alpha=0.5)
+            ax.set_xlabel('Time (ms)',
+                          fontsize=35)
+
+            ax.set_title('%s %s\ntotal waveforms = %i'
+                         % (rl, u, waves.shape[0]),
+                         fontsize = 20)
+            ax.autoscale(axis='x', tight=True)
+            plt.tick_params(axis='both', which='major', labelsize=32)
+
+            if np.min(mean_wave - std_wave) - 20 < ylim[0]:
+                ylim[0] = np.min(mean_wave - std_wave) - 20
+
+            if np.max(mean_wave + std_wave) + 20 > ylim[1]:
+                ylim[1] = np.max(mean_wave + std_wave) + 20
+
+        for ax in row_ax:
+            ax.set_ylim(ylim)
+
+        fig_ax[0].set_ylabel('Voltage (microvolts)', fontsize=35)
+        plt.subplots_adjust(top=.75)
+        plt.suptitle(title_str)
+        fig.savefig(os.path.join(save_dir,
+                                 'Unit%s_waveforms.png' % unit_name),
+                    bbox_inches='tight')
+        plt.close('all')

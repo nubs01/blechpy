@@ -2,9 +2,14 @@ import tkinter as tk
 from tkinter import ttk
 from collections.abc import Mapping
 from copy import deepcopy
-from blechpy.data_print import data_print as dp
+from blechpy.utils import print_tools as pt
 import easygui as eg
 import sys
+import os
+from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
+from prompt_toolkit.history import InMemoryHistory
+from prompt_toolkit.shortcuts import prompt as pt_prompt
+from prompt_toolkit.completion import PathCompleter
 
 
 def center(win):
@@ -35,11 +40,13 @@ def get_dict_shell_input(dat, type_dict=None, tabstop='', prompt=None):
         if type_dict[k] is list:
             prompt += '(comma-separated)'
 
-        if all([v is not x for x in [None, [], {}, '']]):
-            prompt += '[default = %s]' % v
-
         prompt += ' : '
-        tmp = input(prompt)
+        if any([isinstance(v, x) for x in [str, list, int, float]]):
+            default_val = str(v).replace('[','').replace(']','')
+            tmp = pt_prompt(prompt, default=default_val)
+        else:
+            tmp = pt_prompt(prompt)
+
         if tmp == 'abort':
             return None
 
@@ -53,6 +60,8 @@ def make_type_dict(dat):
     for k, v in dat.items():
         if isinstance(v, Mapping) and v != {}:
             tmp = make_type_dict(v)
+        elif isinstance(v, type):
+            tmp = v
         elif v is None or v == {}:
             tmp = str
         else:
@@ -97,6 +106,9 @@ def convert_str_to_type(item, dtype):
 
 
 def fill_dict(data, prompt=None, shell=False):
+    if 'SSH_CONNECTION' in os.environ:
+        shell = True
+
     filler = dictIO(data, shell=shell)
     out= filler.fill_dict(prompt=prompt)
     return out
@@ -104,6 +116,9 @@ def fill_dict(data, prompt=None, shell=False):
 
 class dictIO(object):
     def __init__(self, data, types=None, shell=False):
+        if 'SSH_CONNECTION' in os.environ:
+            shell = True
+
         if not isinstance(data, Mapping):
             raise TypeError(('%s is invalid data type. Requires extension of'
                              'Mapping such as dict.') % type(data))
@@ -197,7 +212,13 @@ class dict_fill_pane(ttk.Frame):
                 if t is list:
                     prompt += '(comma-separated)'
                 if all([v is not x for x in [None, [], {}, '']]):
-                    if t is bool:
+                    if isinstance(v, type):
+                        if t is bool:
+                            default = False
+                        else:
+                            default = ''
+
+                    elif t is bool:
                         default = v
                     else:
                         default = str(v)
@@ -205,6 +226,7 @@ class dict_fill_pane(ttk.Frame):
                             default = default[1:-1]
                 else:
                     default = ''
+
                 prompt += ' : '
                 label = ttk.Label(line, text=prompt)
                 if t is bool:
@@ -213,6 +235,7 @@ class dict_fill_pane(ttk.Frame):
                 else:
                     var = tk.StringVar(self, value=default)
                     entry = ttk.Entry(line, textvariable=var)
+
                 self.val_dict[k] = var
                 label.pack(side='left')
                 entry.pack(side='right')
@@ -237,14 +260,14 @@ class dict_fill_pane(ttk.Frame):
         return deepcopy(output)
 
 
-def ask_user(msg, choices=['Yes', 'No'], shell=False):
+def ask_user(msg, choices=['No', 'Yes'], shell=False):
     '''Ask the user a question with certain choices
 
     Parameters
     ----------
     msg : str, message to show user
     choices : list or tuple with choices (optional)
-        default is ('Yes', 'No')
+        default is ('No', 'Yes')
     shell : bool (optional)
         True is command line interface for input
         False (default) for GUI
@@ -253,6 +276,9 @@ def ask_user(msg, choices=['Yes', 'No'], shell=False):
     -------
     int : index of users choice
     '''
+    if 'SSH_CONNECTION' in os.environ:
+        shell = True
+
     if shell:
         original = sys.stdout
         sys.stdout = sys.__stdout__
@@ -284,76 +310,33 @@ def get_user_input(msg, default=None, shell=False):
     shell : bool (optional)
         True for CLI, False (default) for GUI
     '''
+    if 'SSH_CONNECTION' in os.environ:
+        shell = True
+
     if shell:
         original = sys.stdout
         sys.stdout = sys.__stdout__
         try:
             prompt = msg + ' '
-            if default is not None:
-                prompt += '(default=%s) ' % default
+            #if default is not None:
+            #    prompt += '(default=%s) ' % default
+            if default is None:
+                default = ''
 
-            out = input(prompt)
+            prompt += ' : '
+            out = pt_prompt(prompt, default=default)
             if out == '':
                 out = default
+
         except EOFError:
             out = None
 
         sys.stdout = original
         return out
     else:
-        out = eg.enterbox(msg)
-        if out == '':
-            out = default
+        out = eg.enterbox(msg, default=default)
 
         return out
-
-def get_dir(prompt=None, default=None, shell=False):
-    '''Query the user to select a directory
-
-    Parameters
-    ----------
-    prompt : str (optional), user prompt
-    shell : bool (optional)
-        True for CLI, False (default) for GUI
-
-    Returns
-    -------
-    str, path to selected directory
-    '''
-    if shell:
-        out = get_user_input(prompt+'\n', default=default, shell=shell)
-        return out
-    else:
-        if default is None:
-            default == ''
-
-        out = eg.diropenbox(prompt, default=default)
-        return out
-
-def get_file(prompt=None, default=None, shell=False):
-    '''Query ther user for a file path
-
-    Parameters
-    ----------
-    prompt : str (optional), prompt for user
-    default: str (optional), default path
-    shell: bool (optional)
-        True for CLI. False (default) for GUI
-
-    Returns
-    -------
-    str, path to file
-    '''
-    if shell:
-        out = get_user_input(prompt+'\n', default=default, shell=shell)
-        return out
-    else:
-        if default is None:
-            default = ''
-
-        out = eg.fileopenbox(prompt, default=default)
-        return out
-
 
 def select_from_list(prompt, items, title='', multi_select=False, shell=False):
     '''makes a popup for list selections, can be multichoice or single choice
@@ -376,6 +359,12 @@ def select_from_list(prompt, items, title='', multi_select=False, shell=False):
     str (if multi_select=False): string of selected choice
     list (if multi_select=True): list of strings that were selected
     '''
+    if 'SSH_CONNECION' in os.environ:
+        shell = True
+
+    if not isinstance(items, list):
+        raise TypeError("Passed %s, but expected <class 'list'>" % type(items))
+
     if shell:
         original = sys.stdout
         sys.stdout = sys.__stdout__
@@ -419,6 +408,9 @@ def tell_user(msg, shell=False):
     shell : bool (optional)
         True for command-line, False (default) for GUI
     '''
+    if 'SHH_CONNECTION' in os.environ:
+        shell = True
+
     if shell:
         original = sys.stdout
         sys.stdout = sys.__stdout__
@@ -428,6 +420,7 @@ def tell_user(msg, shell=False):
     else:
         eg.msgbox(msg)
         return True
+
 
 def confirm_parameter_dict(params, prompt, shell=False):
     '''Shows user a dictionary and asks them to confirm that the values are
@@ -450,7 +443,7 @@ def confirm_parameter_dict(params, prompt, shell=False):
        by  user
     '''
     prompt = ('----------\n%s\n----------\n%s\nAre these parameters good?' %
-              (prompt, dp.print_dict(params)))
+              (prompt, pt.print_dict(params)))
     q = ask_user(prompt, choices=['Yes', 'Edit', 'Cancel'], shell=shell)
     if q == 2:
         return None
@@ -460,3 +453,163 @@ def confirm_parameter_dict(params, prompt, shell=False):
         new_params = fill_dict(params, 'Enter new values:', shell=shell)
         return new_params
 
+
+def get_labels(items, prompt='', shell=False):
+    '''Gets user input corresponding to items in items
+
+    Parameters
+    ----------
+    items : list of str
+    prompt: str
+    shell : bool
+        True for command-line interface. False (default) for GUI.
+        Automatically sets to True when connected via ssh
+
+    Returns
+    -------
+    list of str
+    '''
+    if 'SSH_CONNECTION' in os.environ:
+        shell=True
+
+    tmp = dict.fromkeys(items,'')
+    tmp = fill_dict(tmp, prompt, shell)
+    out = [tmp[x] for x in items]
+    return out
+
+
+def get_filedirs(prompt='', root=None, multi=False, shell=False):
+    '''Queries user for directory or multiple directories
+
+    Parameters
+    ----------
+    prompt : str
+    root : str, where to start file chooser
+    multi : bool, whether to query for multiple directories
+    shell : bool
+        True for command-line interface, False (default) for GUI
+        forced True if ssh
+
+    Returns
+    -------
+    str or list of str
+    '''
+    if 'SSH_CONNECTION' in os.environ:
+        shell=True
+
+    path_completer = PathCompleter(only_directories=True)
+    history = InMemoryHistory()
+
+    go = True
+    out = []
+    if shell:
+        print(prompt)
+        if multi:
+            print('Leave blank or ctrl-c to terminate collection')
+
+        print('----------')
+
+    while go:
+        if shell:
+            if root is None:
+                root = ''
+
+            try:
+                tmp = pt_prompt(' >> ', completer=path_completer, history=history,
+                                auto_suggest=AutoSuggestFromHistory(), default=root)
+            except KeyboardInterrupt:
+                break
+
+        else:
+            tmp = eg.diropenbox(prompt + ' (cancel to stop collection)', default=root)
+
+        if tmp == '' or tmp is None:
+            go = False
+        elif os.path.isdir(tmp):
+            root = os.path.dirname(tmp)
+            out.append(tmp)
+        else:
+            print('Must enter a valid path to a directory')
+
+        if not multi:
+            out = out[0]
+            break
+
+    if out == [] or out == '':
+        out = None
+
+    return out
+
+
+def get_files(prompt='', root=None, filetypes=None, multi=False, shell=False):
+    '''Queries user for file or multiple files
+
+    Parameters
+    ----------
+    prompt : str
+    root : str, where to start file chooser
+    multi : bool, whether to query for multiple directories
+    filetypes : list of str, list of acceptable file suffixes
+    shell : bool
+        True for command-line interface, False (default) for GUI
+        forced True if ssh
+
+    Returns
+    -------
+    str or list of str
+    '''
+    if 'SSH_CONNECTION' in os.environ:
+        shell=True
+
+    if filetypes is not None:
+        file_filter = lambda x: (any([x.endswith(y) for y in filetypes]) or os.path.isdir(x))
+    else:
+        file_filter = None
+
+    path_completer = PathCompleter(file_filter=file_filter)
+    history = InMemoryHistory()
+
+    go = True
+    out = []
+    if shell:
+        print(prompt)
+        if multi:
+            print('Leave blank or ctrl-c to terminate collection')
+
+        print('----------')
+
+    while go:
+        if shell:
+            if root is None:
+                root = ''
+
+            try:
+                tmp = pt_prompt(' >> ', completer=path_completer, history=history,
+                                auto_suggest=AutoSuggestFromHistory(), default=root)
+            except KeyboardInterrupt:
+                break
+
+        else:
+            tmp = eg.fileopenbox(prompt + ' (cancel to stop collection)',
+                                 default=root, multiple=multi,
+                                 filetypes=filetypes)
+
+        if tmp == '' or tmp is None:
+            go = False
+        elif isinstance(tmp, list) and all([os.path.isfile(x) for x in tmp]):
+            root = os.path.dirname(tmp[0])
+            out.extend(tmp)
+        elif os.path.isfile(tmp):
+            root = os.path.dirname(tmp)
+            out.append(tmp)
+        else:
+            print('Must enter a valid path to file')
+
+        if not multi:
+            out = out[0]
+            break
+
+    if out == [] or out == '':
+        out = None
+
+    return out

@@ -53,7 +53,7 @@ def waveforms_datashader(waveforms, dir_name = "datashader_temp"):
     img = imread(dir_name + "/tempfile.png")
     
     # Figure sizes chosen so that the resolution is 100 dpi
-    fig,ax = plt.subplots(1, 1, figsize = (8,6), dpi = 200)
+    fig,ax = plt.subplots(1, 1, figsize = (12,8), dpi = 200)
     # Start plotting
     ax.imshow(img)
     # Set ticks/labels - 10 on each axis

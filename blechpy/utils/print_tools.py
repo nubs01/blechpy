@@ -2,38 +2,8 @@ import pandas as pd
 import datetime as dt
 from copy import deepcopy
 import re
+import sys
 
-def get_datetime_from_str(date_str,accepted_formats = ['%m/%d/%y','%m/%d/%y %H:%M',
-                                                        '%m%d%y %H:%M','%H:%M']):
-    '''
-    check datetime string format and convert to datetime
-    '''
-    out = None
-    if date_str is None:
-        return None
-    for fmt in accepted_formats:
-        try:
-            out = dt.datetime.strptime(date_str,fmt)
-            if out != None:
-                break
-        except ValueError:
-            out = None
-    return out
-
-def get_date_str(date,fmt='%m/%d/%y'):
-    '''
-    get string from datatime object. None object will return a default date
-    string depending on the desired fmt. i.e. fmt='%m/%d/%y' will return
-    'mm/dd/yy' for None input
-    '''
-    null_convert = {'%m':'mm','%d':'dd','%y':'yy','%H':'HH','%M':'MM'}
-    if date is None or date is '':
-        out = fmt
-        for k,v in null_convert.items():
-            out = out.replace(k,v)
-        return out
-    return date.strftime(fmt)
-        
 
 def print_dict(dic,tabs=0):
     '''
@@ -71,6 +41,7 @@ def print_dict(dic,tabs=0):
         out = '    '+out.replace('\n','\n    ')
     return out
 
+
 def print_dataframe(df,tabs=0,idxfmt='Date'):
     '''
     Turns a pandas dataframe into a string without numerical index, date index
@@ -93,6 +64,7 @@ def print_dataframe(df,tabs=0,idxfmt='Date'):
     for i in range(tabs):
         out = '    '+out.replace('\n','\n    ')
     return out
+
 
 def print_list_table(lis,headers=[]):
     '''Make a string from list of lists with columns for each list
@@ -123,4 +95,37 @@ def print_list_table(lis,headers=[]):
         out.append(fmt.format(*x))
     out = '\n'.join(out)
     return out
+
+
+def println(txt):
+    '''Print inline without newline
+    required due to how ipython doesn't work right with print(..., end='')
+    '''
+    sys.stdout.write(txt)
+    sys.stdout.flush()
+
+
+def get_next_letter(letter):
+    '''gets next letter in the alphabet
+    Z -> AA, AZ -> BA, etc
+    Preserves case of input, allows mixed-case
+
+    Parameters
+    ----------
+    letter : str
+    '''
+    letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+    if letter[-1].islower():
+        letters = letters.lower()
+
+    idx = letters.rfind(letter[-1])
+    if len(letter) == 1 and idx < (len(letters) - 1):
+        return letters[idx+1]
+    elif len(letter) == 1:
+        return letters[0]*2
+    elif len(letter) > 1 and idx < (len(letters) -1):
+        return letter[:-1] + letters[idx+1]
+    else:
+        out = get_next_letter(letter[:-1])
+        return out+letters[0]
 

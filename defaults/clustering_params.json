@@ -1,4 +1,5 @@
 {
+ "multi" : true,
  "clean": {
   "file_dir": null,
   "data_quality": "clean",

@@ -5,15 +5,13 @@ import ast
 import re
 import shutil
 import numpy as np
-import easygui as eg
 import pylab as plt
 import datetime as dt
 from sklearn.mixture import GaussianMixture
 from sklearn.decomposition import PCA
 from blechpy.plotting import blech_waveforms_datashader
-from blechpy.dio import h5io, particles
-from blechpy.data_print import data_print as dp
-from blechpy.widgets import userIO
+from blechpy.dio import h5io
+from blechpy.utils import print_tools as pt, userIO
 from copy import deepcopy
 from numba import jit
 import itertools
@@ -30,9 +28,11 @@ def sort_units(file_dir, fs, shell=False):
     shell : bool
         True for command-line interface, False for GUI (default)
     '''
+    if 'SSH_CONNECTION' in os.environ:
+        shell = True
+
     matplotlib.use('Qt5Agg')
-    hf5_name = h5io.get_h5_filename(file_dir)
-    hf5_file = os.path.join(file_dir, hf5_name)
+    hf5_file = h5io.get_h5_filename(file_dir)
     sorting_log = hf5_file.replace('.h5', '_sorting.log')
     metrics_dir = os.path.join(file_dir, 'sorted_unit_metrics')
     if not os.path.exists(metrics_dir):
@@ -200,14 +200,13 @@ def get_cell_types(cluster_names, shell=True):
         with keys 'Single unit', 'Regular spiking', 'Fast spiking' and values
         are 0 or 1 for each  key
     '''
-    query = {'Single Unit': False, 'Regular Spiking': False,
-             'Fast Spiking': False}
+    query = {'Single Unit': bool, 'Regular Spiking': bool,
+             'Fast Spiking': bool}
     new_query = {}
     for name in cluster_names:
         new_query[name] = query.copy()
 
-    query = userIO.dictIO(new_query, shell=shell)
-    ans = query.fill_dict()
+    ans = userIO.fill_dict(new_query, shell=shell)
     if ans is None:
         return None
     out = []
@@ -265,7 +264,7 @@ def label_single_unit(hf5_file, cluster, fs, sorting_log=None,
         for k, v in cluster.items():
             if isinstance(v, np.ndarray):
                 print_clust.pop(k)
-        print(dp.print_dict(print_clust), file=log)
+        print(pt.print_dict(print_clust), file=log)
         print('Saving metrics to %s' % metrics_dir, file=log)
         print('--------------', file=log)
 
@@ -305,7 +304,7 @@ def label_single_unit(hf5_file, cluster, fs, sorting_log=None,
                  dt.datetime.today().strftime('%m/%d/%y %H: %M')),
               file=log)
         print('Cluster info: \n----------', file=log)
-        print(dp.print_dict(print_clust), file=log)
+        print(pt.print_dict(print_clust), file=log)
         print('Saved metrics to %s' % metrics_dir, file=log)
         print('--------------', file=log)
 
@@ -369,7 +368,7 @@ def split_cluster(cluster, fs, params=None, shell=True):
             clust_log = cluster['manipulations'] + \
                 '\nSplit %s with parameters: ' \
                 '\n%s\nCluster %i from split results. Named %s' \
-                % (cluster['Cluster Name'], dp.print_dict(params),
+                % (cluster['Cluster Name'], pt.print_dict(params),
                    c, clust_name)
             tmp_clust['Cluster Name'] = clust_name
             tmp_clust['cluster_id'] = clust_id
@@ -662,60 +661,6 @@ def plot_cluster(cluster, index=None):
     return fig, ax
 
 
-def make_unit_plots(file_dir, fs):
-    '''Makes waveform plots for sorted unit in unit_waveforms_plots
-
-    Parameters
-    ----------
-    file_dir : str, full path to recording directory
-    fs : float, smapling rate in Hz
-    '''
-    h5_name = h5io.get_h5_filename(file_dir)
-    h5_file = os.path.join(file_dir, h5_name)
-
-    plot_dir = os.path.join(file_dir, 'unit_waveforms_plots')
-    if os.path.exists(plot_dir):
-        shutil.rmtree(plot_dir, ignore_errors=True)
-    os.mkdir(plot_dir)
-    fs_str = '(%g samples per ms)' % (fs/1000.0)
-    unit_numbers = get_unit_numbers(h5_file)
-    with tables.open_file(h5_file, 'r+') as hf5:
-        units = hf5.list_nodes('/sorted_units')
-        for i, unit in zip(unit_numbers, units):
-            # plot all waveforms
-            waveforms = unit.waveforms[:]
-            descriptor = hf5.root.unit_descriptor[i]
-            fig, ax = blech_waveforms_datashader.waveforms_datashader(
-                waveforms)
-            ax.set_xlabel('Samples (%s)' % fs_str)
-            ax.set_ylabel('Voltage (microvolts)')
-            unit_title = (('Unit %i, total waveforms = %i\nElectrode: %i, '
-                           'Single Unit: %i, RSU: %i, FSU: %i') %
-                          (i, waveforms.shape[0],
-                           descriptor['electrode_number'],
-                           descriptor['single_unit'],
-                           descriptor['regular_spiking'],
-                           descriptor['fast_spiking']))
-            ax.set_title(unit_title)
-            fig.savefig(os.path.join(plot_dir, 'Unit%i.png' % i))
-            plt.close('all')
-
-            # Plot mean and SEM of waveforms
-            # Downsample by 10 to remove upsampling from de-jittering
-            fig = plt.figure()
-            mean_wave = np.mean(waveforms[:, ::10], axis=0)
-            std_wave = np.std(waveforms[:, ::10], axis=0)
-            mean_x = np.arange(mean_wave.shape[0]) + 1
-            plt.plot(mean_x, mean_wave, linewidth=4.0)
-            plt.fill_between(mean_x, mean_wave - std_wave,
-                             mean_wave + std_wave, alpha=0.4)
-            plt.xlabel('Samples (%s)' % fs_str)
-            plt.ylabel('Voltage (microvolts)')
-            plt.title(unit_title)
-            fig.savefig(os.path.join(plot_dir, 'Unit%i_mean_sd.png' % i))
-            plt.close('all')
-
-
 def delete_unit(file_dir, unit_num):
     '''Delete a sorted unit and re-label all following units. Also relabel all
     associated plots and data in sorted_unit_metrics and unit_waveform_plots
@@ -727,9 +672,12 @@ def delete_unit(file_dir, unit_num):
     '''
     print('\n----------\nDeleting unit %i from dataset\n----------\n'
           % unit_num)
-    h5_name = h5io.get_h5_filename(file_dir)
-    h5_file = os.path.join(file_dir, h5_name)
+    h5_file = h5io.get_h5_filename(file_dir)
     unit_numbers = get_unit_numbers(h5_file)
+    if unit_num not in unit_numbers:
+        print('Unit %i not found in data. Nothing being deleted' % unit_num)
+        return False
+
     unit_name = 'unit%03d' % unit_num
     change_units = [x for x in unit_numbers if x > unit_num]
     new_units = [x-1 for x in change_units]
@@ -776,6 +724,7 @@ def delete_unit(file_dir, unit_num):
     # Compress and repack
     h5io.compress_and_repack(h5_file)
     print('Finished deleting unit\n----------')
+    return True
 
 
 def make_spike_arrays(h5_file, params):
@@ -982,8 +931,8 @@ def calc_units_similarity(h5_file, fs, similarity_cutoff=50,
     similarity_matrix : numpy.array
     '''
     print('\n---------\nBeginning unit similarity calculation\n----------')
-    violation_str = 'Unit Number 1\tUnit Number 2\t% Similarity\n'
     violations = 0
+    violation_pairs = []
     if violation_file is None:
         violation_file = os.path.join(os.path.dirname(h5_file),
                                       'unit_similarity_violations.txt')
@@ -1009,9 +958,7 @@ def calc_units_similarity(h5_file, fs, similarity_cutoff=50,
 
             if u1_idx != u2_idx and tmp_dist >= similarity_cutoff:
                 violations += 1
-                violation_str += '%s\t%s\t%g\n' % (u1._v_name,
-                                                   u2._v_name,
-                                                   tmp_dist)
+                violation_pairs.append((u1._v_name, u2._v_name))
 
         print('\nSimilarity calculation done!')
         if '/unit_distances' in hf5:
@@ -1021,13 +968,22 @@ def calc_units_similarity(h5_file, fs, similarity_cutoff=50,
         hf5.flush()
 
     if violations > 0:
-        print('Found %i violations:' % violations)
-        print('\t' + violation_str.replace('\n', '\n\t'))
+        out_str = '%i units similarity violations found:\n' % violations
+        out_str += 'Unit_1    Unit_2    Similarity\n'
+        for x,y in violation_pairs:
+            u1 = dio.h5io.parse_unit_number(x)
+            u2 = dio.h5io.parse_unit_number(y)
+            out_str += '   {:<10}{:<10}{}\n'.format(x, y,
+                                                    unit_distances[u1][u2])
 
+    else:
+        out_str = 'No unit similarity violations found!'
+
+    print(out_str)
     with open(violation_file, 'w') as vf:
-        print(violation_str, file=vf)
+        print(out_str, file=vf)
 
-    return unit_distances
+    return violation_pairs, unit_distances
 
 def plot_pca_view(clusters):
     fig, axs = plt.subplots(2, 2, sharex=False, sharey=False)
