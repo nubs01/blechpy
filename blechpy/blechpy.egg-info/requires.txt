@@ -1,0 +1,12 @@
+datashader
+numpy
+pandas
+scipy
+tkinter
+matplotlib
+tables
+scikit-learn
+easygui
+pyqt5
+tqdm
+seaborn

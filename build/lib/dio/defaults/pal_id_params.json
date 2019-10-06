@@ -1,0 +1,10 @@
+{
+ "window_size": 250,
+ "window_step": 25,
+ "num_comparison_bins": 5,
+ "comparison_bin_size": 250,
+ "discrim_p": 0.01,
+ "pal_deduce_start_time": 700,
+ "pal_deduce_end_time": 1200,
+ "unit_type": "Single"
+}

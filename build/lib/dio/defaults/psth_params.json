@@ -1,0 +1,6 @@
+{
+ "window_size": 250,
+ "window_step": 25,
+ "plot_pre_stimulus": 1000,
+ "plot_post_stimulus": 2500
+}

@@ -1,0 +1,7 @@
+{
+ "dig_ins_to_use": null,
+ "laser_channels": null,
+ "sampling_rate": null,
+ "pre_stimulus": 2000,
+ "post_stimulus": 5000
+}
