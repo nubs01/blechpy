@@ -838,9 +838,9 @@ def get_referenced_trace(rec_dir, electrode):
     could not be obtained
     '''
     h5_file = get_h5_filename(rec_dir)
-    with tables.open_file(h5_file, 'r'):
-        if '/referenced' in hf5:
-            out = hf5.raw['electrode%i' % electrode][:] * rawIO.voltage_scaling
+    with tables.open_file(h5_file, 'r') as hf5:
+        if '/referenced' in hf5 and '/referenced/electrode%i' % electrode in hf5:
+            out = hf5.root.referenced['electrode%i' % electrode][:] * rawIO.voltage_scaling
         else:
             out = None
 

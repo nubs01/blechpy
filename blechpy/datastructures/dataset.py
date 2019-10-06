@@ -29,7 +29,7 @@ class dataset(data_object):
         will popup
     '''
 
-    def __init__(self, file_dir=None, shell=False):
+    def __init__(self, file_dir=None, data_name=None, shell=False):
         '''Initialize dataset object from file_dir, grabs basename from name of
         directory and initializes basic analysis parameters
 
@@ -44,7 +44,7 @@ class dataset(data_object):
             when prompted
         NotADirectoryError : if file_dir does not exist
         '''
-        super().__init__('dataset', file_dir, shell=shell)
+        super().__init__('dataset', file_dir, data_name=data_name, shell=shell)
         h5_file = dio.h5io.get_h5_filename(self.root_dir)
         if h5_file is None:
             h5_file = os.path.join(self.root_dir, '%s.h5' % self.data_name)
@@ -75,6 +75,7 @@ class dataset(data_object):
     @Logger('Initializing Parameters')
     def initParams(self, data_quality='clean', emg_port=None,
                    emg_channels=None, car_keyword=None,
+                   car_group_areas=None,
                    shell=False, dig_in_names=None,
                    dig_out_names=None, accept_params=False):
         '''
@@ -151,14 +152,14 @@ class dataset(data_object):
                                     emg_channels, shell=shell)
 
         # Set CAR groups
-        self._set_CAR_groups(group_keyword=car_keyword, shell=shell)
+        self._set_CAR_groups(group_keyword=car_keyword, group_areas=car_group_areas, shell=shell)
 
         # Confirm parameters
+        self.spike_array_params = spike_array_params
         if not accept_params:
             conf = userIO.confirm_parameter_dict
             clustering_params = conf(clustering_params,
                                      'Clustering Parameters', shell=shell)
-            self.spike_array_params = spike_array_params
             self.edit_spike_array_params(shell=shell)
             psth_params = conf(psth_params,
                                'PSTH Parameters', shell=shell)
@@ -175,7 +176,7 @@ class dataset(data_object):
         self.process_status['initialize parameters'] = True
         self.save()
 
-    def _set_CAR_groups(self, group_keyword=None, shell=False):
+    def _set_CAR_groups(self, group_keyword=None, shell=False, group_areas=None):
         '''Sets that electrode groups for common average referencing and
         defines which brain region electrodes eneded up in
 
@@ -210,24 +211,30 @@ class dataset(data_object):
                 if group_keyword is None:
                     ValueError('Must provide a keyword or number of groups')
 
-                elif group_keyword.isnumeric():
-                    num_groups = int(group_keyword)
-                    group_electrodes = dio.params.select_CAR_groups(num_groups, em,
-                                                                    shell=shell)
-                else:
-                    group_electrodes = dio.params.load_params('CAR_params',
-                                                              self.root_dir,
-                                                              default_keyword=group_keyword)
+            elif group_keyword.isnumeric():
+                num_groups = int(group_keyword)
+                group_electrodes = dio.params.select_CAR_groups(num_groups, em,
+                                                                shell=shell)
+            else:
+                group_electrodes = dio.params.load_params('CAR_params',
+                                                          self.root_dir,
+                                                          default_keyword=group_keyword)
 
         num_groups = len(group_electrodes)
-        group_names = ['Group %i' % i for i in range(num_groups)]
-        area_dict = dict.fromkeys(group_names, '')
-        area_dict = userIO.fill_dict(area_dict, 'Set Areas for CAR groups',
-                                     shell=shell)
-        for k, v in area_dict.items():
-            i = int(k.replace('Group', ''))
-            em.loc[group_electrodes[i], 'area'] = v
-            em.loc[group_electrodes[i], 'CAR_group'] = i
+        if group_areas is not None and len(group_areas) == num_groups:
+            for i, x in enumerate(zip(group_electrodes, group_areas)):
+                em.loc[x[0], 'area'] = x[1]
+                em.loc[x[0], 'CAR_group'] = i
+
+        else:
+            group_names = ['Group %i' % i for i in range(num_groups)]
+            area_dict = dict.fromkeys(group_names, '')
+            area_dict = userIO.fill_dict(area_dict, 'Set Areas for CAR groups',
+                                         shell=shell)
+            for k, v in area_dict.items():
+                i = int(k.replace('Group', ''))
+                em.loc[group_electrodes[i], 'area'] = v
+                em.loc[group_electrodes[i], 'CAR_group'] = i
 
         self.CAR_electrodes = group_electrodes
         self.electrode_mapping = em.copy()

@@ -1,4 +1,21 @@
-v1.1.0, (2019-10-5)
+v1.1.2, (2019-10-07)
+-------------------
+- Critical bug fix:
+    - blechpy.dio.h5io now properly importing referenced traces
+    - blechpy.analysis.blech_clust_process now properly choosing raw data only
+      if referenced data is not available
+
+v1.1.1, (2019-10-06)
+-------------------
+- Fixed critical bugs in new dataset creation:
+    - Indentation error causing CAR groups to not be assigned properly
+    - info.rhd corruption checking
+
+- Can run from setup through clustering with only a single prompt if desired 
+    - Allows you to programmatically setup, extract and cluster many recordings without staying near the keyboard
+
+
+v1.1.0, (2019-10-05)
 -------------------
 - Fixed requirments and setup.py so that project properly installs via pip.
 - Fix default parameter loading

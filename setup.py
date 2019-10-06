@@ -14,12 +14,12 @@ if os.path.isfile(requirementPath):
 
 setuptools.setup(
     name='blechpy',
-    version='1.1.0',
+    version='1.1.2',
     author='Roshan Nanu',
     author_email='roshan.nanu@gmail.com',
     description='Package for exrtacting, processing and analyzing Intan and OpenEphys data',
-    long_description=long_description,
     long_description_content_type='text/markdown',
+    long_description=long_description,
     url='https://github.com/nubs01/blechpy',
     packages=setuptools.find_packages(),
     classifiers=[

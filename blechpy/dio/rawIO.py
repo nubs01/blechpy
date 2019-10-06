@@ -1,4 +1,4 @@
-import numpy as np
+import numpy as np 
 import os, re
 from blechpy.dio import load_intan_rhd_format
 from blechpy.utils import print_tools as pt, userIO
@@ -26,7 +26,7 @@ def get_sampling_rate(rec_dir):
     return info['frequency_parameters']['amplifier_sample_rate']
 
 
-def read_rec_info(file_dir):
+def read_rec_info(file_dir, shell=True):
     '''Reads the info.rhd file to get relevant parameters.
     Parameters
     ----------
@@ -42,15 +42,20 @@ def read_rec_info(file_dir):
     ------
     FileNotFoundError : if info.rhd is not in file_dir
     '''
-    if 'SSH_CONNECTION' in os.environ:
-        shell = True
-
     info_file = os.path.join(file_dir,'info.rhd')
     if not os.path.isfile(info_file):
         raise FileNotFoundError('info.rhd file not found in %s' % file_dir)
     out = {}
     print('Reading info.rhd file...')
-    info = load_intan_rhd_format.read_data(info_file)
+    try:
+        info = load_intan_rhd_format.read_data(info_file)
+    except Exception as e:
+        # TODO: Have a way to manually input settings
+        info = None
+        userIO.tell_user('%s was unable to be read. May be corrupted or '
+                         'recording may have been interrupted' % info_file,
+                         shell=True)
+        raise e
 
     freq_params = info['frequency_parameters']
     notch_freq = freq_params['notch_filter_frequency']

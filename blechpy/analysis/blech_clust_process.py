@@ -58,9 +58,9 @@ def blech_clust_process(electrode_num, file_dir, params):
 
     # Open up hdf5 file, and load this electrode number
     # Check if referenced data exists, if not grab raw
-    raw_el = h5io.get_referenced_trace(file_dir, electrode_num)
+    raw_el = dio.h5io.get_referenced_trace(file_dir, electrode_num)
     if raw_el is None:
-        raw_el = h5io.get_raw_trace(file_dir, electrode_num)
+        raw_el = dio.h5io.get_raw_trace(file_dir, electrode_num)
 
     if raw_el is None:
         raise KeyError('Neither /raw/electrode{0} nor /referenced/electrode{0} found in {1}'. \
