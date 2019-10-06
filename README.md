@@ -2,18 +2,17 @@
 - [Installation](#installation)
 - [Usage](#usage)
 - [Datasets](#datasets)
-  * [Getting Started](#getting-started)
-    + [With a raw dataset](#with-a-raw-dataset)
-      - [Create dataset](#create-dataset)
-      - [Initialize Parameters](#initialize-parameters)
-      - [Basic Processing](#basic-processing)
+  * [Starting wit a raw dataset](#starting-wit-a-raw-dataset)
+    + [Create dataset](#create-dataset)
+    + [Initialize Parameters](#initialize-parameters)
+    + [Basic Processing](#basic-processing)
     + [Viewing a Dataset](#viewing-a-dataset)
   * [Loading an existing dataset](#loading-an-existing-dataset)
   * [Import processed dataset into dataset framework](#import-processed-dataset-into-dataset-framework)
 - [Experiments](#experiments)
-    + [Creating an experiment](#creating-an-experiment)
-    + [Editing recordings](#editing-recordings)
-    + [Held unit detection](#held-unit-detection)
+  * [Creating an experiment](#creating-an-experiment)
+  * [Editing recordings](#editing-recordings)
+  * [Held unit detection](#held-unit-detection)
 
 <small><i><a href='http://ecotrust-canada.github.io/markdown-toc/'>Table of contents generated with markdown-toc</a></i></small>
 
@@ -46,11 +45,10 @@ blechpy handles experimental metadata using data_objects which are tied to a dir
     * object that can encompass multiple experiments & data groups and allow analysis or group differences
 
 # Datasets
-## Getting Started
 Right now this pipeline is only compatible with recordings done with Intan's 'one file per channel' or 'one file per signal type' recordings settings.
 
-### With a raw dataset
-#### Create dataset
+## Starting wit a raw dataset
+### Create dataset
 With a brand new *shiny* recording you can initilize a dataset with:
 ```python
 dat = blechpy.dataset('path/to/recording/directory')
@@ -60,7 +58,7 @@ dat = blechpy.dataset()  # for user interface to select directory
 This will create a new dataset object and setup basic file paths.
 If you're working via SSH or just want a command-line interface instead of a GUI you can use the keyword argument `shell=True`
 
-#### Initialize Parameters
+### Initialize Parameters
 ```python
 dat.initParams() 
 # or
@@ -82,7 +80,7 @@ Primarily setups parameters for:
 Initial parameters are pulled from default json files in the dio subpackage.
 Parameters for a dataset are written to json files in a *parameters* folder in the recording directory
 
-#### Basic Processing
+### Basic Processing
 ```python
 dat.processing_status
 ```
@@ -125,8 +123,7 @@ dat = blechpy.port_in_dataset('/path/to/recording/directory')
 ```
 
 # Experiments
-##Getting Started
-### Creating an experiment
+## Creating an experiment
 ```python
 exp = blechpy.experiment('/path/to/dir/encasing/recordings')
 # or
@@ -134,14 +131,14 @@ exp = blechpy.experiment()
 ```
 This will initalize an experiment with all recording folders within the chosen directory.
 
-### Editing recordings
+## Editing recordings
 ```python
 exp.add_recording('/path/to/new/recording/dir/')    # Add recording
 exp.remove_recording('rec_label')                   # remove a recording dir 
 ```
 Recordings are assigned labels when added to the experiment that can be used to easily reference exerpiments.
 
-### Held unit detection
+## Held unit detection
 ```python
 exp.detect_held_units()
 ```
