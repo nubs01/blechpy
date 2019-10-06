@@ -11,7 +11,7 @@ from datashader.utils import export_image
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from scipy.misc import imread
+from imageio import imread
 import shutil
 
 # A function that accepts a numpy array of waveforms and creates a datashader image from them

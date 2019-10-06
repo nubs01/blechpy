@@ -7,12 +7,9 @@ import os
 from scipy.ndimage.filters import gaussian_filter1d
 import matplotlib
 import pylab as plt
-import seaborn as sns
 from blechpy.utils import userIO
 from blechpy import dio
 matplotlib.use('Agg')
-sns.set(style="white", context="talk", font_scale=1.8)
-sns.set_color_codes(palette = 'colorblind')
 
 
 default_plot_params = {'p-value': 0.01, 'num_consecutive_bins': 5,

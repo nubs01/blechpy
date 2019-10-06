@@ -264,7 +264,7 @@ def load_params(param_name, rec_dir=None, default_keyword=None):
     else:
         rec_file = None
 
-    if os.path.isfile(rec_file):
+    if rec_file is not None and os.path.isfile(rec_file):
         out = read_dict_from_json(rec_file)
     elif os.path.isfile(default_file):
         print('%s not found in recording directory. Pulling parameters from defaults' % param_name)

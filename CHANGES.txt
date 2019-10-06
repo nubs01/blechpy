@@ -1,0 +1,7 @@
+v1.1.0, (2019-10-5)
+-------------------
+- Fixed requirments and setup.py so that project properly installs via pip.
+- Fix default parameter loading
+- Change deprecated scipy.misc.imread to imageio.imread in blech_waveforms_datashader
+
+v1.0.0, October 5, 2019 -- Initial release

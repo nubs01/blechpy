@@ -19,9 +19,7 @@ from sklearn.manifold import MDS
 from scipy.stats import mannwhitneyu, spearmanr, sem
 import matplotlib.gridspec as gridspec
 from collections.abc import Iterable
-import seaborn as sns
 from scipy.ndimage.filters import gaussian_filter1d
-sns.set(style='white', context='talk', font_scale=2)
 
 
 

@@ -68,7 +68,7 @@ class data_object(object):
             print(self, file=f)
 
 
-def load_data(data_type, file_dir=None):
+def load_data(data_type, file_dir=None, shell=False):
     '''Loads a data_object .p file and returns the object
 
     Parameters
@@ -89,8 +89,6 @@ def load_data(data_type, file_dir=None):
     '''
     if 'SSH_CONNECTION' in os.environ:
         shell = True
-    else:
-        shell = False
 
     if file_dir is None:
         file_dir = userIO.get_filedirs('Select %s directory' % data_type,
@@ -120,7 +118,7 @@ def load_data(data_type, file_dir=None):
 
     return out
 
-def load_experiment(file_dir=None):
+def load_experiment(file_dir=None, shell=False):
     '''Loads experiment.p file from file_dir
 
     Parameters
@@ -131,9 +129,9 @@ def load_experiment(file_dir=None):
     -------
     blechpy.experiment or None if no file found
     '''
-    return load_data('experiment', file_dir)
+    return load_data('experiment', file_dir, shell=shell)
 
-def load_dataset(file_dir=None):
+def load_dataset(file_dir=None, shell=False):
     '''Loads dataset.p file from file_dir
 
     Parameters
@@ -144,9 +142,9 @@ def load_dataset(file_dir=None):
     -------
     blechpy.dataset or None if no file found
     '''
-    return load_data('dataset', file_dir)
+    return load_data('dataset', file_dir, shell=shell)
 
-def load_project(file_dir=None):
+def load_project(file_dir=None, shell=False):
     '''Loads project.p file from file_dir
 
     Parameters
@@ -157,7 +155,7 @@ def load_project(file_dir=None):
     -------
     blechpy.proejct or None if no file found
     '''
-    return load_data('project', file_dir)
+    return load_data('project', file_dir, shell=shell)
 
 
 
