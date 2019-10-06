@@ -1,5 +1,26 @@
+- [blechpy](#blechpy)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Datasets](#datasets)
+  * [Getting Started](#getting-started)
+    + [With a raw dataset](#with-a-raw-dataset)
+      - [Create dataset](#create-dataset)
+      - [Initialize Parameters](#initialize-parameters)
+      - [Basic Processing](#basic-processing)
+    + [Viewing a Dataset](#viewing-a-dataset)
+  * [Loading an existing dataset](#loading-an-existing-dataset)
+  * [Import processed dataset into dataset framework](#import-processed-dataset-into-dataset-framework)
+- [Experiments](#experiments)
+    + [Creating an experiment](#creating-an-experiment)
+    + [Editing recordings](#editing-recordings)
+    + [Held unit detection](#held-unit-detection)
+
+<small><i><a href='http://ecotrust-canada.github.io/markdown-toc/'>Table of contents generated with markdown-toc</a></i></small>
+
+# blechpy
 This is a package to extract, process and analyze electrophysiology data recorded with Intan or OpenEphys recording systems. This package is customized to store experiment and analysis metadata for the BLECh Lab (Katz lab) @ Brandeis University, but can readily be used and customized for other labs.
 
+# Installation
 If is set this up correctly you can install with pip:
 `pip install blechpy`
 
@@ -87,7 +108,7 @@ dat.sort_units()        # Split, merge and label clusters as units
 Experiments can be easily viewed wih: `print(dat)`
 A summary can also be exported to a text with: `dat.export_to_text()`
 
-### Loading an existing dataset
+## Loading an existing dataset
 ```python
 dat = blechpy.load_dataset() # load an existing dataset from .p file
 # or
@@ -96,7 +117,7 @@ dat = blechpy.load_dataset('path/to/recording/directory')
 dat = blechpy.load_dataset('path/to/dataset/save/file.p')
 ```
 
-### Import processed dataset into dataset framework
+## Import processed dataset into dataset framework
 ```python
 dat = blechpy.port_in_dataset()
 # or
