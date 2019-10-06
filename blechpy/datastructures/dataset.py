@@ -697,10 +697,6 @@ class dataset(data_object):
         print('\nRunning Blech Clust\n-------------------')
         print('Parameters\n%s' % pt.print_dict(self.clustering_params))
 
-        # Write parameters into .params file
-        #self.param_file = os.path.join(self.root_dir, self.data_name+'.params')
-        #dio.params.write_clustering_params(self.param_file, self.clustering_params)
-
         # Create folders for saving things within recording dir
         data_dir = self.root_dir
         directories = ['spike_waveforms', 'spike_times',
@@ -933,12 +929,20 @@ class dataset(data_object):
         pass
 
     def post_sorting(self):
-        pass
+        self.make_unit_plots()
+        self.make_unit_arrays()
+        self.units_similarity()
+        self.make_psth_arrays()
 
 
 def port_in_dataset(rec_dir=None, shell=False):
     '''Import an existing dataset into this framework
     '''
+    if rec_dir is None:
+        rec_dir = userIO.get_filedirs('Select recording directory', shell=shell)
+        if rec_dir is None:
+            return None
+
     dat = dataset(rec_dir, shell=shell)
     # Check files that will be overwritten: log_file, save_file
     if os.path.isfile(dat.save_file):

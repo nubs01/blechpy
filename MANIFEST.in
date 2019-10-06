@@ -1,0 +1,3 @@
+include README.md
+include blechpy/environment.yml
+include blechpy/dio/defaults/*.json

@@ -7,58 +7,10 @@ from blechpy.dio import rawIO
 from blechpy.utils import print_tools as pt, userIO
 
 SCRIPT_DIR = os.path.dirname(__file__)
-PARAM_DIR = os.path.join(SCRIPT_DIR, '..', '..', 'defaults')
-CAR_file = os.path.join(PARAM_DIR, 'CAR_params.json')
+PARAM_DIR = os.path.join(SCRIPT_DIR, 'defaults')
 PARAM_NAMES = ['CAR_params', 'pal_id_params', 'data_cutoff_params',
                'clustering_params', 'bandpass_params', 'spike_snapshot',
                'psth_params']
-
-clustering_params = {'Max Number of Clusters':7,
-                    'Max Number of Iterations':1000,
-                    'Convergence Criterion':0.001,
-                    'GMM random restarts':10}
-
-data_params = {'clean':{'V_cutoff for disconnected headstage':1500,
-                        'Max rate of cutoff breach per second':0.2,
-                        'Max allowed seconds with a breach': 10,
-                        'Max allowed breaches per second':20,
-                        'Intra-cluster waveform amp SD cutoff':3},
-                'noisy':{'V_cutoff for disconnected headstage':3000,
-                        'Max rate of cutoff breach per second':2,
-                        'Max allowed seconds with a breach': 20,
-                        'Max allowed breaches per second':40,
-                        'Intra-cluster waveform amp SD cutoff':3}}
-
-bandpass_params = {'Lower freq cutoff':300,
-                    'Upper freq cutoff':3000} # in Hz
-
-spike_snapshot = {'Time before spike (ms)':.5,
-                    'Time after spike (ms)':1} # in ms
-
-clust_param_order = ['Max Number of Clusters','Max Number of Iterations',
-                    'Convergence Criterion','GMM random restarts']
-
-data_param_order = ['V_cutoff for disconnected headstage',
-                    'Max rate of cutoff breach per second',
-                    'Max allowed seconds with a breach',
-                    'Max allowed breaches per second',
-                    'Intra-cluster waveform amp SD cutoff']
-
-band_param_order = ['Lower freq cutoff','Upper freq cutoff']
-
-spike_snap_order = ['Time before spike (ms)','Time after spike (ms)']
-
-spike_array_params = {'dig_ins_to_use': None, 'laser_channels': None,
-                      'sampling_rate': None, 'pre_stimulus': 2000,
-                      'post_stimulus': 5000}
-
-psth_params = {'window_size': 250, 'window_step': 25,
-               'plot_pre_stimulus': 1000, 'plot_post_stimulus': 2500}
-
-pal_id_params ={'window_size': 250, 'window_step': 25,
-                'num_comparison_bins': 5, 'comparison_bin_size': 250,
-                'discrim_p': 0.01, 'pal_deduce_start_time': 700,
-                'pal_deduce_end_time': 1200, 'unit_type': 'Single'}
 
 
 def Timer(heading):
@@ -216,32 +168,6 @@ def select_CAR_groups(num_groups,electrode_mapping, shell=False):
 
     return car_electrodes
 
-@Timer('Writing Clustering Parameters to .params File')
-def write_clustering_params(file_name,params):
-    '''Writes parameters into a file for use by blech_process.py
-
-    Parameters
-    ----------
-    file_name : str, path to .params file to write params in
-    params : dict, dictionary of parameters with keys:
-                   clustering_params, data_params,
-                   bandpass_params, spike_snapshot
-    '''
-    if not file_name.endswith('.params'):
-        file_name += '.params'
-    print('File: ' + file_name)
-    pt.print_dict(params)
-    with open(file_name,'w') as f:
-        for c in clust_param_order:
-            print(params['clustering_params'][c],file=f)
-        for c in data_param_order:
-            print(params['data_params'][c],file=f)
-        for c in band_param_order:
-            print(params['bandpass_params'][c],file=f)
-        for c in spike_snap_order:
-            print(params['spike_snapshot'][c],file=f)
-        print(params['sampling_rate'],file=f)
-
 
 def flatten_channels(ports,channels,emg_port=None,emg_channels=None):
     '''takes all ports and all channels and makes a dataframe mapping ports and
@@ -286,26 +212,6 @@ def flatten_channels(ports,channels,emg_port=None,emg_channels=None):
     emg_df.reset_index(drop=True,inplace=True)
     emg_df = emg_df.reset_index(drop=False).rename(columns={'index':'EMG'})
     return map_df, emg_df
-
-def get_CAR_groups(car_keyword):
-    '''reads defaults from CAR_params.json and returns the default groups
-    listed under the given keyword. If keyword is not in the defaults file,
-    returns None.
-
-    Parameters
-    ----------
-    car_keyword : str, keyword from defaults file
-
-    Returns
-    -------
-    group_electrodes : list of list of ints
-        list containing a list of electrode numbers for each CAR group
-    '''
-    with open(CAR_file, 'r') as f:
-        default_dict = json.load(f)
-
-    out = default_dict.get(car_keyword)
-    return out
 
 
 def write_dict_to_json(dat, save_file):

@@ -1,8 +1,10 @@
 import sys
 import time
+from functools import wraps
 
 def Logger(heading):
     def real_logger(func):
+        @wraps(func)
         def wrapper(*args, **kwargs):
             old_out = sys.stdout
             sys.stdout.write(heading+'...')
@@ -33,6 +35,7 @@ def Logger(heading):
 
 def Timer(heading):
     def real_timer(func):
+        @wraps(func)
         def wrapper(*args, **kwargs):
             start = time.time()
             print('')

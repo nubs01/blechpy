@@ -3,32 +3,6 @@ import json
 import os
 
 
-def write_clustering_params(file_name,params):
-    '''Writes parameters into a file for use by blech_process.py
-
-    Parameters
-    ----------
-    file_name : str, path to .params file to write params in
-    params : dict, dictionary of parameters with keys:
-                   clustering_params, data_params,
-                   bandpass_params, spike_snapshot
-    '''
-    if not file_name.endswith('.params'):
-        file_name += '.params'
-    print('File: ' + file_name)
-    pt.print_dict(params)
-    with open(file_name,'w') as f:
-        for c in clust_param_order:
-            print(params['clustering_params'][c],file=f)
-        for c in data_param_order:
-            print(params['data_params'][c],file=f)
-        for c in band_param_order:
-            print(params['bandpass_params'][c],file=f)
-        for c in spike_snap_order:
-            print(params['spike_snapshot'][c],file=f)
-        print(params['sampling_rate'],file=f)
-
-
 def write_dict_to_json(dat, save_file):
     '''writes a dict to a json file
 

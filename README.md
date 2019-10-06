@@ -1,4 +1,9 @@
-In order to use first create a compatible conda environment with:
+This is a package to extract, process and analyze electrophysiology data recorded with Intan or OpenEphys recording systems. This package is customized to store experiment and analysis metadata for the BLECh Lab (Katz lab) @ Brandeis University, but can readily be used and customized for other labs.
+
+If is set this up correctly you can install with pip:
+`pip install blechpy`
+
+If you are setting up from source you can create a compatible conda environment with: 
 `conda env create --name blech -f=conda_environment.yml`
 
 Can  then handle all data from within an ipython terminal
@@ -9,77 +14,116 @@ Can  then handle all data from within an ipython terminal
 import blechpy
 ```
 
-### Load dataset
-```python
-dat = blechpy.dataset() # create new dataset object, popup to select file directory
-dat = blechpy.dataset('path/to/recording/directory') # no popup
+# Usage
+blechpy handles experimental metadata using data_objects which are tied to a directory encompassing some level of data. Existing types of data_objects include:
+* dataset
+    * object for a single recording session
+* experiment
+    * object encompasing an ordered set of recordings from a single animal
+    * individual recordings must first be processes as datasets
+* project
+    * object that can encompass multiple experiments & data groups and allow analysis or group differences
 
+# Datasets
+## Getting Started
+Right now this pipeline is only compatible with recordings done with Intan's 'one file per channel' or 'one file per signal type' recordings settings.
+
+### With a raw dataset
+#### Create dataset
+With a brand new *shiny* recording you can initilize a dataset with:
+```python
+dat = blechpy.dataset('path/to/recording/directory')
+# or
+dat = blechpy.dataset()  # for user interface to select directory
+```
+This will create a new dataset object and setup basic file paths.
+If you're working via SSH or just want a command-line interface instead of a GUI you can use the keyword argument `shell=True`
+
+#### Initialize Parameters
+```python
+dat.initParams() 
+# or
+dat.initParams(shell=True)
+```
+Initalizes all analysis parameters with a series of prompts.
+See prompts for optional keyword params.
+Primarily setups parameters for:
+* Flattening Port & Channel in Electrode designations
+* Common average referencing
+* Labelling areas of electrodes
+* Labelling digital inputs & outputs
+* Labelling dead electrodes
+* Clustering parameters
+* Spike array creation
+* PSTH creation
+* Palatability/Identity Responsiveness calculations
+
+Initial parameters are pulled from default json files in the dio subpackage.
+Parameters for a dataset are written to json files in a *parameters* folder in the recording directory
+
+#### Basic Processing
+```python
+dat.processing_status
+```
+Can provide an overview of basic data extraction and processing steps that need to be taken.
+
+
+An example data extraction workflow would be:
+```python
+dat = blechpy.dataset('/path/to/data/dir/')
+dat.initParams()
+dat.extract_data()          # Extracts raw data into HDF5 store
+dat.create_trial_list()     # Creates table of digital input triggers
+dat.mark_dead_channels()    # View traces and label electrodes as dead
+dat.common_average_reference() # Use common average referencing on data. 
+                               # Repalces raw with referenced data in HDF5 store
+dat.blech_clust_run()       # Cluster data using GMM
+dat.blech_clust_run(data_quality='noisy') # re-run clustering with less strict parameters
+
+dat.sort_units()        # Split, merge and label clusters as units
+```
+
+### Viewing a Dataset
+Experiments can be easily viewed wih: `print(dat)`
+A summary can also be exported to a text with: `dat.export_to_text()`
+
+### Loading an existing dataset
+```python
 dat = blechpy.load_dataset() # load an existing dataset from .p file
-dat = blechpy.load_dataset('path/to/recording/directory') # or
+# or
+dat = blechpy.load_dataset('path/to/recording/directory') 
+# or
 dat = blechpy.load_dataset('path/to/dataset/save/file.p')
 ```
-### View dataset object
+
+### Import processed dataset into dataset framework
 ```python
-print(dat)
+dat = blechpy.port_in_dataset()
+# or
+dat = blechpy.port_in_dataset('/path/to/recording/directory')
 ```
 
-### Extract and cluster data
-Works with 'one file per channel' and 'one file per signal type' recordings
-Though extracting 'one file per signal type' data uses quite a bit of memory
-
+# Experiments
+##Getting Started
+### Creating an experiment
 ```python
-dat.initParams()                 # initialize all parameters, uses standard
-                                 # defaults, can pass data_quality='clean'
-                                 # or data_quality='noisy' for useful defaults 
-
-dat.edit_clustering_parameters() # optional if parameters need editing
-
-dat.extract_data()               # extracts raw data from files into hdf5 store
-
-dat.create_trial_list()          # creates pandas dataframe of trial order,
-                                 # adds to hdf5 store
-
-dat.common_average_reference() # common average references data, deletes raw
-                               # data and stores referenced data in /referenced
-                               # node in hdf5 store
-
-dat.blech_clust_run()          # runs GMM clustering 
-
-dat.save()                     # Saves dataset object in recording directory
-
-dat.extract_and_cluster()      # bundles all of the above steps
+exp = blechpy.experiment('/path/to/dir/encasing/recordings')
+# or
+exp = blechpy.experiment()
 ```
+This will initalize an experiment with all recording folders within the chosen directory.
 
-### Extract and cluster without any prompts
-So unless you're doing 32ch bilateral implants (16ch per side), then you can't
-currently do this without ANY prompts since it'll need help determining common
-average groups, but I can add defaults if I know what yours are
+### Editing recordings
 ```python
-dat.extract_and_cluster(data_quality='clean',num_CAR_groups='bilateral32',
-                        shell=True,
-                        dig_in_names=['Water','Quinine','NaCl','Citric Acid'],
-                        emg_port=False)
-
-# If you have an EMG
-dat.extract_and_cluster(data_quality='clean',num_CAR_groups='bilateral32',
-                        shell=True,
-                        dig_in_names=['Water','Quinine','NaCl','Citric Acid'],
-                        emg_port='C',emg_channels=[31])
+exp.add_recording('/path/to/new/recording/dir/')    # Add recording
+exp.remove_recording('rec_label')                   # remove a recording dir 
 ```
+Recordings are assigned labels when added to the experiment that can be used to easily reference exerpiments.
 
-### Spike Sorting
+### Held unit detection
 ```python
-dat.cleanup_clustering()        # Deletes raw & referenced data, consolidates
-                                # clustering memory logs, sets up HDF5 store
-                                # for spike sorting and repacks
-
-dat.sort_units()                # Series of input GUIs to sort and label units
-                                # Clusters can now be merged and split over and
-                                # over until satisfied
-
-#or
-
-dat.sort_units(shell=True)      # For command-line interface, though you still
-                                # gotta see the plots if clusters are split
+exp.detect_held_units()
 ```
-
+Uses raw waveforms from sorted units to determine if units can be confidently classified as "held". Results are stored in exp.held_units as a pandas DataFrame.
+This also creates plots and exports data to a created directory:
+/path/to/experiment/experiment-name_analysis
