@@ -3,4 +3,7 @@
 @eaDir
 *.DS_Store
 *.swo
+build/
+dist/
+*.egg-info
 
