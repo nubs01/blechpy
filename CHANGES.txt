@@ -1,3 +1,7 @@
+v1.1.5, (2019-10-07)
+-------------------
+- Included pyqt5 in requirements, necessary for plotting since I like the pyqt5 matplotlib backend
+
 v1.1.4, (2019-10-07) -- Actually saves dataset after clustering
 
 v1.1.3, (2019-10-07)

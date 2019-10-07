@@ -12,3 +12,4 @@ mistune>=0.8.1
 ipython>=5.0.0
 jupyter-core>=4.4.0
 entrypoints>=0.2.2
+pyqt5>=5.12.1
