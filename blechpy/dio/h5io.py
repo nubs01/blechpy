@@ -795,8 +795,8 @@ def get_raw_trace(rec_dir, electrode, el_map=None):
     '''
     h5_file = get_h5_filename(rec_dir)
     with tables.open_file(h5_file, 'r') as hf5:
-        if '/raw' in hf5:
-            out = hf5.raw['electrode%i' % electrode][:] * rawIO.voltage_scaling
+        if '/raw' in hf5 and '/raw/electrode%i' % electrode in hf5:
+            out = hf5.root.raw['electrode%i' % electrode][:] * rawIO.voltage_scaling
             return out
         else:
             out = None
@@ -967,7 +967,13 @@ def  write_electrode_map_to_h5(h5_file, electrode_map):
         new_row = table.row
         for i, row in electrode_map.iterrows():
             for k, v in row.items():
-                new_row[k] = row[k]
+                if pd.isna(v):
+                    if type(new_row[k]) == str:
+                        v = 'None'
+                    else:
+                        v = -1
+
+                new_row[k] = v
 
             new_row.append()
 

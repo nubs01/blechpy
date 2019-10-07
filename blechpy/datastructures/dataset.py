@@ -733,8 +733,9 @@ class dataset(data_object):
 
         pbar = tqdm(total = len(electrodes))
         results = [(None, None, None)] * (max(electrodes)+1)
+        clust_errors = [(x, None) for x in electrodes]
         def update_pbar(ans):
-            if ans is not None:
+            if isinstance(ans, tuple) and ans[0] is not None:
                 results[ans[0]] = ans
             else:
                 print('Unexpected error when clustering an electrode')
@@ -752,19 +753,15 @@ class dataset(data_object):
         pool.join()
         pbar.close()
 
-        #my_env = os.environ
-        #my_env['OMP_NUM_THREADS'] = '1'  # possibly not necesary
-        #cpu_count = int(multiprocessing.cpu_count())-1
-        #process_call = ['parallel', '-k', '-j', str(cpu_count), '--noswap',
-        #                '--load', '100%', '--progress', '--memfree', '4G',
-        #                '--retry-failed', '--joblog', self.clustering_log,
-        #                'python', process_path, '{1}', self.root_dir, ':::']
-        #process_call.extend([str(x) for x in electrodes])
-        #subprocess.call(process_call, env=my_env)
         print('Electrode    Result    Cutoff (s)')
         cutoffs = {}
         clust_res = {}
+        clustered = []
         for x, y, z in results:
+            if x is None:
+                continue
+
+            clustered.append(x)
             print('  {:<13}{:<10}{}'.format(x, y, z))
             cutoffs[x] = z
             clust_res[x] = y
@@ -776,6 +773,7 @@ class dataset(data_object):
         em['clustering_result'] = em['Electrode'].map(clust_res)
         self.electrode_mapping = em.copy()
         self.process_status['blech_clust_run'] = True
+        dio.h5io.write_electrode_map_to_h5(self.h5_file, em)
         self.save()
         print('Clustering Complete\n------------------')
         return results

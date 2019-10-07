@@ -1,3 +1,11 @@
+v1.1.4, (2019-10-07) -- Actually saves dataset after clustering
+
+v1.1.3, (2019-10-07)
+-------------------
+-Critical bug fix:
+    - Clustering now actually works and reports problems
+    - Clustering now excludes clustering of channels marked as dead
+
 v1.1.2, (2019-10-07)
 -------------------
 - Critical bug fix:
