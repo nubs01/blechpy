@@ -1,6 +1,7 @@
 v1.1.5, (2019-10-07)
 -------------------
 - Included pyqt5 in requirements, necessary for plotting since I like the pyqt5 matplotlib backend
+- Fixed blechpy.h5io.common_average_reference to handle uneven raw trace lengths (for a cutoff recording)
 
 v1.1.4, (2019-10-07) -- Actually saves dataset after clustering
 

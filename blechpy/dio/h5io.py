@@ -356,14 +356,21 @@ def common_avg_reference(h5_file, electrodes, group_num):
 
     with tables.open_file(h5_file, 'r+') as hf5:
         raw = hf5.root.raw
-        n_samples = raw['electrode%i' % electrodes[0]].shape[0]
+        samples = np.array([raw['electrode%i' % x] for x in electrodes])
+        min_samples = np.min(samples)
+        if any(samples != min_samples):
+            print('Some raw voltage traces are different lengths.\n'
+                  'This could be a sign that recording was cutoff early.\n'
+                  'Truncating to the length of the shortest trace for analysis'
+                  '\n    Min Samples: %i\n    Max Samples: %i'
+                  % (min_samples, np.max(samples)))
 
         # Calculate common average
         println('Computing common average...')
-        common_avg = np.zeros((1, n_samples))[0]
+        common_avg = np.zeros((1, min_samples))[0]
 
         for x in electrodes:
-            common_avg += raw['electrode%i' % x][:]
+            common_avg += raw['electrode%i' % x][:min_samples]
 
         common_avg /= float(len(electrodes))
         print('Done!')
