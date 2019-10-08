@@ -356,7 +356,7 @@ def common_avg_reference(h5_file, electrodes, group_num):
 
     with tables.open_file(h5_file, 'r+') as hf5:
         raw = hf5.root.raw
-        samples = np.array([raw['electrode%i' % x] for x in electrodes])
+        samples = np.array([raw['electrode%i' % x][:].shape[0] for x in electrodes])
         min_samples = np.min(samples)
         if any(samples != min_samples):
             print('Some raw voltage traces are different lengths.\n'
@@ -402,7 +402,7 @@ def common_avg_reference(h5_file, electrodes, group_num):
         # Replace raw data with referenced data
         println('Storing referenced signals...')
         for x in electrodes:
-            referenced_data = raw['electrode%i' % x][:]-common_avg
+            referenced_data = raw['electrode%i' % x][:min_samples]-common_avg
             hf5.remove_node('/raw/electrode%i' % x)
 
             if '/referenced' not in hf5:
