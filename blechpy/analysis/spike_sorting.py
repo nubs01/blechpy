@@ -109,6 +109,7 @@ def edit_clusters(clusters, fs, shell=False):
         dict representing the resulting cluster from manipulations, None if
         aborted
     '''
+    matplotlib.use('Qt5Agg')
     clusters = deepcopy(clusters)
     quit_flag = False
     while not quit_flag:
@@ -1016,7 +1017,7 @@ def plot_pca_view(clusters):
     return fig, axs
 
 def plot_raster(clusters):
-    fig = plt.figure()
+    fig = plt.figure(figsize=(15,10))
 
     pca = PCA(n_components=1)
     pca.fit(np.concatenate(tuple(x['spike_waveforms'] for x in clusters), axis=0))

@@ -1,0 +1,967 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+<meta name="generator" content="pdoc 0.7.1" />
+<title>blechpy.datastructures.experiment API documentation</title>
+<meta name="description" content="" />
+<link href='https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.0/normalize.min.css' rel='stylesheet'>
+<link href='https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/8.0.0/sanitize.min.css' rel='stylesheet'>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github.min.css" rel="stylesheet">
+<style>.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{font-weight:bold}#index h4 + ul{margin-bottom:.6em}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>blechpy.datastructures.experiment</code></h1>
+</header>
+<section id="section-intro">
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">import os
+import shutil
+import numpy as np
+import pandas as pd
+from itertools import combinations
+from blechpy import dio
+from blechpy.datastructures.objects import data_object, load_dataset
+from blechpy.utils import userIO, print_tools as pt
+from blechpy.analysis import held_unit_analysis as hua
+from blechpy.plotting import data_plot as dplt
+from blechpy.utils.decorators import Logger
+
+
+class experiment(data_object):
+
+    def __init__(self, exp_dir=None, exp_name=None, shell=False):
+        &#39;&#39;&#39;Setup for analysis across recording sessions
+
+        Parameters
+        ----------
+        exp_dir : str (optional)
+            path to directory containing all recording directories
+            if None (default) is passed then a popup to choose file
+            will come up
+        shell : bool (optional)
+            True to use command-line interface for user input
+            False (default) for GUI
+        &#39;&#39;&#39;
+        if &#39;SSH_CONNECTION&#39; in os.environ:
+            shell = True
+
+        super().__init__(&#39;experiment&#39;, exp_dir, exp_name)
+
+        fd = [os.path.join(exp_dir, x) for x in os.listdir(exp_dir)]
+        file_dirs = [x for x in fd if (os.path.isdir(x) and
+                                       dio.h5io.get_h5_filename(x) is not None)]
+        if file_dirs == []:
+            q = uerIO.ask_user(&#39;No recording directories with h5 files found &#39;
+                               &#39;in experiment directory\nContinue creating&#39;
+                               &#39;empty experiment?&#39;, shell=shell)
+            if q == 0:
+                return
+
+        self.recording_dirs = file_dirs
+        self._order_dirs(shell)
+
+        rec_names = [os.path.basename(x) for x in self.recording_dirs]
+        el_map = None
+        rec_labels = {}
+        for rd in self.recording_dirs:
+            dat = load_dataset(rd)
+            if dat is None:
+                raise FileNotFoundError(&#39;No dataset.p object found for in %s&#39; % rd)
+            elif el_map is None:
+                el_map = dat.electrode_mapping.copy()
+
+            rec_labels[dat.data_name] = rd
+
+        self.rec_labels = rec_labels
+
+        self.electrode_mapping = el_map
+        self._setup_taste_map()
+
+        save_dir = os.path.join(self.root_dir, &#39;%s_analysis&#39; % self.data_name)
+        if not os.path.isdir(save_dir):
+            os.mkdir(save_dir)
+
+        self.analysis_dir = save_dir
+        self.save()
+
+    def _change_root(self, new_root=None):
+        old_root = self.root_dir
+        new_root = super()._change_root(new_root)
+        self.recording_dirs = [x.replace(old_root, new_root)
+                               for x in self.recording_dirs]
+        return new_root
+
+    def __str__(self):
+        out = [super().__str__()]
+        out.append(&#39;Analysis Directory: %s&#39; % self.analysis_dir)
+        out.append(&#39;Recording Directories :&#39;)
+        out.append(pt.print_dict(self.rec_labels, tabs=1))
+        out.append(&#39;\nTaste Mapping :&#39;)
+        out.append(pt.print_dict(self.taste_map, tabs=1))
+        out.append(&#39;\nElectrode Mapping\n----------------&#39;)
+        out.append(pt.print_dataframe(self.electrode_mapping))
+        if hasattr(self, &#39;held_units&#39;):
+            out.append(&#39;\nHeld Units :&#39;)
+            out.append(pt.print_dataframe(self.held_units.drop(columns=[&#39;J3&#39;])))
+
+        return &#39;\n&#39;.join(out)
+
+    def _order_dirs(self, shell=None):
+        &#39;&#39;&#39;set order of redcording directories
+        &#39;&#39;&#39;
+        if &#39;SSH_CONNECTION&#39; in os.environ:
+            shell = True
+        elif shell is None:
+            shell = False
+
+        if self.recording_dirs == []:
+            return
+
+        self.recording_dirs = [x[:-1] if x.endswith(&#39;/&#39;) else x
+                               for x in self.recording_dirs]
+        top_dirs = {os.path.basename(x): os.path.dirname(x)
+                    for x in self.recording_dirs}
+        file_dirs = list(top_dirs.keys())
+        order_dict = dict.fromkeys(file_dirs, 0)
+        tmp = userIO.dictIO(order_dict, shell=shell)
+        order_dict = userIO.fill_dict(order_dict,
+                                      (&#39;Set order of recordings (1-%i)\n&#39;
+                                       &#39;Leave blank to delete directory&#39;
+                                       &#39; from list&#39;) % len(file_dirs),
+                                      shell)
+        if order_dict is None:
+            return
+
+        file_dirs = [k for k, v in order_dict.items()
+                     if v is not None and v != 0]
+        file_dirs = sorted(file_dirs, key=order_dict.get)
+        file_dirs = [os.path.join(top_dirs.get(x), x) for x in file_dirs]
+        self.recording_dirs = file_dirs
+
+    def _setup_taste_map(self):
+        rec_dirs = self.recording_dirs
+        rec_labels = self.rec_labels
+        tastants = []
+        for rd in rec_dirs:
+            dat = load_dataset(rd)
+            tmp = dat.dig_in_mapping
+            tastants.extend(tmp[&#39;name&#39;].to_list())
+
+        tastants = np.unique(tastants)
+        taste_map = {}
+        for rl, rd in rec_labels.items():
+            dat = load_dataset(rd)
+            din = dat.dig_in_mapping
+            for t in tastants:
+                if taste_map.get(t) is None:
+                    taste_map[t] = {}
+
+                tmp = din[&#39;channel&#39;][din[&#39;name&#39;] == t]
+                if not tmp.empty:
+                    taste_map[t][rl] = tmp.values[0]
+
+        self.taste_map = taste_map
+
+    def add_recording(self, new_dir=None, shell=None):
+        &#39;&#39;&#39;Add recording directory to experiment
+
+        Parameters
+        ----------
+        new_dir : str (optional)
+            full path to new directory to add to recording dirs
+        shell : bool (optional)
+            True for command-line interface for user input
+            False (default) for GUI
+            If not passed then the preference set upon object creation is used
+        &#39;&#39;&#39;
+        if &#39;SSH_CONNECTION&#39; in os.environ:
+            shell = True
+        elif shell is None:
+            shell = False
+
+        if new_dir is None:
+            new_dir = userIO.get_filedirs(&#39;Select recoring directory&#39;,
+                                          root=self.root_dir, shell=shell)
+
+        if not os.path.isdir(new_dir):
+            raise NotADirectoryError(&#39;%s must be a valid directory&#39; % new_dir)
+
+        if not any([x.endswith(&#39;.h5&#39;) for x in os.listdir(new_dir)]):
+            raise FileNotFoundError(&#39;No .h5 file found in %s&#39; % new_dir)
+
+        if not any([x.endswith(&#39;dataset.p&#39;) for x in os.listdir(new_dir)]):
+            raise FileNotFoundEorr(&#39;*_dataset.p file not found in %s&#39; % new_dir)
+
+        if new_dir.endswith(&#39;/&#39;):
+            new_dir = new_dir[:-1]
+
+        label = userIO.get_user_input(&#39;Enter label for recording %s&#39; %
+                                      os.path.basename(new_dir), shell=shell)
+
+        self.recording_dirs.append(new_dir)
+        self.rec_labels[label] = new_dir
+        self._order_dirs(shell=shell)
+        self._setup_taste_map()
+        print(&#39;Added recording: %s&#39;)
+        self.save()
+
+    def remove_recording(self, rec_dir=None, shell=None):
+        &#39;&#39;&#39;Remove recording directory from experiment
+
+        Parameters
+        ----------
+        rec_dir : str (optional)
+            full path or label of the directory to remove
+        shell : bool (optional)
+            True for command-line interface for user input. Default for SSH
+            False (default) for GUI
+            If not passed then the preference set upon object creation is used
+        &#39;&#39;&#39;
+        if &#39;SSH_CONNECTION&#39; in os.environ:
+            shell = True
+        elif shell is None:
+            shell = False
+
+        if rec_dir is None:
+            rec_dir = userIO.select_from_list(&#39;Choose recording to remove\n&#39;
+                                              &#39;Leave blank to cancel&#39;,
+                                              list(self.rec_labels.keys(())),
+                                              shell=shell)
+            if rec_dir is None:
+                return
+
+        if os.path.isabs(rec_dir):
+            if rec_dir.endswith(&#39;/&#39;):
+                rec_dir = rec_dir[:-1]
+
+            idx = list(self.rec_labels.values()).index(rec_dir)  # throws ValueError
+            key = list(self.rec_labels.keys())[idx]
+        else:
+            key = rec_dir
+            rec_dir = self.rec_labels.get(key)
+            if rec_dir is None:
+                raise ValueError(&#39;%s is not in recording dirs&#39; % key)
+
+        self.rec_labels.pop(key)
+        self.recording_dirs.pop(rec_dir)
+        self._setup_taste_map()
+        print(&#39;Removed recording: %s&#39; % rec_dir)
+        self.save()
+
+    @Logger(&#39;Detecting held units&#39;)
+    def detect_held_units(self, percent_criterion=95, shell=False):
+        &#39;&#39;&#39;Determine which units are held across recording sessions
+        Grabs single units from each recording and compares consecutive
+        recordings to determine if units were held
+
+        Parameters
+        ----------
+        percent_criterion : float
+            percentile (0-100) of intra_J3 below which to accept units as held
+            5.0 (default) for 95th percentile
+            lower number is stricter criteria
+
+        shell : bool (optional)
+            True for command-line interface for user input
+            False (default) for GUI
+        &#39;&#39;&#39;
+        if &#39;SSH_CONNECTION&#39; in os.environ:
+            shell = True
+
+        save_dir = os.path.join(self.analysis_dir, &#39;held_unit_detection&#39;)
+        if os.path.isdir(save_dir):
+            shutil.rmtree(save_dir)
+
+        os.mkdir(save_dir)
+
+        rec_dirs = self.recording_dirs
+        rec_labels = self.rec_labels
+        rec_names = list(rec_labels.keys())
+
+        print(&#39;Detecting held units for :&#39;)
+        print(&#39;\t&#39; + &#39;\n\t&#39;.join(rec_names))
+        print(&#39;Saving output to : %s&#39; % save_dir)
+
+        held_df, intra_J3, inter_J3 = hua.find_held_units(rec_dirs,
+                                                                 percent_criterion)
+        rl_dict = {os.path.basename(v) : k for k, v in self.rec_labels.items()}
+        held_df = held_df.rename(columns=rl_dict)
+
+        em = self.electrode_mapping
+        held_df = held_df.apply(lambda x: self._assign_area(x), axis=1)
+
+
+        self.held_units = held_df
+        self.J3_values = {&#39;intra_J3&#39;: intra_J3,
+                          &#39;inter_J3&#39;: inter_J3}
+
+        # Write dataframe of held units to text file
+        df_file = os.path.join(save_dir, &#39;held_units_table.txt&#39;)
+        json_file = os.path.join(save_dir, &#39;held_units.json&#39;)
+        held_df.to_json(json_file, orient=&#39;records&#39;)
+
+        # Print table of held unti to text file, separate tables by pairs of recordings
+        rec_pairs = [(rec_names[i], rec_names[i+1]) for i in range(len(rec_names) - 1)]
+        with open(df_file, &#39;w&#39;) as f:
+            for rec1, rec2 in rec_pairs:
+                tmp_df = held_df.copy()
+                exc = [x for x in rec_names if x not in [rec1, rec2]]
+                tmp_df = tmp_df.drop(columns=[&#39;J3&#39;, *exc]).dropna()
+                print(&#39;Units held from %s to %s\n----------&#39; % (rec1, rec2), file=f)
+                print(pt.print_dataframe(tmp_df, tabs=1), file=f)
+                print(&#39;&#39;, file=f)
+
+        np.save(os.path.join(save_dir, &#39;intra_J3&#39;), np.array(intra_J3))
+        np.save(os.path.join(save_dir, &#39;inter_J3&#39;), np.array(inter_J3))
+
+        # For each held unit, plot waveforms side by side
+        dplt.plot_held_units(rec_dirs, held_df, save_dir, rec_names=rec_names)
+
+        # Plot intra and inter J3
+        dplt.plot_J3s(intra_J3, inter_J3, save_dir, percent_criterion)
+
+    def _assign_area(self, row):
+        data_dir = self.root_dir
+        em = self.electrode_mapping
+        rec = None
+        unit = None
+        for k, v in self.rec_labels.items():
+            if not pd.isna(row[k]):
+                rec = v
+                unit = row[k]
+                break
+
+        if rec is None:
+            row[&#39;area&#39;] = float(&#39;nan&#39;)
+            row[&#39;electrode&#39;] = float(&#39;nan&#39;)
+            return row
+
+        unit_num = dio.h5io.parse_unit_number(unit)
+        descrip = dio.h5io.get_unit_descriptor(rec, unit_num)
+        electrode = descrip[&#39;electrode_number&#39;]
+        area = em.query(&#39;Electrode == @electrode&#39;)[&#39;area&#39;].values[0]
+
+        row[&#39;electrode&#39;] = electrode
+        row[&#39;area&#39;] = area
+        return row</code></pre>
+</details>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="blechpy.datastructures.experiment.experiment"><code class="flex name class">
+<span>class <span class="ident">experiment</span></span>
+<span>(</span><span>exp_dir=None, exp_name=None, shell=False)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Setup for analysis across recording sessions</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>exp_dir</code></strong> :&ensp;<code>str</code> (optional)</dt>
+<dd>path to directory containing all recording directories
+if None (default) is passed then a popup to choose file
+will come up</dd>
+<dt><strong><code>shell</code></strong> :&ensp;<code>bool</code> (optional)</dt>
+<dd>True to use command-line interface for user input
+False (default) for GUI</dd>
+</dl></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class experiment(data_object):
+
+    def __init__(self, exp_dir=None, exp_name=None, shell=False):
+        &#39;&#39;&#39;Setup for analysis across recording sessions
+
+        Parameters
+        ----------
+        exp_dir : str (optional)
+            path to directory containing all recording directories
+            if None (default) is passed then a popup to choose file
+            will come up
+        shell : bool (optional)
+            True to use command-line interface for user input
+            False (default) for GUI
+        &#39;&#39;&#39;
+        if &#39;SSH_CONNECTION&#39; in os.environ:
+            shell = True
+
+        super().__init__(&#39;experiment&#39;, exp_dir, exp_name)
+
+        fd = [os.path.join(exp_dir, x) for x in os.listdir(exp_dir)]
+        file_dirs = [x for x in fd if (os.path.isdir(x) and
+                                       dio.h5io.get_h5_filename(x) is not None)]
+        if file_dirs == []:
+            q = uerIO.ask_user(&#39;No recording directories with h5 files found &#39;
+                               &#39;in experiment directory\nContinue creating&#39;
+                               &#39;empty experiment?&#39;, shell=shell)
+            if q == 0:
+                return
+
+        self.recording_dirs = file_dirs
+        self._order_dirs(shell)
+
+        rec_names = [os.path.basename(x) for x in self.recording_dirs]
+        el_map = None
+        rec_labels = {}
+        for rd in self.recording_dirs:
+            dat = load_dataset(rd)
+            if dat is None:
+                raise FileNotFoundError(&#39;No dataset.p object found for in %s&#39; % rd)
+            elif el_map is None:
+                el_map = dat.electrode_mapping.copy()
+
+            rec_labels[dat.data_name] = rd
+
+        self.rec_labels = rec_labels
+
+        self.electrode_mapping = el_map
+        self._setup_taste_map()
+
+        save_dir = os.path.join(self.root_dir, &#39;%s_analysis&#39; % self.data_name)
+        if not os.path.isdir(save_dir):
+            os.mkdir(save_dir)
+
+        self.analysis_dir = save_dir
+        self.save()
+
+    def _change_root(self, new_root=None):
+        old_root = self.root_dir
+        new_root = super()._change_root(new_root)
+        self.recording_dirs = [x.replace(old_root, new_root)
+                               for x in self.recording_dirs]
+        return new_root
+
+    def __str__(self):
+        out = [super().__str__()]
+        out.append(&#39;Analysis Directory: %s&#39; % self.analysis_dir)
+        out.append(&#39;Recording Directories :&#39;)
+        out.append(pt.print_dict(self.rec_labels, tabs=1))
+        out.append(&#39;\nTaste Mapping :&#39;)
+        out.append(pt.print_dict(self.taste_map, tabs=1))
+        out.append(&#39;\nElectrode Mapping\n----------------&#39;)
+        out.append(pt.print_dataframe(self.electrode_mapping))
+        if hasattr(self, &#39;held_units&#39;):
+            out.append(&#39;\nHeld Units :&#39;)
+            out.append(pt.print_dataframe(self.held_units.drop(columns=[&#39;J3&#39;])))
+
+        return &#39;\n&#39;.join(out)
+
+    def _order_dirs(self, shell=None):
+        &#39;&#39;&#39;set order of redcording directories
+        &#39;&#39;&#39;
+        if &#39;SSH_CONNECTION&#39; in os.environ:
+            shell = True
+        elif shell is None:
+            shell = False
+
+        if self.recording_dirs == []:
+            return
+
+        self.recording_dirs = [x[:-1] if x.endswith(&#39;/&#39;) else x
+                               for x in self.recording_dirs]
+        top_dirs = {os.path.basename(x): os.path.dirname(x)
+                    for x in self.recording_dirs}
+        file_dirs = list(top_dirs.keys())
+        order_dict = dict.fromkeys(file_dirs, 0)
+        tmp = userIO.dictIO(order_dict, shell=shell)
+        order_dict = userIO.fill_dict(order_dict,
+                                      (&#39;Set order of recordings (1-%i)\n&#39;
+                                       &#39;Leave blank to delete directory&#39;
+                                       &#39; from list&#39;) % len(file_dirs),
+                                      shell)
+        if order_dict is None:
+            return
+
+        file_dirs = [k for k, v in order_dict.items()
+                     if v is not None and v != 0]
+        file_dirs = sorted(file_dirs, key=order_dict.get)
+        file_dirs = [os.path.join(top_dirs.get(x), x) for x in file_dirs]
+        self.recording_dirs = file_dirs
+
+    def _setup_taste_map(self):
+        rec_dirs = self.recording_dirs
+        rec_labels = self.rec_labels
+        tastants = []
+        for rd in rec_dirs:
+            dat = load_dataset(rd)
+            tmp = dat.dig_in_mapping
+            tastants.extend(tmp[&#39;name&#39;].to_list())
+
+        tastants = np.unique(tastants)
+        taste_map = {}
+        for rl, rd in rec_labels.items():
+            dat = load_dataset(rd)
+            din = dat.dig_in_mapping
+            for t in tastants:
+                if taste_map.get(t) is None:
+                    taste_map[t] = {}
+
+                tmp = din[&#39;channel&#39;][din[&#39;name&#39;] == t]
+                if not tmp.empty:
+                    taste_map[t][rl] = tmp.values[0]
+
+        self.taste_map = taste_map
+
+    def add_recording(self, new_dir=None, shell=None):
+        &#39;&#39;&#39;Add recording directory to experiment
+
+        Parameters
+        ----------
+        new_dir : str (optional)
+            full path to new directory to add to recording dirs
+        shell : bool (optional)
+            True for command-line interface for user input
+            False (default) for GUI
+            If not passed then the preference set upon object creation is used
+        &#39;&#39;&#39;
+        if &#39;SSH_CONNECTION&#39; in os.environ:
+            shell = True
+        elif shell is None:
+            shell = False
+
+        if new_dir is None:
+            new_dir = userIO.get_filedirs(&#39;Select recoring directory&#39;,
+                                          root=self.root_dir, shell=shell)
+
+        if not os.path.isdir(new_dir):
+            raise NotADirectoryError(&#39;%s must be a valid directory&#39; % new_dir)
+
+        if not any([x.endswith(&#39;.h5&#39;) for x in os.listdir(new_dir)]):
+            raise FileNotFoundError(&#39;No .h5 file found in %s&#39; % new_dir)
+
+        if not any([x.endswith(&#39;dataset.p&#39;) for x in os.listdir(new_dir)]):
+            raise FileNotFoundEorr(&#39;*_dataset.p file not found in %s&#39; % new_dir)
+
+        if new_dir.endswith(&#39;/&#39;):
+            new_dir = new_dir[:-1]
+
+        label = userIO.get_user_input(&#39;Enter label for recording %s&#39; %
+                                      os.path.basename(new_dir), shell=shell)
+
+        self.recording_dirs.append(new_dir)
+        self.rec_labels[label] = new_dir
+        self._order_dirs(shell=shell)
+        self._setup_taste_map()
+        print(&#39;Added recording: %s&#39;)
+        self.save()
+
+    def remove_recording(self, rec_dir=None, shell=None):
+        &#39;&#39;&#39;Remove recording directory from experiment
+
+        Parameters
+        ----------
+        rec_dir : str (optional)
+            full path or label of the directory to remove
+        shell : bool (optional)
+            True for command-line interface for user input. Default for SSH
+            False (default) for GUI
+            If not passed then the preference set upon object creation is used
+        &#39;&#39;&#39;
+        if &#39;SSH_CONNECTION&#39; in os.environ:
+            shell = True
+        elif shell is None:
+            shell = False
+
+        if rec_dir is None:
+            rec_dir = userIO.select_from_list(&#39;Choose recording to remove\n&#39;
+                                              &#39;Leave blank to cancel&#39;,
+                                              list(self.rec_labels.keys(())),
+                                              shell=shell)
+            if rec_dir is None:
+                return
+
+        if os.path.isabs(rec_dir):
+            if rec_dir.endswith(&#39;/&#39;):
+                rec_dir = rec_dir[:-1]
+
+            idx = list(self.rec_labels.values()).index(rec_dir)  # throws ValueError
+            key = list(self.rec_labels.keys())[idx]
+        else:
+            key = rec_dir
+            rec_dir = self.rec_labels.get(key)
+            if rec_dir is None:
+                raise ValueError(&#39;%s is not in recording dirs&#39; % key)
+
+        self.rec_labels.pop(key)
+        self.recording_dirs.pop(rec_dir)
+        self._setup_taste_map()
+        print(&#39;Removed recording: %s&#39; % rec_dir)
+        self.save()
+
+    @Logger(&#39;Detecting held units&#39;)
+    def detect_held_units(self, percent_criterion=95, shell=False):
+        &#39;&#39;&#39;Determine which units are held across recording sessions
+        Grabs single units from each recording and compares consecutive
+        recordings to determine if units were held
+
+        Parameters
+        ----------
+        percent_criterion : float
+            percentile (0-100) of intra_J3 below which to accept units as held
+            5.0 (default) for 95th percentile
+            lower number is stricter criteria
+
+        shell : bool (optional)
+            True for command-line interface for user input
+            False (default) for GUI
+        &#39;&#39;&#39;
+        if &#39;SSH_CONNECTION&#39; in os.environ:
+            shell = True
+
+        save_dir = os.path.join(self.analysis_dir, &#39;held_unit_detection&#39;)
+        if os.path.isdir(save_dir):
+            shutil.rmtree(save_dir)
+
+        os.mkdir(save_dir)
+
+        rec_dirs = self.recording_dirs
+        rec_labels = self.rec_labels
+        rec_names = list(rec_labels.keys())
+
+        print(&#39;Detecting held units for :&#39;)
+        print(&#39;\t&#39; + &#39;\n\t&#39;.join(rec_names))
+        print(&#39;Saving output to : %s&#39; % save_dir)
+
+        held_df, intra_J3, inter_J3 = hua.find_held_units(rec_dirs,
+                                                                 percent_criterion)
+        rl_dict = {os.path.basename(v) : k for k, v in self.rec_labels.items()}
+        held_df = held_df.rename(columns=rl_dict)
+
+        em = self.electrode_mapping
+        held_df = held_df.apply(lambda x: self._assign_area(x), axis=1)
+
+
+        self.held_units = held_df
+        self.J3_values = {&#39;intra_J3&#39;: intra_J3,
+                          &#39;inter_J3&#39;: inter_J3}
+
+        # Write dataframe of held units to text file
+        df_file = os.path.join(save_dir, &#39;held_units_table.txt&#39;)
+        json_file = os.path.join(save_dir, &#39;held_units.json&#39;)
+        held_df.to_json(json_file, orient=&#39;records&#39;)
+
+        # Print table of held unti to text file, separate tables by pairs of recordings
+        rec_pairs = [(rec_names[i], rec_names[i+1]) for i in range(len(rec_names) - 1)]
+        with open(df_file, &#39;w&#39;) as f:
+            for rec1, rec2 in rec_pairs:
+                tmp_df = held_df.copy()
+                exc = [x for x in rec_names if x not in [rec1, rec2]]
+                tmp_df = tmp_df.drop(columns=[&#39;J3&#39;, *exc]).dropna()
+                print(&#39;Units held from %s to %s\n----------&#39; % (rec1, rec2), file=f)
+                print(pt.print_dataframe(tmp_df, tabs=1), file=f)
+                print(&#39;&#39;, file=f)
+
+        np.save(os.path.join(save_dir, &#39;intra_J3&#39;), np.array(intra_J3))
+        np.save(os.path.join(save_dir, &#39;inter_J3&#39;), np.array(inter_J3))
+
+        # For each held unit, plot waveforms side by side
+        dplt.plot_held_units(rec_dirs, held_df, save_dir, rec_names=rec_names)
+
+        # Plot intra and inter J3
+        dplt.plot_J3s(intra_J3, inter_J3, save_dir, percent_criterion)
+
+    def _assign_area(self, row):
+        data_dir = self.root_dir
+        em = self.electrode_mapping
+        rec = None
+        unit = None
+        for k, v in self.rec_labels.items():
+            if not pd.isna(row[k]):
+                rec = v
+                unit = row[k]
+                break
+
+        if rec is None:
+            row[&#39;area&#39;] = float(&#39;nan&#39;)
+            row[&#39;electrode&#39;] = float(&#39;nan&#39;)
+            return row
+
+        unit_num = dio.h5io.parse_unit_number(unit)
+        descrip = dio.h5io.get_unit_descriptor(rec, unit_num)
+        electrode = descrip[&#39;electrode_number&#39;]
+        area = em.query(&#39;Electrode == @electrode&#39;)[&#39;area&#39;].values[0]
+
+        row[&#39;electrode&#39;] = electrode
+        row[&#39;area&#39;] = area
+        return row</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="blechpy.datastructures.objects.data_object" href="objects.html#blechpy.datastructures.objects.data_object">data_object</a></li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="blechpy.datastructures.experiment.experiment.add_recording"><code class="name flex">
+<span>def <span class="ident">add_recording</span></span>(<span>self, new_dir=None, shell=None)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Add recording directory to experiment</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>new_dir</code></strong> :&ensp;<code>str</code> (optional)</dt>
+<dd>full path to new directory to add to recording dirs</dd>
+<dt><strong><code>shell</code></strong> :&ensp;<code>bool</code> (optional)</dt>
+<dd>True for command-line interface for user input
+False (default) for GUI
+If not passed then the preference set upon object creation is used</dd>
+</dl></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def add_recording(self, new_dir=None, shell=None):
+    &#39;&#39;&#39;Add recording directory to experiment
+
+    Parameters
+    ----------
+    new_dir : str (optional)
+        full path to new directory to add to recording dirs
+    shell : bool (optional)
+        True for command-line interface for user input
+        False (default) for GUI
+        If not passed then the preference set upon object creation is used
+    &#39;&#39;&#39;
+    if &#39;SSH_CONNECTION&#39; in os.environ:
+        shell = True
+    elif shell is None:
+        shell = False
+
+    if new_dir is None:
+        new_dir = userIO.get_filedirs(&#39;Select recoring directory&#39;,
+                                      root=self.root_dir, shell=shell)
+
+    if not os.path.isdir(new_dir):
+        raise NotADirectoryError(&#39;%s must be a valid directory&#39; % new_dir)
+
+    if not any([x.endswith(&#39;.h5&#39;) for x in os.listdir(new_dir)]):
+        raise FileNotFoundError(&#39;No .h5 file found in %s&#39; % new_dir)
+
+    if not any([x.endswith(&#39;dataset.p&#39;) for x in os.listdir(new_dir)]):
+        raise FileNotFoundEorr(&#39;*_dataset.p file not found in %s&#39; % new_dir)
+
+    if new_dir.endswith(&#39;/&#39;):
+        new_dir = new_dir[:-1]
+
+    label = userIO.get_user_input(&#39;Enter label for recording %s&#39; %
+                                  os.path.basename(new_dir), shell=shell)
+
+    self.recording_dirs.append(new_dir)
+    self.rec_labels[label] = new_dir
+    self._order_dirs(shell=shell)
+    self._setup_taste_map()
+    print(&#39;Added recording: %s&#39;)
+    self.save()</code></pre>
+</details>
+</dd>
+<dt id="blechpy.datastructures.experiment.experiment.detect_held_units"><code class="name flex">
+<span>def <span class="ident">detect_held_units</span></span>(<span>self, percent_criterion=95, shell=False)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Determine which units are held across recording sessions
+Grabs single units from each recording and compares consecutive
+recordings to determine if units were held</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>percent_criterion</code></strong> :&ensp;<code>float</code></dt>
+<dd>percentile (0-100) of intra_J3 below which to accept units as held
+5.0 (default) for 95th percentile
+lower number is stricter criteria</dd>
+<dt><strong><code>shell</code></strong> :&ensp;<code>bool</code> (optional)</dt>
+<dd>True for command-line interface for user input
+False (default) for GUI</dd>
+</dl></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@Logger(&#39;Detecting held units&#39;)
+def detect_held_units(self, percent_criterion=95, shell=False):
+    &#39;&#39;&#39;Determine which units are held across recording sessions
+    Grabs single units from each recording and compares consecutive
+    recordings to determine if units were held
+
+    Parameters
+    ----------
+    percent_criterion : float
+        percentile (0-100) of intra_J3 below which to accept units as held
+        5.0 (default) for 95th percentile
+        lower number is stricter criteria
+
+    shell : bool (optional)
+        True for command-line interface for user input
+        False (default) for GUI
+    &#39;&#39;&#39;
+    if &#39;SSH_CONNECTION&#39; in os.environ:
+        shell = True
+
+    save_dir = os.path.join(self.analysis_dir, &#39;held_unit_detection&#39;)
+    if os.path.isdir(save_dir):
+        shutil.rmtree(save_dir)
+
+    os.mkdir(save_dir)
+
+    rec_dirs = self.recording_dirs
+    rec_labels = self.rec_labels
+    rec_names = list(rec_labels.keys())
+
+    print(&#39;Detecting held units for :&#39;)
+    print(&#39;\t&#39; + &#39;\n\t&#39;.join(rec_names))
+    print(&#39;Saving output to : %s&#39; % save_dir)
+
+    held_df, intra_J3, inter_J3 = hua.find_held_units(rec_dirs,
+                                                             percent_criterion)
+    rl_dict = {os.path.basename(v) : k for k, v in self.rec_labels.items()}
+    held_df = held_df.rename(columns=rl_dict)
+
+    em = self.electrode_mapping
+    held_df = held_df.apply(lambda x: self._assign_area(x), axis=1)
+
+
+    self.held_units = held_df
+    self.J3_values = {&#39;intra_J3&#39;: intra_J3,
+                      &#39;inter_J3&#39;: inter_J3}
+
+    # Write dataframe of held units to text file
+    df_file = os.path.join(save_dir, &#39;held_units_table.txt&#39;)
+    json_file = os.path.join(save_dir, &#39;held_units.json&#39;)
+    held_df.to_json(json_file, orient=&#39;records&#39;)
+
+    # Print table of held unti to text file, separate tables by pairs of recordings
+    rec_pairs = [(rec_names[i], rec_names[i+1]) for i in range(len(rec_names) - 1)]
+    with open(df_file, &#39;w&#39;) as f:
+        for rec1, rec2 in rec_pairs:
+            tmp_df = held_df.copy()
+            exc = [x for x in rec_names if x not in [rec1, rec2]]
+            tmp_df = tmp_df.drop(columns=[&#39;J3&#39;, *exc]).dropna()
+            print(&#39;Units held from %s to %s\n----------&#39; % (rec1, rec2), file=f)
+            print(pt.print_dataframe(tmp_df, tabs=1), file=f)
+            print(&#39;&#39;, file=f)
+
+    np.save(os.path.join(save_dir, &#39;intra_J3&#39;), np.array(intra_J3))
+    np.save(os.path.join(save_dir, &#39;inter_J3&#39;), np.array(inter_J3))
+
+    # For each held unit, plot waveforms side by side
+    dplt.plot_held_units(rec_dirs, held_df, save_dir, rec_names=rec_names)
+
+    # Plot intra and inter J3
+    dplt.plot_J3s(intra_J3, inter_J3, save_dir, percent_criterion)</code></pre>
+</details>
+</dd>
+<dt id="blechpy.datastructures.experiment.experiment.remove_recording"><code class="name flex">
+<span>def <span class="ident">remove_recording</span></span>(<span>self, rec_dir=None, shell=None)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Remove recording directory from experiment</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>rec_dir</code></strong> :&ensp;<code>str</code> (optional)</dt>
+<dd>full path or label of the directory to remove</dd>
+<dt><strong><code>shell</code></strong> :&ensp;<code>bool</code> (optional)</dt>
+<dd>True for command-line interface for user input. Default for SSH
+False (default) for GUI
+If not passed then the preference set upon object creation is used</dd>
+</dl></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def remove_recording(self, rec_dir=None, shell=None):
+    &#39;&#39;&#39;Remove recording directory from experiment
+
+    Parameters
+    ----------
+    rec_dir : str (optional)
+        full path or label of the directory to remove
+    shell : bool (optional)
+        True for command-line interface for user input. Default for SSH
+        False (default) for GUI
+        If not passed then the preference set upon object creation is used
+    &#39;&#39;&#39;
+    if &#39;SSH_CONNECTION&#39; in os.environ:
+        shell = True
+    elif shell is None:
+        shell = False
+
+    if rec_dir is None:
+        rec_dir = userIO.select_from_list(&#39;Choose recording to remove\n&#39;
+                                          &#39;Leave blank to cancel&#39;,
+                                          list(self.rec_labels.keys(())),
+                                          shell=shell)
+        if rec_dir is None:
+            return
+
+    if os.path.isabs(rec_dir):
+        if rec_dir.endswith(&#39;/&#39;):
+            rec_dir = rec_dir[:-1]
+
+        idx = list(self.rec_labels.values()).index(rec_dir)  # throws ValueError
+        key = list(self.rec_labels.keys())[idx]
+    else:
+        key = rec_dir
+        rec_dir = self.rec_labels.get(key)
+        if rec_dir is None:
+            raise ValueError(&#39;%s is not in recording dirs&#39; % key)
+
+    self.rec_labels.pop(key)
+    self.recording_dirs.pop(rec_dir)
+    self._setup_taste_map()
+    print(&#39;Removed recording: %s&#39; % rec_dir)
+    self.save()</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<h1>Index</h1>
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="blechpy.datastructures" href="index.html">blechpy.datastructures</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="blechpy.datastructures.experiment.experiment" href="#blechpy.datastructures.experiment.experiment">experiment</a></code></h4>
+<ul class="">
+<li><code><a title="blechpy.datastructures.experiment.experiment.add_recording" href="#blechpy.datastructures.experiment.experiment.add_recording">add_recording</a></code></li>
+<li><code><a title="blechpy.datastructures.experiment.experiment.detect_held_units" href="#blechpy.datastructures.experiment.experiment.detect_held_units">detect_held_units</a></code></li>
+<li><code><a title="blechpy.datastructures.experiment.experiment.remove_recording" href="#blechpy.datastructures.experiment.experiment.remove_recording">remove_recording</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc"><cite>pdoc</cite> 0.7.1</a>.</p>
+</footer>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+<script>hljs.initHighlightingOnLoad()</script>
+</body>
+</html>

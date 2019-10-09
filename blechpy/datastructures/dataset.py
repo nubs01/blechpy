@@ -1009,3 +1009,138 @@ def port_in_dataset(rec_dir=None, shell=False):
     return dat
 
 
+def validate_data_integrity(rec_dir, verbose=False):
+    print('Raw Data Validation\n' + '-'*19)
+    test_names = ['file_type', 'recording_info', 'files', 'dropped_packets', 'data_length']
+    number_names = ['sample_rate', 'dropped_packets', 'missing_files', 'recording_length']
+    tests = dict.fromkeys(test_names, 'NOT TESTED')
+    numbers = dict.fromkeys(number_names, -1)
+    file_type = dio.rawIO.get_recording_filetype(rec_dir)
+    if file_type is None:
+        file_type_check = 'UNSUPPORTED'
+    else:
+        tests['file_type'] = 'PASS'
+
+    # Check info.rhd integrity
+    info_file = os.path.join(rec_dir, 'info.rhd')
+    try:
+        rec_info = dio.rawIO.read_rec_info(rec_dir, shell=True)
+        with open(info_file, 'rb') as f:
+            info = dio.load_intan_rhd_format.read_header(f)
+
+        tests['recording_info'] = 'PASS'
+    except FileNotFoundError:
+        test['recording_info'] = 'MISSING'
+    except Exception as e:
+        info_size = os.path.getsize(os.path.join(rec_dir, 'info.rhd'))
+        if info_size == 0:
+            tests['recording_info'] = 'EMPTY'
+        else:
+            tests['recording_info'] = 'FAIL'
+
+        print(pt.print_dict(tests, tabs=1))
+        return tests, numbers
+
+    counts = {x : info(x) for x in info.keys() if 'num' in x}
+    numbers.update(counts)
+    fs = info['sample_rate']
+    # Check all files needed are present
+    files_expected = ['time.dat']
+    if file_type == 'one file per signal type':
+        files_expected.append('amplifier.dat')
+        if rec_info.get('dig_in') is not None:
+            files_expected.append('digitalin.dat')
+
+        if rec_info.get('dig_out') is not None:
+            files_expected.append('digitalout.dat')
+
+        if info['num_auxilary_input_channels'] > 0:
+            files_expected.append('auxiliary.dat')
+
+    elif file_type == 'one file per channel':
+        for x in info['amplifier_channels']:
+            files_expected.append('amp-' + x['native_channel_name'] + '.dat')
+
+        for x in info['board_dig_in_channels']:
+            files_expected.append('board-%s.dat' % x['native_channel_name'])
+
+        for x in info['board_dig_out_channels']:
+            files_expected.append('board-%s.dat' % x['native_channel_name'])
+
+        for x in info['aux_input_channels']:
+            files_expected.append('aux-%s.dat' % x['native_channel_name'])
+
+
+    missing_files = []
+    file_list = os.listdir(rec_dir)
+    for x in file_expected:
+        if x not in file_list:
+            missing_file.append(x)
+
+    if len(missing_files) == 0:
+        tests['files'] = 'PASS'
+    else:
+        tests['files'] = 'MISSING'
+        numbers['missing_files'] = missing_files
+
+    # Check time data for dropped packets
+    time = dio.rawIO.read_time_dat(rec_dir, sampling_rate=1)  # get raw timestamps
+    numbers['n_samples'] = len(time)
+    numbers['recording_length'] = float(time[-1])/fs
+    expected_time = np.arange(time[0], time[-1]+1, 1)
+    missing_timestamps = np.setdiff1d(expected_time, time)
+    missing_times = np.array([float(x)/fs for x in missing_timestamps])
+    if len(missing_timestamps) == 0:
+        tests['dropped_packets'] = 'PASS'
+    else:
+        tests['dropped_packets'] = '%i' % len(missing_timestamps)
+        numbers['dropped_packets'] = missing_times
+
+    # Check recording length of each trace
+    tests['data_traces'] = 'FAIL'
+    if file_type == 'one file per signal type':
+        try:
+            data = dio.rawIO.read_amplifier_dat(rec_dir)
+            if data is None:
+                tests['data_traces'] = 'UNREADABLE'
+            elif data.shape[0] == numbers['n_samples']:
+                tests['data_traces'] = 'PASS'
+            else:
+                tests['data_traces'] = 'CUTOFF'
+                numbers['data_trace_length (s)'] = data.shape[0]/fs
+
+        except:
+            tests['data_traces'] = 'UNREADABLE'
+
+    elif file_type == 'one file per channel':
+        chan_info = pd.DataFrame(columns=['port', 'channel', 'n_samples'])
+        lengths = []
+        min_samples = numbers['n_samples']
+        max_samples = number['n_samples']
+        for x in info['amplifier_channels']:
+            fn = os.path.join(rec_dir, 'amp-%s.dat' % x['native_channel_name'])
+            if os.path.basename(fn) in missing_files:
+                continue
+
+            data = dio.rawIO.read_one_channel_file(fn)
+            lengths.append((x['native_channel_name'], data.shape[0]))
+            if data.shape[0] < min_samples:
+                min_samples = data.shape[0]
+
+            if data.shape[0] > max_samples:
+                max_samples = data.shape[0]
+
+        if min_samples == max_samples:
+            tests['data_traces'] = 'PASS'
+
+        else:
+            test['data_traces'] = 'CUTOFF'
+
+        numbers['max_recording_length (s)'] = max_samples/fs
+        numbers['min_recording_length (s)'] = min_samples/fs
+
+
+
+
+
+

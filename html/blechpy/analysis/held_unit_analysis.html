@@ -1,0 +1,680 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+<meta name="generator" content="pdoc 0.7.1" />
+<title>blechpy.analysis.held_unit_analysis API documentation</title>
+<meta name="description" content="" />
+<link href='https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.0/normalize.min.css' rel='stylesheet'>
+<link href='https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/8.0.0/sanitize.min.css' rel='stylesheet'>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github.min.css" rel="stylesheet">
+<style>.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{font-weight:bold}#index h4 + ul{margin-bottom:.6em}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>blechpy.analysis.held_unit_analysis</code></h1>
+</header>
+<section id="section-intro">
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">import pandas as pd
+import numpy as np
+from scipy.spatial.distance import cdist
+from sklearn.decomposition import PCA
+from blechpy.analysis import spike_analysis as sas
+from blechpy.datastructures.objects import load_dataset
+from blechpy.dio import h5io
+from blechpy.utils import print_tools as pt, userIO
+import os
+
+
+def calc_J1(wf_day1, wf_day2):
+    # Get the mean PCA waveforms on days 1 and 2
+    day1_mean = np.mean(wf_day1, axis=0)
+    day2_mean = np.mean(wf_day2, axis=0)
+
+    # Get the Euclidean distances of each day from its daily mean
+    day1_dists = cdist(wf_day1, day1_mean.reshape((-1, 3)), metric=&#39;euclidean&#39;)
+    day2_dists = cdist(wf_day2, day2_mean.reshape((-1, 3)), metric=&#39;euclidean&#39;)
+
+    # Sum up the distances to get J1
+    J1 = np.sum(day1_dists) + np.sum(day2_dists)
+    return J1
+
+
+def calc_J2(wf_day1, wf_day2):
+    # Get the mean PCA waveforms on days 1 and 2
+    day1_mean = np.mean(wf_day1, axis=0)
+    day2_mean = np.mean(wf_day2, axis=0)
+
+    # Get the overall inter-day mean
+    overall_mean = np.mean(np.concatenate((wf_day1, wf_day2), axis=0), axis=0)
+
+    # Get the distances of the daily means from the inter-day mean
+    dist1 = cdist(day1_mean.reshape((-1, 3)), overall_mean.reshape((-1, 3)))
+    dist2 = cdist(day2_mean.reshape((-1, 3)), overall_mean.reshape((-1, 3)))
+
+    # Multiply the distances by the number of points on both days and sum to
+    # get J2
+    J2 = wf_day1.shape[0]*np.sum(dist1) + wf_day2.shape[0]*np.sum(dist2)
+    return J2
+
+
+def calc_J3(wf_day1, wf_day2):
+    &#39;&#39;&#39;Calculate J3 value between 2 sets of PCA waveforms
+
+    Parameters
+    ----------
+    wf_day1 : numpy.array
+        PCA waveforms for a single unit from session 1
+    wf_day2 : numpy.array
+        PCA waveforms for a single unit from session 2
+
+    Returns
+    -------
+    J3 : float
+    &#39;&#39;&#39;
+    J1 = calc_J1(wf_day1, wf_day2)
+    J2 = calc_J2(wf_day1, wf_day2)
+    J3 = J2 / J1
+    return J3
+
+
+def get_intra_J3(rec_dirs):
+    print(&#39;\n----------\nComputing Intra J3s\n----------\n&#39;)
+    # Go through each recording directory and compute intra_J3 array
+    intra_J3 = []
+    for rd in rec_dirs:
+        print(&#39;Processing single units in %s...&#39; % rd)
+        unit_names = h5io.get_unit_names(rd)
+
+        for un in unit_names:
+            print(&#39;    Computing for %s...&#39; % un)
+            # waves, descrip, fs = get_unit_waveforms(rd, unit)
+            waves, descrip, fs = h5io.get_raw_unit_waveforms(rd, un)
+            if descrip[&#39;single_unit&#39;] == 1:
+                pca = PCA(n_components=3)
+                pca.fit(waves)
+                pca_waves = pca.transform(waves)
+                idx1 = int(waves.shape[0] * (1.0 / 3.0))
+                idx2 = int(waves.shape[0] * (2.0 / 3.0))
+
+                tmp_J3 = calc_J3(pca_waves[:idx1, :],
+                                 pca_waves[idx2:, :])
+                intra_J3.append(tmp_J3)
+
+    print(&#39;Done!\n==========&#39;)
+    return intra_J3
+
+
+def find_held_units(rec_dirs, percent_criterion=95, rec_names=None):
+    # TODO: if any rec is &#39;one file per signal type&#39; create tmp_raw.hdf5 and
+    # delete after detection is finished 
+
+    userIO.tell_user(&#39;Computing intra recording J3 values...&#39;, shell=True)
+    intra_J3 = get_intra_J3(rec_dirs)
+    if rec_names is None:
+        rec_names = [os.path.basename(x) for x in rec_dirs]
+
+    rec_labels = {x: y for x, y in zip(rec_names, rec_dirs)}
+
+    print(&#39;\n----------\nComputing Inter J3s\n----------\n&#39;)
+    rec_pairs = [(rec_names[i], rec_names[i+1])
+                 for i in range(len(rec_names)-1)]
+
+    held_df = pd.DataFrame(columns=[&#39;unit&#39;, &#39;electrode&#39;, &#39;single_unit&#39;,
+                                    &#39;unit_type&#39;, *rec_names, &#39;J3&#39;])
+
+    # Go through each pair of directories and computer inter_J3 between
+    # units. If the inter_J3 values is below the percentile_criterion of
+    # the intra_j3 array then mark units as held. Only compare the same
+    # type of single units on the same electrode
+    inter_J3 = []
+    for rec1, rec2 in rec_pairs:
+        rd1 = rec_labels.get(rec1)
+        rd2 = rec_labels.get(rec2)
+        h5_file1 = h5io.get_h5_filename(rd1)
+        h5_file2 = h5io.get_h5_filename(rd2)
+        print(&#39;Comparing %s vs %s&#39; % (rec1, rec2))
+
+        unit_names1 = h5io.get_unit_names(rd1)
+        unit_names2 = h5io.get_unit_names(rd2)
+
+        for unit1 in unit_names1:
+            # wf1, descrip1, fs1 = get_unit_waveforms(rd1, unit1)
+            wf1, descrip1, fs1 = h5io.get_raw_unit_waveforms(rd1, unit1)
+            electrode = descrip1[&#39;electrode_number&#39;]
+            single_unit = bool(descrip1[&#39;single_unit&#39;])
+            unit_type = h5io.read_unit_description(descrip1)
+
+            if descrip1[&#39;single_unit&#39;] == 1:
+                for unit2 in unit_names2:
+                    # wf2, descrip2, fs2 = get_unit_waveforms(rd2, unit2)
+                    wf2, descrip2, fs2 = \
+                            h5io.get_raw_unit_waveforms(rd2, unit2,
+                                                        required_descrip=descrip1)
+                    if descrip1 == descrip2 and wf2 is not None:
+
+                        print(&#39;Comparing %s %s vs %s %s&#39; %
+                              (rec1, unit1, rec2, unit2))
+                        userIO.tell_user(&#39;Comparing %s %s vs %s %s&#39; %
+                                         (rec1, unit1, rec2, unit2), shell=True)
+
+                        if fs1 &gt; fs2:
+                            wf1 = sas.interpolate_waves(wf1, fs1,
+                                                        fs2)
+                        elif fs1 &lt; fs2:
+                            wf2 = sas.interpolate_waves(wf2, fs2,
+                                                        fs1)
+
+                        pca = PCA(n_components=3)
+                        pca.fit(np.concatenate((wf1, wf2), axis=0))
+                        pca_wf1 = pca.transform(wf1)
+                        pca_wf2 = pca.transform(wf2)
+
+                        J3 = calc_J3(pca_wf1, pca_wf2)
+                        inter_J3.append(J3)
+
+                        if J3 &lt;= np.percentile(intra_J3,
+                                               percent_criterion):
+                            print(&#39;Detected held unit:\n    %s %s and %s %s&#39;
+                                  % (rec1, unit1, rec2, unit2))
+                            userIO.tell_user(&#39;Detected held unit:\n    %s %s and %s %s&#39;
+                                             % (rec1, unit1, rec2, unit2), shell=True)
+                            # Add unit to proper spot in Dataframe
+                            if held_df.empty:
+                                held_df = \
+                                    held_df.append({&#39;unit&#39;: &#39;A&#39;,
+                                                    &#39;single_unit&#39;: single_unit,
+                                                    &#39;unit_type&#39;: unit_type,
+                                                    rec1: unit1,
+                                                    rec2: unit2,
+                                                    &#39;J3&#39;: [J3]},
+                                                   ignore_index=True)
+                                continue
+
+                            idx1 = np.where(held_df[rec1] == unit1)[0]
+                            idx2 = np.where(held_df[rec2] == unit2)[0]
+
+                            if idx1.size == 0 and idx2.size == 0:
+                                uL = held_df[&#39;unit&#39;].iloc[-1]
+                                uL = pt.get_next_letter(uL)
+                                tmp = {&#39;unit&#39;: uL,
+                                       &#39;single_unit&#39;: single_unit,
+                                       &#39;unit_type&#39;: unit_type,
+                                       rec1: unit1,
+                                       rec2: unit2,
+                                       &#39;J3&#39;: [J3]}
+
+                                held_df = held_df.append(
+                                    tmp,
+                                    ignore_index=True)
+                            elif idx1.size != 0 and idx2.size != 0:
+                                continue
+                            elif idx1.size != 0:
+                                held_df[rec2].iloc[idx1[0]] = unit2
+                                held_df[&#39;J3&#39;].iloc[idx1[0]].append(J3)
+                            else:
+                                held_df[rec1].iloc[idx2[0]] = unit1
+                                held_df[&#39;J3&#39;].iloc[idx2[0]].append(J3)
+
+    return held_df, intra_J3, inter_J3
+
+### Delete after here
+
+def get_response_change(unit_name, rec1, unit1,
+                        din1, rec2, unit2, din2,
+                        bin_size=250, bin_step=25, norm_func=None):
+    &#39;&#39;&#39;Uses the spike arrays to compute the change in
+    firing rate of the response to the tastant.
+
+    Parameters
+    ----------
+    unit_name : str, name of held unit
+    rec1 : str, path to recording directory 1
+    unit1: str, name of unit in rec1
+    din1 : int, number of din to use from rec1
+    rec2 : str, path to recording directory 2
+    unit2: str, name of unit in rec2
+    din2 : int, number of din to use from rec2
+    bin_size : int, default=250
+        width of bins in units of time vector saved in hf5 spike_trains
+        usually ms
+    bin_step : int, default=25
+        step size to take from one bin to the next in same units (usually ms)
+    norm_func: function (optional)
+        function with which to normalize the firing rates before getting difference
+        must take inputs (time_vector, firing_rate_array) where time_vector is
+        1D numpy.array and firing_rate_array is a Trial x Time numpy.array
+        Must return a numpy.array with same size as firing rate array
+
+    Returns
+    -------
+    difference_of_means : numpy.array
+    SEM : numpy.array, standard error of the mean difference
+    &#39;&#39;&#39;
+    # Get metadata
+    dat1 = load_dataset(rec1)
+    dat2 = load_dataset(rec2)
+
+    # Get data from hf5 files
+    time1, spikes1 = dio.h5io.get_spike_data(rec1, unit1, din1)
+    time2, spikes2 = dio.h5io.get_spike_data(rec2, unit2, din2)
+
+    # Get Firing Rates
+    bin_time1, fr1 = sas.get_binned_firing_rate(time1, spikes1, bin_size, bin_step)
+    bin_time2, fr2 = sas.get_binned_firing_rate(time2, spike2, bin_size, bin_step)
+
+    if not np.array_equal(bin_time1, bin_time2):
+        raise ValueError(&#39;Time of spike trains is not aligned&#39;)
+
+    # Normalize firing rates
+    if norm_func:
+        fr1 = norm_func(bin_time1, fr1)
+        fr2 = norm_fun(bin_time2, fr2)
+
+    difference_of_mean, SEM = get_mean_difference(fr1, fr2, axis=0)
+
+    return difference_of_mean, SEM, bin_time1</code></pre>
+</details>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="blechpy.analysis.held_unit_analysis.calc_J1"><code class="name flex">
+<span>def <span class="ident">calc_J1</span></span>(<span>wf_day1, wf_day2)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def calc_J1(wf_day1, wf_day2):
+    # Get the mean PCA waveforms on days 1 and 2
+    day1_mean = np.mean(wf_day1, axis=0)
+    day2_mean = np.mean(wf_day2, axis=0)
+
+    # Get the Euclidean distances of each day from its daily mean
+    day1_dists = cdist(wf_day1, day1_mean.reshape((-1, 3)), metric=&#39;euclidean&#39;)
+    day2_dists = cdist(wf_day2, day2_mean.reshape((-1, 3)), metric=&#39;euclidean&#39;)
+
+    # Sum up the distances to get J1
+    J1 = np.sum(day1_dists) + np.sum(day2_dists)
+    return J1</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.held_unit_analysis.calc_J2"><code class="name flex">
+<span>def <span class="ident">calc_J2</span></span>(<span>wf_day1, wf_day2)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def calc_J2(wf_day1, wf_day2):
+    # Get the mean PCA waveforms on days 1 and 2
+    day1_mean = np.mean(wf_day1, axis=0)
+    day2_mean = np.mean(wf_day2, axis=0)
+
+    # Get the overall inter-day mean
+    overall_mean = np.mean(np.concatenate((wf_day1, wf_day2), axis=0), axis=0)
+
+    # Get the distances of the daily means from the inter-day mean
+    dist1 = cdist(day1_mean.reshape((-1, 3)), overall_mean.reshape((-1, 3)))
+    dist2 = cdist(day2_mean.reshape((-1, 3)), overall_mean.reshape((-1, 3)))
+
+    # Multiply the distances by the number of points on both days and sum to
+    # get J2
+    J2 = wf_day1.shape[0]*np.sum(dist1) + wf_day2.shape[0]*np.sum(dist2)
+    return J2</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.held_unit_analysis.calc_J3"><code class="name flex">
+<span>def <span class="ident">calc_J3</span></span>(<span>wf_day1, wf_day2)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Calculate J3 value between 2 sets of PCA waveforms</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>wf_day1</code></strong> :&ensp;<code>numpy.array</code></dt>
+<dd>PCA waveforms for a single unit from session 1</dd>
+<dt><strong><code>wf_day2</code></strong> :&ensp;<code>numpy.array</code></dt>
+<dd>PCA waveforms for a single unit from session 2</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>J3</code></strong> :&ensp;<code>float</code></dt>
+<dd>&nbsp;</dd>
+</dl></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def calc_J3(wf_day1, wf_day2):
+    &#39;&#39;&#39;Calculate J3 value between 2 sets of PCA waveforms
+
+    Parameters
+    ----------
+    wf_day1 : numpy.array
+        PCA waveforms for a single unit from session 1
+    wf_day2 : numpy.array
+        PCA waveforms for a single unit from session 2
+
+    Returns
+    -------
+    J3 : float
+    &#39;&#39;&#39;
+    J1 = calc_J1(wf_day1, wf_day2)
+    J2 = calc_J2(wf_day1, wf_day2)
+    J3 = J2 / J1
+    return J3</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.held_unit_analysis.find_held_units"><code class="name flex">
+<span>def <span class="ident">find_held_units</span></span>(<span>rec_dirs, percent_criterion=95, rec_names=None)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def find_held_units(rec_dirs, percent_criterion=95, rec_names=None):
+    # TODO: if any rec is &#39;one file per signal type&#39; create tmp_raw.hdf5 and
+    # delete after detection is finished 
+
+    userIO.tell_user(&#39;Computing intra recording J3 values...&#39;, shell=True)
+    intra_J3 = get_intra_J3(rec_dirs)
+    if rec_names is None:
+        rec_names = [os.path.basename(x) for x in rec_dirs]
+
+    rec_labels = {x: y for x, y in zip(rec_names, rec_dirs)}
+
+    print(&#39;\n----------\nComputing Inter J3s\n----------\n&#39;)
+    rec_pairs = [(rec_names[i], rec_names[i+1])
+                 for i in range(len(rec_names)-1)]
+
+    held_df = pd.DataFrame(columns=[&#39;unit&#39;, &#39;electrode&#39;, &#39;single_unit&#39;,
+                                    &#39;unit_type&#39;, *rec_names, &#39;J3&#39;])
+
+    # Go through each pair of directories and computer inter_J3 between
+    # units. If the inter_J3 values is below the percentile_criterion of
+    # the intra_j3 array then mark units as held. Only compare the same
+    # type of single units on the same electrode
+    inter_J3 = []
+    for rec1, rec2 in rec_pairs:
+        rd1 = rec_labels.get(rec1)
+        rd2 = rec_labels.get(rec2)
+        h5_file1 = h5io.get_h5_filename(rd1)
+        h5_file2 = h5io.get_h5_filename(rd2)
+        print(&#39;Comparing %s vs %s&#39; % (rec1, rec2))
+
+        unit_names1 = h5io.get_unit_names(rd1)
+        unit_names2 = h5io.get_unit_names(rd2)
+
+        for unit1 in unit_names1:
+            # wf1, descrip1, fs1 = get_unit_waveforms(rd1, unit1)
+            wf1, descrip1, fs1 = h5io.get_raw_unit_waveforms(rd1, unit1)
+            electrode = descrip1[&#39;electrode_number&#39;]
+            single_unit = bool(descrip1[&#39;single_unit&#39;])
+            unit_type = h5io.read_unit_description(descrip1)
+
+            if descrip1[&#39;single_unit&#39;] == 1:
+                for unit2 in unit_names2:
+                    # wf2, descrip2, fs2 = get_unit_waveforms(rd2, unit2)
+                    wf2, descrip2, fs2 = \
+                            h5io.get_raw_unit_waveforms(rd2, unit2,
+                                                        required_descrip=descrip1)
+                    if descrip1 == descrip2 and wf2 is not None:
+
+                        print(&#39;Comparing %s %s vs %s %s&#39; %
+                              (rec1, unit1, rec2, unit2))
+                        userIO.tell_user(&#39;Comparing %s %s vs %s %s&#39; %
+                                         (rec1, unit1, rec2, unit2), shell=True)
+
+                        if fs1 &gt; fs2:
+                            wf1 = sas.interpolate_waves(wf1, fs1,
+                                                        fs2)
+                        elif fs1 &lt; fs2:
+                            wf2 = sas.interpolate_waves(wf2, fs2,
+                                                        fs1)
+
+                        pca = PCA(n_components=3)
+                        pca.fit(np.concatenate((wf1, wf2), axis=0))
+                        pca_wf1 = pca.transform(wf1)
+                        pca_wf2 = pca.transform(wf2)
+
+                        J3 = calc_J3(pca_wf1, pca_wf2)
+                        inter_J3.append(J3)
+
+                        if J3 &lt;= np.percentile(intra_J3,
+                                               percent_criterion):
+                            print(&#39;Detected held unit:\n    %s %s and %s %s&#39;
+                                  % (rec1, unit1, rec2, unit2))
+                            userIO.tell_user(&#39;Detected held unit:\n    %s %s and %s %s&#39;
+                                             % (rec1, unit1, rec2, unit2), shell=True)
+                            # Add unit to proper spot in Dataframe
+                            if held_df.empty:
+                                held_df = \
+                                    held_df.append({&#39;unit&#39;: &#39;A&#39;,
+                                                    &#39;single_unit&#39;: single_unit,
+                                                    &#39;unit_type&#39;: unit_type,
+                                                    rec1: unit1,
+                                                    rec2: unit2,
+                                                    &#39;J3&#39;: [J3]},
+                                                   ignore_index=True)
+                                continue
+
+                            idx1 = np.where(held_df[rec1] == unit1)[0]
+                            idx2 = np.where(held_df[rec2] == unit2)[0]
+
+                            if idx1.size == 0 and idx2.size == 0:
+                                uL = held_df[&#39;unit&#39;].iloc[-1]
+                                uL = pt.get_next_letter(uL)
+                                tmp = {&#39;unit&#39;: uL,
+                                       &#39;single_unit&#39;: single_unit,
+                                       &#39;unit_type&#39;: unit_type,
+                                       rec1: unit1,
+                                       rec2: unit2,
+                                       &#39;J3&#39;: [J3]}
+
+                                held_df = held_df.append(
+                                    tmp,
+                                    ignore_index=True)
+                            elif idx1.size != 0 and idx2.size != 0:
+                                continue
+                            elif idx1.size != 0:
+                                held_df[rec2].iloc[idx1[0]] = unit2
+                                held_df[&#39;J3&#39;].iloc[idx1[0]].append(J3)
+                            else:
+                                held_df[rec1].iloc[idx2[0]] = unit1
+                                held_df[&#39;J3&#39;].iloc[idx2[0]].append(J3)
+
+    return held_df, intra_J3, inter_J3</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.held_unit_analysis.get_intra_J3"><code class="name flex">
+<span>def <span class="ident">get_intra_J3</span></span>(<span>rec_dirs)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_intra_J3(rec_dirs):
+    print(&#39;\n----------\nComputing Intra J3s\n----------\n&#39;)
+    # Go through each recording directory and compute intra_J3 array
+    intra_J3 = []
+    for rd in rec_dirs:
+        print(&#39;Processing single units in %s...&#39; % rd)
+        unit_names = h5io.get_unit_names(rd)
+
+        for un in unit_names:
+            print(&#39;    Computing for %s...&#39; % un)
+            # waves, descrip, fs = get_unit_waveforms(rd, unit)
+            waves, descrip, fs = h5io.get_raw_unit_waveforms(rd, un)
+            if descrip[&#39;single_unit&#39;] == 1:
+                pca = PCA(n_components=3)
+                pca.fit(waves)
+                pca_waves = pca.transform(waves)
+                idx1 = int(waves.shape[0] * (1.0 / 3.0))
+                idx2 = int(waves.shape[0] * (2.0 / 3.0))
+
+                tmp_J3 = calc_J3(pca_waves[:idx1, :],
+                                 pca_waves[idx2:, :])
+                intra_J3.append(tmp_J3)
+
+    print(&#39;Done!\n==========&#39;)
+    return intra_J3</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.held_unit_analysis.get_response_change"><code class="name flex">
+<span>def <span class="ident">get_response_change</span></span>(<span>unit_name, rec1, unit1, din1, rec2, unit2, din2, bin_size=250, bin_step=25, norm_func=None)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Uses the spike arrays to compute the change in
+firing rate of the response to the tastant.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>unit_name</code></strong> :&ensp;<code>str</code>, <code>name</code> of <code>held</code> <code>unit</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>rec1</code></strong> :&ensp;<code>str</code>, <code>path</code> <code>to</code> <code>recording</code> <code>directory</code> <code>1</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>unit1</code></strong> :&ensp;<code>str</code>, <code>name</code> of <code>unit</code> <code>in</code> <code>rec1</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>din1</code></strong> :&ensp;<code>int</code>, <code>number</code> of <code>din</code> <code>to</code> <code>use</code> <code>from</code> <code>rec1</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>rec2</code></strong> :&ensp;<code>str</code>, <code>path</code> <code>to</code> <code>recording</code> <code>directory</code> <code>2</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>unit2</code></strong> :&ensp;<code>str</code>, <code>name</code> of <code>unit</code> <code>in</code> <code>rec2</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>din2</code></strong> :&ensp;<code>int</code>, <code>number</code> of <code>din</code> <code>to</code> <code>use</code> <code>from</code> <code>rec2</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>bin_size</code></strong> :&ensp;<code>int</code>, default=<code>250</code></dt>
+<dd>width of bins in units of time vector saved in hf5 spike_trains
+usually ms</dd>
+<dt><strong><code>bin_step</code></strong> :&ensp;<code>int</code>, default=<code>25</code></dt>
+<dd>step size to take from one bin to the next in same units (usually ms)</dd>
+<dt><strong><code>norm_func</code></strong> :&ensp;<code>function</code> (optional)</dt>
+<dd>function with which to normalize the firing rates before getting difference
+must take inputs (time_vector, firing_rate_array) where time_vector is
+1D numpy.array and firing_rate_array is a Trial x Time numpy.array
+Must return a numpy.array with same size as firing rate array</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>difference_of_means</code></strong> :&ensp;<code>numpy.array</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>SEM</code></strong> :&ensp;<code>numpy.array</code>, <code>standard</code> <code>error</code> of <code>the</code> <code>mean</code> <code>difference</code></dt>
+<dd>&nbsp;</dd>
+</dl></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_response_change(unit_name, rec1, unit1,
+                        din1, rec2, unit2, din2,
+                        bin_size=250, bin_step=25, norm_func=None):
+    &#39;&#39;&#39;Uses the spike arrays to compute the change in
+    firing rate of the response to the tastant.
+
+    Parameters
+    ----------
+    unit_name : str, name of held unit
+    rec1 : str, path to recording directory 1
+    unit1: str, name of unit in rec1
+    din1 : int, number of din to use from rec1
+    rec2 : str, path to recording directory 2
+    unit2: str, name of unit in rec2
+    din2 : int, number of din to use from rec2
+    bin_size : int, default=250
+        width of bins in units of time vector saved in hf5 spike_trains
+        usually ms
+    bin_step : int, default=25
+        step size to take from one bin to the next in same units (usually ms)
+    norm_func: function (optional)
+        function with which to normalize the firing rates before getting difference
+        must take inputs (time_vector, firing_rate_array) where time_vector is
+        1D numpy.array and firing_rate_array is a Trial x Time numpy.array
+        Must return a numpy.array with same size as firing rate array
+
+    Returns
+    -------
+    difference_of_means : numpy.array
+    SEM : numpy.array, standard error of the mean difference
+    &#39;&#39;&#39;
+    # Get metadata
+    dat1 = load_dataset(rec1)
+    dat2 = load_dataset(rec2)
+
+    # Get data from hf5 files
+    time1, spikes1 = dio.h5io.get_spike_data(rec1, unit1, din1)
+    time2, spikes2 = dio.h5io.get_spike_data(rec2, unit2, din2)
+
+    # Get Firing Rates
+    bin_time1, fr1 = sas.get_binned_firing_rate(time1, spikes1, bin_size, bin_step)
+    bin_time2, fr2 = sas.get_binned_firing_rate(time2, spike2, bin_size, bin_step)
+
+    if not np.array_equal(bin_time1, bin_time2):
+        raise ValueError(&#39;Time of spike trains is not aligned&#39;)
+
+    # Normalize firing rates
+    if norm_func:
+        fr1 = norm_func(bin_time1, fr1)
+        fr2 = norm_fun(bin_time2, fr2)
+
+    difference_of_mean, SEM = get_mean_difference(fr1, fr2, axis=0)
+
+    return difference_of_mean, SEM, bin_time1</code></pre>
+</details>
+</dd>
+</dl>
+</section>
+<section>
+</section>
+</article>
+<nav id="sidebar">
+<h1>Index</h1>
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="blechpy.analysis" href="index.html">blechpy.analysis</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="two-column">
+<li><code><a title="blechpy.analysis.held_unit_analysis.calc_J1" href="#blechpy.analysis.held_unit_analysis.calc_J1">calc_J1</a></code></li>
+<li><code><a title="blechpy.analysis.held_unit_analysis.calc_J2" href="#blechpy.analysis.held_unit_analysis.calc_J2">calc_J2</a></code></li>
+<li><code><a title="blechpy.analysis.held_unit_analysis.calc_J3" href="#blechpy.analysis.held_unit_analysis.calc_J3">calc_J3</a></code></li>
+<li><code><a title="blechpy.analysis.held_unit_analysis.find_held_units" href="#blechpy.analysis.held_unit_analysis.find_held_units">find_held_units</a></code></li>
+<li><code><a title="blechpy.analysis.held_unit_analysis.get_intra_J3" href="#blechpy.analysis.held_unit_analysis.get_intra_J3">get_intra_J3</a></code></li>
+<li><code><a title="blechpy.analysis.held_unit_analysis.get_response_change" href="#blechpy.analysis.held_unit_analysis.get_response_change">get_response_change</a></code></li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc"><cite>pdoc</cite> 0.7.1</a>.</p>
+</footer>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+<script>hljs.initHighlightingOnLoad()</script>
+</body>
+</html>

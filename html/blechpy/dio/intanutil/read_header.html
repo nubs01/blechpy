@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+<meta name="generator" content="pdoc 0.7.1" />
+<title>blechpy.dio.intanutil.read_header API documentation</title>
+<meta name="description" content="" />
+<link href='https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.0/normalize.min.css' rel='stylesheet'>
+<link href='https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/8.0.0/sanitize.min.css' rel='stylesheet'>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github.min.css" rel="stylesheet">
+<style>.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{font-weight:bold}#index h4 + ul{margin-bottom:.6em}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>blechpy.dio.intanutil.read_header</code></h1>
+</header>
+<section id="section-intro">
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">#! /bin/env python
+#
+# Michael Gibson 23 April 2015
+# Modified Adrian Foy Sep 2018
+
+import sys, struct
+from blechpy.dio.intanutil.qstring import read_qstring
+
+def read_header(fid):
+    &#34;&#34;&#34;Reads the Intan File Format header from the given file.&#34;&#34;&#34;
+
+    # Check &#39;magic number&#39; at beginning of file to make sure this is an Intan
+    # Technologies RHD2000 data file.
+    magic_number, = struct.unpack(&#39;&lt;I&#39;, fid.read(4)) 
+    if magic_number != int(&#39;c6912702&#39;, 16): raise Exception(&#39;Unrecognized file type.&#39;)
+
+    header = {}
+    # Read version number.
+    version = {}
+    (version[&#39;major&#39;], version[&#39;minor&#39;]) = struct.unpack(&#39;&lt;hh&#39;, fid.read(4)) 
+    header[&#39;version&#39;] = version
+
+    print(&#39;&#39;)
+    print(&#39;Reading Intan Technologies RHD2000 Data File, Version {}.{}&#39;.format(version[&#39;major&#39;], version[&#39;minor&#39;]))
+    print(&#39;&#39;)
+
+    freq = {}
+
+    # Read information of sampling rate and amplifier frequency settings.
+    header[&#39;sample_rate&#39;], = struct.unpack(&#39;&lt;f&#39;, fid.read(4))
+    (freq[&#39;dsp_enabled&#39;], freq[&#39;actual_dsp_cutoff_frequency&#39;], freq[&#39;actual_lower_bandwidth&#39;], freq[&#39;actual_upper_bandwidth&#39;], 
+    freq[&#39;desired_dsp_cutoff_frequency&#39;], freq[&#39;desired_lower_bandwidth&#39;], freq[&#39;desired_upper_bandwidth&#39;]) = struct.unpack(&#39;&lt;hffffff&#39;, fid.read(26))
+
+
+    # This tells us if a software 50/60 Hz notch filter was enabled during
+    # the data acquisition.
+    notch_filter_mode, = struct.unpack(&#39;&lt;h&#39;, fid.read(2))
+    header[&#39;notch_filter_frequency&#39;] = 0
+    if notch_filter_mode == 1:
+        header[&#39;notch_filter_frequency&#39;] = 50
+    elif notch_filter_mode == 2:
+        header[&#39;notch_filter_frequency&#39;] = 60
+    freq[&#39;notch_filter_frequency&#39;] = header[&#39;notch_filter_frequency&#39;]
+
+    (freq[&#39;desired_impedance_test_frequency&#39;], freq[&#39;actual_impedance_test_frequency&#39;]) = struct.unpack(&#39;&lt;ff&#39;, fid.read(8))
+
+    note1 = read_qstring(fid)
+    note2 = read_qstring(fid)
+    note3 = read_qstring(fid)
+    header[&#39;notes&#39;] = { &#39;note1&#39; : note1, &#39;note2&#39; : note2, &#39;note3&#39; : note3}
+
+    # If data file is from GUI v1.1 or later, see if temperature sensor data was saved.
+    header[&#39;num_temp_sensor_channels&#39;] = 0
+    if (version[&#39;major&#39;] == 1 and version[&#39;minor&#39;] &gt;= 1) or (version[&#39;major&#39;] &gt; 1) :
+        header[&#39;num_temp_sensor_channels&#39;], = struct.unpack(&#39;&lt;h&#39;, fid.read(2))
+        
+    # If data file is from GUI v1.3 or later, load eval board mode.
+    header[&#39;eval_board_mode&#39;] = 0
+    if ((version[&#39;major&#39;] == 1) and (version[&#39;minor&#39;] &gt;= 3)) or (version[&#39;major&#39;] &gt; 1) :
+        header[&#39;eval_board_mode&#39;], = struct.unpack(&#39;&lt;h&#39;, fid.read(2))
+        
+        
+    header[&#39;num_samples_per_data_block&#39;] = 60
+    # If data file is from v2.0 or later (Intan Recording Controller), load name of digital reference channel
+    if (version[&#39;major&#39;] &gt; 1):
+        header[&#39;reference_channel&#39;] = read_qstring(fid)
+        header[&#39;num_samples_per_data_block&#39;] = 128
+
+    # Place frequency-related information in data structure. (Note: much of this structure is set above)
+    freq[&#39;amplifier_sample_rate&#39;] = header[&#39;sample_rate&#39;]
+    freq[&#39;aux_input_sample_rate&#39;] = header[&#39;sample_rate&#39;] / 4
+    freq[&#39;supply_voltage_sample_rate&#39;] = header[&#39;sample_rate&#39;] / header[&#39;num_samples_per_data_block&#39;]
+    freq[&#39;board_adc_sample_rate&#39;] = header[&#39;sample_rate&#39;]
+    freq[&#39;board_dig_in_sample_rate&#39;] = header[&#39;sample_rate&#39;]
+
+    header[&#39;frequency_parameters&#39;] = freq
+
+    # Create structure arrays for each type of data channel.
+    header[&#39;spike_triggers&#39;] = []
+    header[&#39;amplifier_channels&#39;] = []
+    header[&#39;aux_input_channels&#39;] = []
+    header[&#39;supply_voltage_channels&#39;] = []
+    header[&#39;board_adc_channels&#39;] = []
+    header[&#39;board_dig_in_channels&#39;] = []
+    header[&#39;board_dig_out_channels&#39;] = []
+
+    # Read signal summary from data file header.
+
+    number_of_signal_groups, = struct.unpack(&#39;&lt;h&#39;, fid.read(2))
+    print(&#39;n signal groups {}&#39;.format(number_of_signal_groups))
+
+    for signal_group in range(1, number_of_signal_groups + 1):
+        signal_group_name = read_qstring(fid)
+        signal_group_prefix = read_qstring(fid)
+        (signal_group_enabled, signal_group_num_channels, signal_group_num_amp_channels) = struct.unpack(&#39;&lt;hhh&#39;, fid.read(6))
+
+        if (signal_group_num_channels &gt; 0) and (signal_group_enabled &gt; 0):
+            for signal_channel in range(0, signal_group_num_channels):
+                new_channel = {&#39;port_name&#39; : signal_group_name, &#39;port_prefix&#39; : signal_group_prefix, &#39;port_number&#39; : signal_group}
+                new_channel[&#39;native_channel_name&#39;] = read_qstring(fid)
+                new_channel[&#39;custom_channel_name&#39;] = read_qstring(fid)
+                (new_channel[&#39;native_order&#39;], new_channel[&#39;custom_order&#39;], signal_type, channel_enabled, new_channel[&#39;chip_channel&#39;], new_channel[&#39;board_stream&#39;]) = struct.unpack(&#39;&lt;hhhhhh&#39;, fid.read(12))
+                new_trigger_channel = {}
+                (new_trigger_channel[&#39;voltage_trigger_mode&#39;], new_trigger_channel[&#39;voltage_threshold&#39;], new_trigger_channel[&#39;digital_trigger_channel&#39;], new_trigger_channel[&#39;digital_edge_polarity&#39;])  = struct.unpack(&#39;&lt;hhhh&#39;, fid.read(8))
+                (new_channel[&#39;electrode_impedance_magnitude&#39;], new_channel[&#39;electrode_impedance_phase&#39;]) = struct.unpack(&#39;&lt;ff&#39;, fid.read(8))
+
+                if channel_enabled:
+                    if signal_type == 0:
+                        header[&#39;amplifier_channels&#39;].append(new_channel)
+                        header[&#39;spike_triggers&#39;].append(new_trigger_channel)
+                    elif signal_type == 1:
+                        header[&#39;aux_input_channels&#39;].append(new_channel)
+                    elif signal_type == 2:
+                        header[&#39;supply_voltage_channels&#39;].append(new_channel)
+                    elif signal_type == 3:
+                        header[&#39;board_adc_channels&#39;].append(new_channel)
+                    elif signal_type == 4:
+                        header[&#39;board_dig_in_channels&#39;].append(new_channel)
+                    elif signal_type == 5:
+                        header[&#39;board_dig_out_channels&#39;].append(new_channel)
+                    else:
+                        raise Exception(&#39;Unknown channel type.&#39;)
+                        
+    # Summarize contents of data file.
+    header[&#39;num_amplifier_channels&#39;] = len(header[&#39;amplifier_channels&#39;])
+    header[&#39;num_aux_input_channels&#39;] = len(header[&#39;aux_input_channels&#39;])
+    header[&#39;num_supply_voltage_channels&#39;] = len(header[&#39;supply_voltage_channels&#39;])
+    header[&#39;num_board_adc_channels&#39;] = len(header[&#39;board_adc_channels&#39;])
+    header[&#39;num_board_dig_in_channels&#39;] = len(header[&#39;board_dig_in_channels&#39;])
+    header[&#39;num_board_dig_out_channels&#39;] = len(header[&#39;board_dig_out_channels&#39;])
+
+    return header
+
+if __name__ == &#39;__main__&#39;:
+    h=read_header(open(sys.argv[1], &#39;rb&#39;))
+    print(h)</code></pre>
+</details>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="blechpy.dio.intanutil.read_header.read_header"><code class="name flex">
+<span>def <span class="ident">read_header</span></span>(<span>fid)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Reads the Intan File Format header from the given file.</p></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def read_header(fid):
+    &#34;&#34;&#34;Reads the Intan File Format header from the given file.&#34;&#34;&#34;
+
+    # Check &#39;magic number&#39; at beginning of file to make sure this is an Intan
+    # Technologies RHD2000 data file.
+    magic_number, = struct.unpack(&#39;&lt;I&#39;, fid.read(4)) 
+    if magic_number != int(&#39;c6912702&#39;, 16): raise Exception(&#39;Unrecognized file type.&#39;)
+
+    header = {}
+    # Read version number.
+    version = {}
+    (version[&#39;major&#39;], version[&#39;minor&#39;]) = struct.unpack(&#39;&lt;hh&#39;, fid.read(4)) 
+    header[&#39;version&#39;] = version
+
+    print(&#39;&#39;)
+    print(&#39;Reading Intan Technologies RHD2000 Data File, Version {}.{}&#39;.format(version[&#39;major&#39;], version[&#39;minor&#39;]))
+    print(&#39;&#39;)
+
+    freq = {}
+
+    # Read information of sampling rate and amplifier frequency settings.
+    header[&#39;sample_rate&#39;], = struct.unpack(&#39;&lt;f&#39;, fid.read(4))
+    (freq[&#39;dsp_enabled&#39;], freq[&#39;actual_dsp_cutoff_frequency&#39;], freq[&#39;actual_lower_bandwidth&#39;], freq[&#39;actual_upper_bandwidth&#39;], 
+    freq[&#39;desired_dsp_cutoff_frequency&#39;], freq[&#39;desired_lower_bandwidth&#39;], freq[&#39;desired_upper_bandwidth&#39;]) = struct.unpack(&#39;&lt;hffffff&#39;, fid.read(26))
+
+
+    # This tells us if a software 50/60 Hz notch filter was enabled during
+    # the data acquisition.
+    notch_filter_mode, = struct.unpack(&#39;&lt;h&#39;, fid.read(2))
+    header[&#39;notch_filter_frequency&#39;] = 0
+    if notch_filter_mode == 1:
+        header[&#39;notch_filter_frequency&#39;] = 50
+    elif notch_filter_mode == 2:
+        header[&#39;notch_filter_frequency&#39;] = 60
+    freq[&#39;notch_filter_frequency&#39;] = header[&#39;notch_filter_frequency&#39;]
+
+    (freq[&#39;desired_impedance_test_frequency&#39;], freq[&#39;actual_impedance_test_frequency&#39;]) = struct.unpack(&#39;&lt;ff&#39;, fid.read(8))
+
+    note1 = read_qstring(fid)
+    note2 = read_qstring(fid)
+    note3 = read_qstring(fid)
+    header[&#39;notes&#39;] = { &#39;note1&#39; : note1, &#39;note2&#39; : note2, &#39;note3&#39; : note3}
+
+    # If data file is from GUI v1.1 or later, see if temperature sensor data was saved.
+    header[&#39;num_temp_sensor_channels&#39;] = 0
+    if (version[&#39;major&#39;] == 1 and version[&#39;minor&#39;] &gt;= 1) or (version[&#39;major&#39;] &gt; 1) :
+        header[&#39;num_temp_sensor_channels&#39;], = struct.unpack(&#39;&lt;h&#39;, fid.read(2))
+        
+    # If data file is from GUI v1.3 or later, load eval board mode.
+    header[&#39;eval_board_mode&#39;] = 0
+    if ((version[&#39;major&#39;] == 1) and (version[&#39;minor&#39;] &gt;= 3)) or (version[&#39;major&#39;] &gt; 1) :
+        header[&#39;eval_board_mode&#39;], = struct.unpack(&#39;&lt;h&#39;, fid.read(2))
+        
+        
+    header[&#39;num_samples_per_data_block&#39;] = 60
+    # If data file is from v2.0 or later (Intan Recording Controller), load name of digital reference channel
+    if (version[&#39;major&#39;] &gt; 1):
+        header[&#39;reference_channel&#39;] = read_qstring(fid)
+        header[&#39;num_samples_per_data_block&#39;] = 128
+
+    # Place frequency-related information in data structure. (Note: much of this structure is set above)
+    freq[&#39;amplifier_sample_rate&#39;] = header[&#39;sample_rate&#39;]
+    freq[&#39;aux_input_sample_rate&#39;] = header[&#39;sample_rate&#39;] / 4
+    freq[&#39;supply_voltage_sample_rate&#39;] = header[&#39;sample_rate&#39;] / header[&#39;num_samples_per_data_block&#39;]
+    freq[&#39;board_adc_sample_rate&#39;] = header[&#39;sample_rate&#39;]
+    freq[&#39;board_dig_in_sample_rate&#39;] = header[&#39;sample_rate&#39;]
+
+    header[&#39;frequency_parameters&#39;] = freq
+
+    # Create structure arrays for each type of data channel.
+    header[&#39;spike_triggers&#39;] = []
+    header[&#39;amplifier_channels&#39;] = []
+    header[&#39;aux_input_channels&#39;] = []
+    header[&#39;supply_voltage_channels&#39;] = []
+    header[&#39;board_adc_channels&#39;] = []
+    header[&#39;board_dig_in_channels&#39;] = []
+    header[&#39;board_dig_out_channels&#39;] = []
+
+    # Read signal summary from data file header.
+
+    number_of_signal_groups, = struct.unpack(&#39;&lt;h&#39;, fid.read(2))
+    print(&#39;n signal groups {}&#39;.format(number_of_signal_groups))
+
+    for signal_group in range(1, number_of_signal_groups + 1):
+        signal_group_name = read_qstring(fid)
+        signal_group_prefix = read_qstring(fid)
+        (signal_group_enabled, signal_group_num_channels, signal_group_num_amp_channels) = struct.unpack(&#39;&lt;hhh&#39;, fid.read(6))
+
+        if (signal_group_num_channels &gt; 0) and (signal_group_enabled &gt; 0):
+            for signal_channel in range(0, signal_group_num_channels):
+                new_channel = {&#39;port_name&#39; : signal_group_name, &#39;port_prefix&#39; : signal_group_prefix, &#39;port_number&#39; : signal_group}
+                new_channel[&#39;native_channel_name&#39;] = read_qstring(fid)
+                new_channel[&#39;custom_channel_name&#39;] = read_qstring(fid)
+                (new_channel[&#39;native_order&#39;], new_channel[&#39;custom_order&#39;], signal_type, channel_enabled, new_channel[&#39;chip_channel&#39;], new_channel[&#39;board_stream&#39;]) = struct.unpack(&#39;&lt;hhhhhh&#39;, fid.read(12))
+                new_trigger_channel = {}
+                (new_trigger_channel[&#39;voltage_trigger_mode&#39;], new_trigger_channel[&#39;voltage_threshold&#39;], new_trigger_channel[&#39;digital_trigger_channel&#39;], new_trigger_channel[&#39;digital_edge_polarity&#39;])  = struct.unpack(&#39;&lt;hhhh&#39;, fid.read(8))
+                (new_channel[&#39;electrode_impedance_magnitude&#39;], new_channel[&#39;electrode_impedance_phase&#39;]) = struct.unpack(&#39;&lt;ff&#39;, fid.read(8))
+
+                if channel_enabled:
+                    if signal_type == 0:
+                        header[&#39;amplifier_channels&#39;].append(new_channel)
+                        header[&#39;spike_triggers&#39;].append(new_trigger_channel)
+                    elif signal_type == 1:
+                        header[&#39;aux_input_channels&#39;].append(new_channel)
+                    elif signal_type == 2:
+                        header[&#39;supply_voltage_channels&#39;].append(new_channel)
+                    elif signal_type == 3:
+                        header[&#39;board_adc_channels&#39;].append(new_channel)
+                    elif signal_type == 4:
+                        header[&#39;board_dig_in_channels&#39;].append(new_channel)
+                    elif signal_type == 5:
+                        header[&#39;board_dig_out_channels&#39;].append(new_channel)
+                    else:
+                        raise Exception(&#39;Unknown channel type.&#39;)
+                        
+    # Summarize contents of data file.
+    header[&#39;num_amplifier_channels&#39;] = len(header[&#39;amplifier_channels&#39;])
+    header[&#39;num_aux_input_channels&#39;] = len(header[&#39;aux_input_channels&#39;])
+    header[&#39;num_supply_voltage_channels&#39;] = len(header[&#39;supply_voltage_channels&#39;])
+    header[&#39;num_board_adc_channels&#39;] = len(header[&#39;board_adc_channels&#39;])
+    header[&#39;num_board_dig_in_channels&#39;] = len(header[&#39;board_dig_in_channels&#39;])
+    header[&#39;num_board_dig_out_channels&#39;] = len(header[&#39;board_dig_out_channels&#39;])
+
+    return header</code></pre>
+</details>
+</dd>
+</dl>
+</section>
+<section>
+</section>
+</article>
+<nav id="sidebar">
+<h1>Index</h1>
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="blechpy.dio.intanutil" href="index.html">blechpy.dio.intanutil</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="blechpy.dio.intanutil.read_header.read_header" href="#blechpy.dio.intanutil.read_header.read_header">read_header</a></code></li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc"><cite>pdoc</cite> 0.7.1</a>.</p>
+</footer>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+<script>hljs.initHighlightingOnLoad()</script>
+</body>
+</html>

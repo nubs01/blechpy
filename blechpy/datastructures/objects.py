@@ -153,7 +153,7 @@ def load_project(file_dir=None, shell=False):
 
     Returns
     -------
-    blechpy.proejct or None if no file found
+    blechpy.project or None if no file found
     '''
     return load_data('project', file_dir, shell=shell)
 

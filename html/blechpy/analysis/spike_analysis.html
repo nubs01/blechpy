@@ -1,0 +1,656 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+<meta name="generator" content="pdoc 0.7.1" />
+<title>blechpy.analysis.spike_analysis API documentation</title>
+<meta name="description" content="" />
+<link href='https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.0/normalize.min.css' rel='stylesheet'>
+<link href='https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/8.0.0/sanitize.min.css' rel='stylesheet'>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github.min.css" rel="stylesheet">
+<style>.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{font-weight:bold}#index h4 + ul{margin-bottom:.6em}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>blechpy.analysis.spike_analysis</code></h1>
+</header>
+<section id="section-intro">
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">import numpy as np
+import tables
+from scipy.ndimage.filters import gaussian_filter1d
+from scipy.interpolate import interp1d
+
+
+def interpolate_waves(waves, fs, fs_new, axis=1):
+    end_time = waves.shape[axis] / (fs/1000)
+    x = np.arange(0, end_time, 1/(fs/1000))
+    x_new = np.arange(0, end_time, 1/(fs_new/1000))
+    f = interp1d(x, waves, axis=axis)
+    return f(x_new)
+
+
+def make_single_trial_psth(spike_train, win_size, win_step, time=None):
+    &#39;&#39;&#39;Takes a spike train and returns firing rate trace in Hz
+
+    Parameters
+    ----------
+    spike_train : 1D numpy.array
+        spike train with 1s in bins with spikes and 0s elsewhere
+    win_size : float, window size of psth in ms
+    win_step : float, step size of psth in ms
+    time : numpy.array (optional)
+        time array with times corresponding to bins in spike_train
+        if not provided then on is created starting at 0 and assuming 1ms bins
+
+    Returns
+    -------
+    psth : numpy.array, firing rate vector with units of Hz
+    psth_time: numpy.array, time vector corresponding to the psth
+    &#39;&#39;&#39;
+    if time is None:
+        time = np.arange(0, len(spike_train), 1)  # assume 1ms bins
+
+    psth_time = np.arange(np.min(time) + (win_size/2),
+                          np.max(time) - (win_size/2),
+                          win_step)
+    psth = np.zeros(psth_time.shape)
+    window = np.array([-win_size/2, win_size/2])
+
+    for i, t in enumerate(psth_time):
+        t_win = t + window
+        idx = np.where((time &gt;= t_win[0]) &amp; (time &lt;= t_win[1]))[0]
+        psth[i] = np.sum(spike_train[idx]) / (win_size/1000.0)  # in Hz
+
+    return psth, psth_time
+
+
+def make_mean_PSTHs(h5_file, win_size, win_step, dig_in_ch):
+
+    with tables.open_file(h5_file, &#39;r&#39;) as hf5:
+        spike_data = hf5.root.spike_trains[&#39;dig_in_%i&#39; % dig_in_ch]
+        spike_array = spike_data.spike_array[:]
+        time = spike_data.array_time[:]
+
+        psth_time = np.arange(np.min(time) - (win_size/2),
+                              np.max(time) + (win_size/2),
+                              win_step)
+        PSTHs = np.zeros((len(psth_time), spike_array.shape[1]))
+
+        for trial in spike_array:
+            for i, unit in enumerate(trial):
+                tmp, tmp_time = make_single_trial_psth(unit, win_size,
+                                                       win_step, time)
+                PSTHs[:, i] += tmp
+        PSTHs /= spike_array.shape[0]
+
+    return PSTHs, psth_time
+
+
+def make_psths_for_tastant(h5_file, win_size, win_step, dig_in_ch, smoothing_width=3):
+    dig_str = &#39;dig_in_%i&#39; % dig_in_ch
+    with tables.open_file(h5_file, &#39;r+&#39;) as hf5:
+        spike_data = hf5.root.spike_trains[dig_str]
+        spike_array = spike_data.spike_array[:]
+        time = spike_data.array_time[:]
+
+        psth_time = None
+        PSTHs = None
+
+        for ti, trial in enumerate(spike_array):
+            for ui, unit in enumerate(trial):
+                tmp, tmp_time = make_single_trial_psth(unit, win_size,
+                                                       win_step, time)
+                if psth_time is None:
+                    psth_time = tmp_time
+                    PSTHs = np.zeros((spike_array.shape[1],
+                                     spike_array.shape[0],
+                                     len(psth_time)))
+
+                # Smooth firing rate trace
+                tmp = gaussian_filter1d(tmp, sigma=smoothing_width)
+
+                PSTHs[ui, ti, :] = tmp
+
+        if &#39;/PSTHs&#39; not in hf5:
+            hf5.create_group(&#39;/&#39;, &#39;PSTHs&#39;)
+
+        if &#39;/PSTHs/%s&#39; % dig_str in hf5:
+            hf5.remove_node(&#39;/PSTHs&#39;, dig_str, recursive=True)
+
+        hf5.create_group(&#39;/PSTHs&#39;, dig_str)
+        hf5.create_array(&#39;/PSTHs/%s&#39; % dig_str, &#39;time&#39;, psth_time)
+        hf5.create_array(&#39;/PSTHs/%s&#39; % dig_str, &#39;psth_array&#39;, PSTHs)
+        hf5.create_array(&#39;/PSTHs/%s&#39; % dig_str, &#39;mean_psths&#39;,
+                         np.mean(PSTHs, axis=1))
+        hf5.flush()
+
+    return PSTHs, psth_time
+
+
+def get_binned_firing_rate(time, spikes, bin_size=250, bin_step=25):
+    &#39;&#39;&#39;Take a spike array and returns a firing rate array (row-wise)
+
+    Parameters
+    ----------
+    time :  numpy.array, time vector in ms
+    spikes : numpy.array, Trial x Time array with 1s at spike times
+    bin_size: int (optional), bin width in ms, default=250
+    bin_step : int (optional), step size in ms, default=25
+
+    Returns
+    -------
+    bin_time : numpy.array
+        time vector for binned firing rate array, times correspond to center of
+        bins in ms
+    firing_rate : numpy.array
+        Trial x Time firing rate array in Hz
+    &#39;&#39;&#39;
+    bin_start = np.arange(time[0], time[-1] - bin_size + bin_step, bin_step)
+    bin_time = bin_start + int(bin_size/2)
+    n_trials = spikes.shape[0]
+    n_bins = len(bin_start)
+
+    firing_rate = np.zeros((n_trials, n_bins))
+    for i, start in enumerate(bin_start):
+        idx = np.where((time &gt;= start) &amp; (time &lt;= start+bin_size))[0]
+        firing_rate[:, i] = np.sum(spikes[:, idx], axis=1) / (bin_size/1000)
+
+    return bin_time, firing_rate
+
+
+def get_mean_difference(A, B, axis=0):
+    &#39;&#39;&#39;Returns the difference of the means of arrays A and B along an axis and
+    propogates the uncertainty of the means
+
+    Parameters
+    ----------
+    A,B : numpy.array
+    arrays to get difference between. arrays must be the same size along
+    the axis being compared. For example, if A is MxN and B is LxN and
+    axis=0 then they can be compared since axis 0 will be meaned and axis 1
+    will be subtracted.
+    axis : int, axis to be meaned
+
+    Returns
+    -------
+    difference_of_means : numpy.array, 1D array
+    SEM : numpy.array, standard error of the mean differences, 1D array
+    &#39;&#39;&#39;
+    shape_ax = int(not axis)
+
+    m1 = np.mean(A, axis=axis)
+    sd1 = np.std(A, axis=axis)
+    n1 = A.shape[shape_ax]
+    m2 = np.mean(B, axis=axis)
+    sd2 = np.std(B, axis=axis)
+    n2 = B.shape[shape_ax]
+    C = m2 - m1
+    SEM = np.sqrt((np.power(sd1, 2)/n1) + (np.power(sd2,2)/n2)) / \
+           np.sqrt(n1+n2)
+
+    return C, SEM
+
+
+
+def zscore_to_baseline(time, fr):
+    &#39;&#39;&#39;takes a firing rate array and zscores each row using the mean and st.
+    dev over all trials during times &lt; 0
+
+    Parameters
+    ----------
+    time : numpy.array, 1D time vector
+    fr : numpy.array, Trial x Time array of firing rates
+
+    Returns
+    -------
+    norm_fr : numpy.array, array of firing rate traces
+    &#39;&#39;&#39;
+    idx = np.where(time &lt; 0)[0]
+    baselines = np.mean(fr[:, idx], axis=1)
+    m = np.mean(baselines)
+    sd = np.std(baselines)
+
+    norm_fr = (fr - m) / sd
+
+    return norm_fr
+
+
+def remove_baseline(time, fr):
+    &#39;&#39;&#39;takes a firing rate and substracts the group baseline mean from the each
+    trials&#39; firing rates
+
+    Parameters
+    ----------
+    time : numpy.array, 1D time vector
+    fr : numpy.array, Trial x Time array of firing rates
+
+    Returns
+    -------
+    norm_fr : numpy.array, array of firing rate traces
+    &#39;&#39;&#39;
+    idx = np.where(time &lt; 0)[0]
+    baseline = np.mean(fr[:, idx])
+    norm_fr = fr - baseline
+    return norm_fr</code></pre>
+</details>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="blechpy.analysis.spike_analysis.get_binned_firing_rate"><code class="name flex">
+<span>def <span class="ident">get_binned_firing_rate</span></span>(<span>time, spikes, bin_size=250, bin_step=25)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Take a spike array and returns a firing rate array (row-wise)</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>time</code></strong> :&ensp; <code>numpy.array</code>, <code>time</code> <code>vector</code> <code>in</code> <code>ms</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>spikes</code></strong> :&ensp;<code>numpy.array</code>, <code>Trial</code> <code>x</code> <code>Time</code> <code>array</code> <code>with</code> <code>1s</code> <code>at</code> <code>spike</code> <code>times</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>bin_size</code></strong> :&ensp;<code>int</code> (optional), <code>bin</code> <code>width</code> <code>in</code> <code>ms</code>, default=<code>250</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>bin_step</code></strong> :&ensp;<code>int</code> (optional), <code>step</code> <code>size</code> <code>in</code> <code>ms</code>, default=<code>25</code></dt>
+<dd>&nbsp;</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>bin_time</code></strong> :&ensp;<code>numpy.array</code></dt>
+<dd>time vector for binned firing rate array, times correspond to center of
+bins in ms</dd>
+<dt><strong><code>firing_rate</code></strong> :&ensp;<code>numpy.array</code></dt>
+<dd>Trial x Time firing rate array in Hz</dd>
+</dl></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_binned_firing_rate(time, spikes, bin_size=250, bin_step=25):
+    &#39;&#39;&#39;Take a spike array and returns a firing rate array (row-wise)
+
+    Parameters
+    ----------
+    time :  numpy.array, time vector in ms
+    spikes : numpy.array, Trial x Time array with 1s at spike times
+    bin_size: int (optional), bin width in ms, default=250
+    bin_step : int (optional), step size in ms, default=25
+
+    Returns
+    -------
+    bin_time : numpy.array
+        time vector for binned firing rate array, times correspond to center of
+        bins in ms
+    firing_rate : numpy.array
+        Trial x Time firing rate array in Hz
+    &#39;&#39;&#39;
+    bin_start = np.arange(time[0], time[-1] - bin_size + bin_step, bin_step)
+    bin_time = bin_start + int(bin_size/2)
+    n_trials = spikes.shape[0]
+    n_bins = len(bin_start)
+
+    firing_rate = np.zeros((n_trials, n_bins))
+    for i, start in enumerate(bin_start):
+        idx = np.where((time &gt;= start) &amp; (time &lt;= start+bin_size))[0]
+        firing_rate[:, i] = np.sum(spikes[:, idx], axis=1) / (bin_size/1000)
+
+    return bin_time, firing_rate</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.spike_analysis.get_mean_difference"><code class="name flex">
+<span>def <span class="ident">get_mean_difference</span></span>(<span>A, B, axis=0)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Returns the difference of the means of arrays A and B along an axis and
+propogates the uncertainty of the means</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt>A,B : numpy.array</dt>
+<dt>arrays to get difference between. arrays must be the same size along</dt>
+<dt>the axis being compared. For example, if A is MxN and B is LxN and</dt>
+<dt>axis=0 then they can be compared since axis 0 will be meaned and axis 1</dt>
+<dt>will be subtracted.</dt>
+<dt><strong><code>axis</code></strong> :&ensp;<code>int</code>, <code>axis</code> <code>to</code> <code>be</code> <code>meaned</code></dt>
+<dd>&nbsp;</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>difference_of_means</code></strong> :&ensp;<code>numpy.array</code>, <code>1D</code> <code>array</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>SEM</code></strong> :&ensp;<code>numpy.array</code>, <code>standard</code> <code>error</code> of <code>the</code> <code>mean</code> <code>differences</code>, <code>1D</code> <code>array</code></dt>
+<dd>&nbsp;</dd>
+</dl></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_mean_difference(A, B, axis=0):
+    &#39;&#39;&#39;Returns the difference of the means of arrays A and B along an axis and
+    propogates the uncertainty of the means
+
+    Parameters
+    ----------
+    A,B : numpy.array
+    arrays to get difference between. arrays must be the same size along
+    the axis being compared. For example, if A is MxN and B is LxN and
+    axis=0 then they can be compared since axis 0 will be meaned and axis 1
+    will be subtracted.
+    axis : int, axis to be meaned
+
+    Returns
+    -------
+    difference_of_means : numpy.array, 1D array
+    SEM : numpy.array, standard error of the mean differences, 1D array
+    &#39;&#39;&#39;
+    shape_ax = int(not axis)
+
+    m1 = np.mean(A, axis=axis)
+    sd1 = np.std(A, axis=axis)
+    n1 = A.shape[shape_ax]
+    m2 = np.mean(B, axis=axis)
+    sd2 = np.std(B, axis=axis)
+    n2 = B.shape[shape_ax]
+    C = m2 - m1
+    SEM = np.sqrt((np.power(sd1, 2)/n1) + (np.power(sd2,2)/n2)) / \
+           np.sqrt(n1+n2)
+
+    return C, SEM</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.spike_analysis.interpolate_waves"><code class="name flex">
+<span>def <span class="ident">interpolate_waves</span></span>(<span>waves, fs, fs_new, axis=1)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def interpolate_waves(waves, fs, fs_new, axis=1):
+    end_time = waves.shape[axis] / (fs/1000)
+    x = np.arange(0, end_time, 1/(fs/1000))
+    x_new = np.arange(0, end_time, 1/(fs_new/1000))
+    f = interp1d(x, waves, axis=axis)
+    return f(x_new)</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.spike_analysis.make_mean_PSTHs"><code class="name flex">
+<span>def <span class="ident">make_mean_PSTHs</span></span>(<span>h5_file, win_size, win_step, dig_in_ch)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def make_mean_PSTHs(h5_file, win_size, win_step, dig_in_ch):
+
+    with tables.open_file(h5_file, &#39;r&#39;) as hf5:
+        spike_data = hf5.root.spike_trains[&#39;dig_in_%i&#39; % dig_in_ch]
+        spike_array = spike_data.spike_array[:]
+        time = spike_data.array_time[:]
+
+        psth_time = np.arange(np.min(time) - (win_size/2),
+                              np.max(time) + (win_size/2),
+                              win_step)
+        PSTHs = np.zeros((len(psth_time), spike_array.shape[1]))
+
+        for trial in spike_array:
+            for i, unit in enumerate(trial):
+                tmp, tmp_time = make_single_trial_psth(unit, win_size,
+                                                       win_step, time)
+                PSTHs[:, i] += tmp
+        PSTHs /= spike_array.shape[0]
+
+    return PSTHs, psth_time</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.spike_analysis.make_psths_for_tastant"><code class="name flex">
+<span>def <span class="ident">make_psths_for_tastant</span></span>(<span>h5_file, win_size, win_step, dig_in_ch, smoothing_width=3)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def make_psths_for_tastant(h5_file, win_size, win_step, dig_in_ch, smoothing_width=3):
+    dig_str = &#39;dig_in_%i&#39; % dig_in_ch
+    with tables.open_file(h5_file, &#39;r+&#39;) as hf5:
+        spike_data = hf5.root.spike_trains[dig_str]
+        spike_array = spike_data.spike_array[:]
+        time = spike_data.array_time[:]
+
+        psth_time = None
+        PSTHs = None
+
+        for ti, trial in enumerate(spike_array):
+            for ui, unit in enumerate(trial):
+                tmp, tmp_time = make_single_trial_psth(unit, win_size,
+                                                       win_step, time)
+                if psth_time is None:
+                    psth_time = tmp_time
+                    PSTHs = np.zeros((spike_array.shape[1],
+                                     spike_array.shape[0],
+                                     len(psth_time)))
+
+                # Smooth firing rate trace
+                tmp = gaussian_filter1d(tmp, sigma=smoothing_width)
+
+                PSTHs[ui, ti, :] = tmp
+
+        if &#39;/PSTHs&#39; not in hf5:
+            hf5.create_group(&#39;/&#39;, &#39;PSTHs&#39;)
+
+        if &#39;/PSTHs/%s&#39; % dig_str in hf5:
+            hf5.remove_node(&#39;/PSTHs&#39;, dig_str, recursive=True)
+
+        hf5.create_group(&#39;/PSTHs&#39;, dig_str)
+        hf5.create_array(&#39;/PSTHs/%s&#39; % dig_str, &#39;time&#39;, psth_time)
+        hf5.create_array(&#39;/PSTHs/%s&#39; % dig_str, &#39;psth_array&#39;, PSTHs)
+        hf5.create_array(&#39;/PSTHs/%s&#39; % dig_str, &#39;mean_psths&#39;,
+                         np.mean(PSTHs, axis=1))
+        hf5.flush()
+
+    return PSTHs, psth_time</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.spike_analysis.make_single_trial_psth"><code class="name flex">
+<span>def <span class="ident">make_single_trial_psth</span></span>(<span>spike_train, win_size, win_step, time=None)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Takes a spike train and returns firing rate trace in Hz</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>spike_train</code></strong> :&ensp;<code>1D</code> <code>numpy.array</code></dt>
+<dd>spike train with 1s in bins with spikes and 0s elsewhere</dd>
+<dt><strong><code>win_size</code></strong> :&ensp;<code>float</code>, <code>window</code> <code>size</code> of <code>psth</code> <code>in</code> <code>ms</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>win_step</code></strong> :&ensp;<code>float</code>, <code>step</code> <code>size</code> of <code>psth</code> <code>in</code> <code>ms</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>time</code></strong> :&ensp;<code>numpy.array</code> (optional)</dt>
+<dd>time array with times corresponding to bins in spike_train
+if not provided then on is created starting at 0 and assuming 1ms bins</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>psth</code></strong> :&ensp;<code>numpy.array</code>, <code>firing</code> <code>rate</code> <code>vector</code> <code>with</code> <code>units</code> of <code>Hz</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>psth_time</code></strong> :&ensp;<code>numpy.array</code>, <code>time</code> <code>vector</code> <code>corresponding</code> <code>to</code> <code>the</code> <code>psth</code></dt>
+<dd>&nbsp;</dd>
+</dl></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def make_single_trial_psth(spike_train, win_size, win_step, time=None):
+    &#39;&#39;&#39;Takes a spike train and returns firing rate trace in Hz
+
+    Parameters
+    ----------
+    spike_train : 1D numpy.array
+        spike train with 1s in bins with spikes and 0s elsewhere
+    win_size : float, window size of psth in ms
+    win_step : float, step size of psth in ms
+    time : numpy.array (optional)
+        time array with times corresponding to bins in spike_train
+        if not provided then on is created starting at 0 and assuming 1ms bins
+
+    Returns
+    -------
+    psth : numpy.array, firing rate vector with units of Hz
+    psth_time: numpy.array, time vector corresponding to the psth
+    &#39;&#39;&#39;
+    if time is None:
+        time = np.arange(0, len(spike_train), 1)  # assume 1ms bins
+
+    psth_time = np.arange(np.min(time) + (win_size/2),
+                          np.max(time) - (win_size/2),
+                          win_step)
+    psth = np.zeros(psth_time.shape)
+    window = np.array([-win_size/2, win_size/2])
+
+    for i, t in enumerate(psth_time):
+        t_win = t + window
+        idx = np.where((time &gt;= t_win[0]) &amp; (time &lt;= t_win[1]))[0]
+        psth[i] = np.sum(spike_train[idx]) / (win_size/1000.0)  # in Hz
+
+    return psth, psth_time</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.spike_analysis.remove_baseline"><code class="name flex">
+<span>def <span class="ident">remove_baseline</span></span>(<span>time, fr)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>takes a firing rate and substracts the group baseline mean from the each
+trials' firing rates</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>time</code></strong> :&ensp;<code>numpy.array</code>, <code>1D</code> <code>time</code> <code>vector</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>fr</code></strong> :&ensp;<code>numpy.array</code>, <code>Trial</code> <code>x</code> <code>Time</code> <code>array</code> of <code>firing</code> <code>rates</code></dt>
+<dd>&nbsp;</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>norm_fr</code></strong> :&ensp;<code>numpy.array</code>, <code>array</code> of <code>firing</code> <code>rate</code> <code>traces</code></dt>
+<dd>&nbsp;</dd>
+</dl></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def remove_baseline(time, fr):
+    &#39;&#39;&#39;takes a firing rate and substracts the group baseline mean from the each
+    trials&#39; firing rates
+
+    Parameters
+    ----------
+    time : numpy.array, 1D time vector
+    fr : numpy.array, Trial x Time array of firing rates
+
+    Returns
+    -------
+    norm_fr : numpy.array, array of firing rate traces
+    &#39;&#39;&#39;
+    idx = np.where(time &lt; 0)[0]
+    baseline = np.mean(fr[:, idx])
+    norm_fr = fr - baseline
+    return norm_fr</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.spike_analysis.zscore_to_baseline"><code class="name flex">
+<span>def <span class="ident">zscore_to_baseline</span></span>(<span>time, fr)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>takes a firing rate array and zscores each row using the mean and st.
+dev over all trials during times &lt; 0</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>time</code></strong> :&ensp;<code>numpy.array</code>, <code>1D</code> <code>time</code> <code>vector</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>fr</code></strong> :&ensp;<code>numpy.array</code>, <code>Trial</code> <code>x</code> <code>Time</code> <code>array</code> of <code>firing</code> <code>rates</code></dt>
+<dd>&nbsp;</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>norm_fr</code></strong> :&ensp;<code>numpy.array</code>, <code>array</code> of <code>firing</code> <code>rate</code> <code>traces</code></dt>
+<dd>&nbsp;</dd>
+</dl></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def zscore_to_baseline(time, fr):
+    &#39;&#39;&#39;takes a firing rate array and zscores each row using the mean and st.
+    dev over all trials during times &lt; 0
+
+    Parameters
+    ----------
+    time : numpy.array, 1D time vector
+    fr : numpy.array, Trial x Time array of firing rates
+
+    Returns
+    -------
+    norm_fr : numpy.array, array of firing rate traces
+    &#39;&#39;&#39;
+    idx = np.where(time &lt; 0)[0]
+    baselines = np.mean(fr[:, idx], axis=1)
+    m = np.mean(baselines)
+    sd = np.std(baselines)
+
+    norm_fr = (fr - m) / sd
+
+    return norm_fr</code></pre>
+</details>
+</dd>
+</dl>
+</section>
+<section>
+</section>
+</article>
+<nav id="sidebar">
+<h1>Index</h1>
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="blechpy.analysis" href="index.html">blechpy.analysis</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="blechpy.analysis.spike_analysis.get_binned_firing_rate" href="#blechpy.analysis.spike_analysis.get_binned_firing_rate">get_binned_firing_rate</a></code></li>
+<li><code><a title="blechpy.analysis.spike_analysis.get_mean_difference" href="#blechpy.analysis.spike_analysis.get_mean_difference">get_mean_difference</a></code></li>
+<li><code><a title="blechpy.analysis.spike_analysis.interpolate_waves" href="#blechpy.analysis.spike_analysis.interpolate_waves">interpolate_waves</a></code></li>
+<li><code><a title="blechpy.analysis.spike_analysis.make_mean_PSTHs" href="#blechpy.analysis.spike_analysis.make_mean_PSTHs">make_mean_PSTHs</a></code></li>
+<li><code><a title="blechpy.analysis.spike_analysis.make_psths_for_tastant" href="#blechpy.analysis.spike_analysis.make_psths_for_tastant">make_psths_for_tastant</a></code></li>
+<li><code><a title="blechpy.analysis.spike_analysis.make_single_trial_psth" href="#blechpy.analysis.spike_analysis.make_single_trial_psth">make_single_trial_psth</a></code></li>
+<li><code><a title="blechpy.analysis.spike_analysis.remove_baseline" href="#blechpy.analysis.spike_analysis.remove_baseline">remove_baseline</a></code></li>
+<li><code><a title="blechpy.analysis.spike_analysis.zscore_to_baseline" href="#blechpy.analysis.spike_analysis.zscore_to_baseline">zscore_to_baseline</a></code></li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc"><cite>pdoc</cite> 0.7.1</a>.</p>
+</footer>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+<script>hljs.initHighlightingOnLoad()</script>
+</body>
+</html>
