@@ -1,3 +1,5 @@
+See the <a href='https://nubs01.github.io/blechpy'>full documentation</a> here.
+
 - [blechpy](#blechpy)
 - [Installation](#installation)
 - [Usage](#usage)
