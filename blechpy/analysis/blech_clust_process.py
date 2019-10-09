@@ -1,19 +1,15 @@
-import matplotlib
-matplotlib.use('Agg')
-
 import shutil
 import os
 import tables
 import numpy as np
 import sys
-from matplotlib.backends.backend_pdf import PdfPages
 import pylab as plt
 import matplotlib.cm as cm
 from scipy.spatial.distance import mahalanobis
 from scipy import linalg
 from blechpy.utils import memory_monitor as mm
 from blechpy.plotting import blech_waveforms_datashader
-from blechpy import dio
+from blechpy.dio import h5io
 from blechpy.analysis import clustering as clust
 
 def blech_clust_process(electrode_num, file_dir, params):
@@ -37,7 +33,7 @@ def blech_clust_process(electrode_num, file_dir, params):
 
     # Get the names of all files in the current directory, and find the .params and hdf5 (.h5) file
     file_list = os.listdir(file_dir)
-    h5_file = dio.h5io.get_h5_filename(file_dir)
+    h5_file = h5io.get_h5_filename(file_dir)
 
     # Assign the parameters to variables
     max_clusters = params['clustering_params']['Max Number of Clusters']
@@ -58,9 +54,9 @@ def blech_clust_process(electrode_num, file_dir, params):
 
     # Open up hdf5 file, and load this electrode number
     # Check if referenced data exists, if not grab raw
-    raw_el = dio.h5io.get_referenced_trace(file_dir, electrode_num)
+    raw_el = h5io.get_referenced_trace(file_dir, electrode_num)
     if raw_el is None:
-        raw_el = dio.h5io.get_raw_trace(file_dir, electrode_num)
+        raw_el = h5io.get_raw_trace(file_dir, electrode_num)
 
     if raw_el is None:
         raise KeyError('Neither /raw/electrode{0} nor /referenced/electrode{0} found in {1}'. \

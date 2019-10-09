@@ -9,13 +9,12 @@ import pylab as plt
 import datetime as dt
 from sklearn.mixture import GaussianMixture
 from sklearn.decomposition import PCA
-from blechpy.plotting import blech_waveforms_datashader
+from blechpy.plotting import data_plot as dplt
 from blechpy.dio import h5io
 from blechpy.utils import print_tools as pt, userIO
 from copy import deepcopy
 from numba import jit
 import itertools
-import matplotlib
 
 
 def sort_units(file_dir, fs, shell=False):
@@ -31,7 +30,6 @@ def sort_units(file_dir, fs, shell=False):
     if 'SSH_CONNECTION' in os.environ:
         shell = True
 
-    matplotlib.use('Qt5Agg')
     hf5_file = h5io.get_h5_filename(file_dir)
     sorting_log = hf5_file.replace('.h5', '_sorting.log')
     metrics_dir = os.path.join(file_dir, 'sorted_unit_metrics')
@@ -109,7 +107,6 @@ def edit_clusters(clusters, fs, shell=False):
         dict representing the resulting cluster from manipulations, None if
         aborted
     '''
-    matplotlib.use('Qt5Agg')
     clusters = deepcopy(clusters)
     quit_flag = False
     while not quit_flag:
@@ -121,11 +118,11 @@ def edit_clusters(clusters, fs, shell=False):
                                            'Raster View', 'Keep', 'Abort'],
                                   shell=shell)
             if idx == 1:
-                fig = plot_cluster(clusters[0])
+                fig = dplt.plot_cluster_waveforms(clusters[0])
                 plt.show()
                 continue
             elif idx == 2:
-                plot_raster(clusters)
+                dplt.plot_cluster_raster(clusters)
                 plt.show()
                 continue
             elif idx == 3:
@@ -139,10 +136,10 @@ def edit_clusters(clusters, fs, shell=False):
                 return None
             figs = []
             for i, c in enumerate(clusters):
-                tmp_fig = plot_cluster(c, i)
+                tmp_fig = dplt.plot_cluster_waveforms(c, i)
                 figs.append(tmp_fig)
 
-            f2, ax2 = plot_pca_view(clusters)
+            f2, ax2 = dplt.plot_cluster_pca(clusters)
             plt.show()
             query = {'Clusters to keep (indices)': []}
             query = userIO.dictIO(query, shell=shell)
@@ -172,12 +169,12 @@ def edit_clusters(clusters, fs, shell=False):
                 clusters = [cluster]
             elif idx == 1:
                 for c in clusters:
-                    plot_cluster(c)
+                    dplt.plot_cluster_waveforms(c)
 
                 plt.show()
                 continue
             elif idx == 2:
-                plot_raster(clusters)
+                dplt.plot_cluster_raster(clusters)
                 plt.show()
                 continue
             elif idx == 3:
@@ -634,34 +631,6 @@ def merge_clusters(clusters, fs):
     return deepcopy(clust)
 
 
-def plot_cluster(cluster, index=None):
-    '''Plots a cluster with isi and violation info for viewing
-
-    Parameters
-    ----------
-    cluster : dict with cluster info
-
-    '''
-    fig, ax = blech_waveforms_datashader.waveforms_datashader(
-        cluster['spike_waveforms'])
-    ax.set_xlabel('Samples', fontsize=12)
-    ax.set_ylabel('Voltage (microvolts)', fontsize=12)
-    title_str = (('Cluster Name: %s\n2ms Violations=%0.1f%%, '
-                  '1ms Violations=%0.1f%%\nNumber of Waveforms'
-                  '=%i') %
-                 (cluster['Cluster Name'],
-                  cluster['2ms_violations'],
-                  cluster['1ms_violations'],
-                  cluster['spike_times'].shape[0]))
-    if index is not None:
-        title_str = 'Index: %i %s, ' % (index, title_str)
-
-    ax.set_title(title_str, fontsize=12)
-    plt.xticks(fontsize=10)
-    plt.yticks(fontsize=10)
-    return fig, ax
-
-
 def delete_unit(file_dir, unit_num):
     '''Delete a sorted unit and re-label all following units. Also relabel all
     associated plots and data in sorted_unit_metrics and unit_waveform_plots
@@ -985,50 +954,4 @@ def calc_units_similarity(h5_file, fs, similarity_cutoff=50,
         print(out_str, file=vf)
 
     return violation_pairs, unit_distances
-
-def plot_pca_view(clusters):
-    fig, axs = plt.subplots(2, 2, sharex=False, sharey=False)
-
-    pca = PCA(n_components=3)
-    pca.fit(np.concatenate(tuple(x['spike_waveforms'] for x in clusters), axis=0))
-
-    colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
-    for i, c in enumerate(clusters):
-        pcs = pca.transform(c['spike_waveforms'])
-
-        axs[0, 0].scatter(pcs[:, 0], pcs[:, 1], alpha=0.4, s=5,
-                          color=colors[i], label=str(i))
-        axs[0, 1].scatter(pcs[:, 0], pcs[:, 2], alpha=0.4, s=5,
-                          color=colors[i], label=str(i))
-        axs[1, 0].scatter(pcs[:, 1], pcs[:, 2], alpha=0.4, s=5,
-                          color=colors[i], label=str(i))
-
-    handles, labels = axs[0, 0].get_legend_handles_labels()
-    axs[1, 1].set_axis_off()
-    axs[1, 1].legend(handles, labels, loc='center')
-
-    axs[0, 0].set_xlabel('PC1')
-    axs[0, 0].set_ylabel('PC2')
-    axs[0, 1].set_xlabel('PC1')
-    axs[0, 1].set_ylabel('PC3')
-    axs[1, 0].set_xlabel('PC2')
-    axs[1, 0].set_ylabel('PC3')
-
-    return fig, axs
-
-def plot_raster(clusters):
-    fig = plt.figure(figsize=(15,10))
-
-    pca = PCA(n_components=1)
-    pca.fit(np.concatenate(tuple(x['spike_waveforms'] for x in clusters), axis=0))
-    colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
-    for i, c in enumerate(clusters):
-        pcs = pca.transform(c['spike_waveforms'])
-        st = c['spike_times']
-        plt.scatter(st, pcs[:, 0], s=5,
-                    color=colors[i], label=str(i))
-
-    plt.legend(loc='best')
-
-    return fig
 

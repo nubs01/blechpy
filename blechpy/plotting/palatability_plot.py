@@ -5,11 +5,9 @@ import easygui
 import sys
 import os
 from scipy.ndimage.filters import gaussian_filter1d
-import matplotlib
 import pylab as plt
 from blechpy.utils import userIO
 from blechpy import dio
-matplotlib.use('Agg')
 
 
 default_plot_params = {'p-value': 0.01, 'num_consecutive_bins': 5,

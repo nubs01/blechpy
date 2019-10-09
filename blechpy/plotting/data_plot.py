@@ -5,15 +5,16 @@ import tables
 import os
 from blechpy import dio
 from blechpy.analysis import spike_analysis as sas
-from blechpy.dio import h5io
 from scipy.stats import sem
 from scipy.ndimage.filters import gaussian_filter1d
 from blechpy.plotting import blech_waveforms_datashader
 import matplotlib
+matplotlib.use('TkAgg')
 
 plot_params = {'xtick.labelsize': 14, 'ytick.labelsize': 14,
                'axes.titlesize': 26, 'figure.titlesize': 28,
                'axes.labelsize': 24}
+matplotlib.rcParams.update(plot_params)
 
 def make_unit_plots(file_dir, unit_name, save_dir=None):
     '''Makes waveform plots for sorted unit in unit_waveforms_plots
@@ -23,9 +24,6 @@ def make_unit_plots(file_dir, unit_name, save_dir=None):
     file_dir : str, full path to recording directory
     fs : float, smapling rate in Hz
     '''
-    matplotlib.use('Qt5Agg')
-    matplotlib.rcParams.update(plot_params)
-
     if isinstance(unit_name, int):
         unit_num = unit_name
         unit_name = 'unit%03i' % unit_num
@@ -230,7 +228,6 @@ def plot_held_units(rec_dirs, held_df, save_dir, rec_names=None):
         abbreviated rec_names if any were used for held_df creation
         if not given, rec_names are assumed to be the basenames of rec_dirs
     '''
-    matplotlib.use('Qt5Agg')
     if rec_names is None:
         rec_names = [os.path.basename(x) for x in rec_dirs]
 
@@ -322,3 +319,103 @@ def plot_held_units(rec_dirs, held_df, save_dir, rec_names=None):
                                  'Unit%s_waveforms.png' % unit_name),
                     bbox_inches='tight')
         plt.close('all')
+
+
+def plot_cluster_pca(clusters):
+    '''Plot PCA view of clusters from spike_sorting
+
+    Parameters
+    ----------
+    clusters : ilist of dict
+        list of dictionaries containing spike cluster information from
+        blechpy.analysis.spike_sorting
+
+    Returns
+    -------
+    matplotlib.pyplot.figure, matplotlib.pyplot.Axes
+    '''
+    fig, axs = plt.subplots(2, 2, sharex=False, sharey=False)
+
+    pca = PCA(n_components=3)
+    pca.fit(np.concatenate(tuple(x['spike_waveforms'] for x in clusters), axis=0))
+
+    colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+    for i, c in enumerate(clusters):
+        pcs = pca.transform(c['spike_waveforms'])
+
+        axs[0, 0].scatter(pcs[:, 0], pcs[:, 1], alpha=0.4, s=5,
+                          color=colors[i], label=str(i))
+        axs[0, 1].scatter(pcs[:, 0], pcs[:, 2], alpha=0.4, s=5,
+                          color=colors[i], label=str(i))
+        axs[1, 0].scatter(pcs[:, 1], pcs[:, 2], alpha=0.4, s=5,
+                          color=colors[i], label=str(i))
+
+    handles, labels = axs[0, 0].get_legend_handles_labels()
+    axs[1, 1].set_axis_off()
+    axs[1, 1].legend(handles, labels, loc='center')
+
+    axs[0, 0].set_xlabel('PC1')
+    axs[0, 0].set_ylabel('PC2')
+    axs[0, 1].set_xlabel('PC1')
+    axs[0, 1].set_ylabel('PC3')
+    axs[1, 0].set_xlabel('PC2')
+    axs[1, 0].set_ylabel('PC3')
+
+    return fig, axs
+
+
+def plot_cluster_raster(clusters):
+    '''Plot raster view of a cluster from blechpy.analysis.spike_sorting
+
+    Parameters
+    ----------
+    clusters : ilist of dict
+        list of dictionaries containing spike cluster information from
+        blechpy.analysis.spike_sorting
+
+    Returns
+    -------
+    matplotlib.pyplot.figure
+    '''
+    fig = plt.figure(figsize=(15,10))
+
+    pca = PCA(n_components=1)
+    pca.fit(np.concatenate(tuple(x['spike_waveforms'] for x in clusters), axis=0))
+    colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+    for i, c in enumerate(clusters):
+        pcs = pca.transform(c['spike_waveforms'])
+        st = c['spike_times']
+        plt.scatter(st, pcs[:, 0], s=5,
+                    color=colors[i], label=str(i))
+
+    plt.legend(loc='best')
+
+    return fig
+
+
+def plot_cluster_waveforms(cluster, index=None):
+    '''Plots a cluster with isi and violation info for viewing
+
+    Parameters
+    ----------
+    cluster : dict with cluster info
+
+    '''
+    fig, ax = blech_waveforms_datashader.waveforms_datashader(
+        cluster['spike_waveforms'])
+    ax.set_xlabel('Samples', fontsize=12)
+    ax.set_ylabel('Voltage (microvolts)', fontsize=12)
+    title_str = (('Cluster Name: %s\n2ms Violations=%0.1f%%, '
+                  '1ms Violations=%0.1f%%\nNumber of Waveforms'
+                  '=%i') %
+                 (cluster['Cluster Name'],
+                  cluster['2ms_violations'],
+                  cluster['1ms_violations'],
+                  cluster['spike_times'].shape[0]))
+    if index is not None:
+        title_str = 'Index: %i %s, ' % (index, title_str)
+
+    ax.set_title(title_str, fontsize=12)
+    plt.xticks(fontsize=10)
+    plt.yticks(fontsize=10)
+    return fig, ax
