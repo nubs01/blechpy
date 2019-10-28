@@ -1,3 +1,8 @@
+v1.1.8, (2019-10-28)
+--------------------
+- Fix typo is experiment creation
+
+
 v1.1.7, (2019-10-10)
 -------------------
 - Fix imports for data_plot module

@@ -35,7 +35,7 @@ class experiment(data_object):
         file_dirs = [x for x in fd if (os.path.isdir(x) and
                                        dio.h5io.get_h5_filename(x) is not None)]
         if file_dirs == []:
-            q = uerIO.ask_user('No recording directories with h5 files found '
+            q = userIO.ask_user('No recording directories with h5 files found '
                                'in experiment directory\nContinue creating'
                                'empty experiment?', shell=shell)
             if q == 0:
