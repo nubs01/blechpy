@@ -6,11 +6,9 @@ from sklearn.mixture import GaussianMixture
 import pylab as plt
 from sklearn.decomposition import PCA
 
-voltage_scaling = 0.195
-
 def get_filtered_electrode(data, freq = [300.0, 3000.0], sampling_rate = 30000.0):
-    el = voltage_scaling*(data)
-    m, n = butter(2, [2.0*freq[0]/sampling_rate, 2.0*freq[1]/sampling_rate], btype = 'bandpass') 
+    el = data
+    m, n = butter(2, [2.0*freq[0]/sampling_rate, 2.0*freq[1]/sampling_rate], btype = 'bandpass')
     filt_el = filtfilt(m, n, el)
     return filt_el
 

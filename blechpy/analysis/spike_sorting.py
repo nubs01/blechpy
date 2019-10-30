@@ -38,9 +38,6 @@ def sort_units(file_dir, fs, shell=False):
     quit_flag = False
 
     # Start loop to label a cluster
-    clust_info = {'Electrode': 0, 'Clusters in solution': 7,
-                  'Cluster Numbers': [], 'Edit Clusters': False}
-    clust_query = userIO.dictIO(clust_info, shell=shell)
     print(('Beginning spike sorting for: \n\t%s\n'
           'Sorting Log written to: \n\t%s') % (hf5_file, sorting_log))
     print(('To select multiple clusters, simply type in the numbers of each\n'
@@ -51,7 +48,9 @@ def sort_units(file_dir, fs, shell=False):
            ' of current cluster.\nIf using shell interface,'
            ' type abort at any time.\n'))
     while not quit_flag:
-        clust_info = clust_query.fill_dict()
+        clust_info = {'Electrode': int, 'Clusters in solution': int,
+                      'Cluster Numbers': [], 'Edit Clusters': bool}
+        clust_info = userIO.fill_dict(clust_info, shell=shell)
         if clust_info is None:
             quit_flag = True
             break
@@ -332,8 +331,8 @@ def split_cluster(cluster, fs, params=None, shell=True):
                              'Max Number of Iterations': 1000,
                              'Convergence Criterion': 0.00001,
                              'GMM random restarts': 10}
-        params_filler = userIO.dictIO(clustering_params, shell=shell)
-        params = params_filler.fill_dict()
+        params = userIO.fill_dict(clustering_params,
+                                  'Set parameters for clustering', shell=shell)
 
     if params is None:
         return None

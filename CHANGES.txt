@@ -1,6 +1,9 @@
 v1.1.8, (2019-10-28)
 --------------------
 - Fix typo is experiment creation
+- Slight improvement to spike sorting UI
+- Critical Bug Fix:
+    - Was applying voltage scaling twice during clustering, now fixed. 
 
 
 v1.1.7, (2019-10-10)
