@@ -2,8 +2,11 @@ v1.1.8, (2019-10-28)
 --------------------
 - Fix typo is experiment creation
 - Slight improvement to spike sorting UI
+- Fix process status update when no units similarity violations found
 - Critical Bug Fix:
     - Was applying voltage scaling twice during clustering, now fixed. 
+    - Use tmp file when repacking. Resolves error when compressing and repacking to same filename
+
 
 
 v1.1.7, (2019-10-10)

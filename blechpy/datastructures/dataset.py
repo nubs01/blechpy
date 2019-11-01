@@ -773,6 +773,7 @@ class dataset(data_object):
         em['clustering_result'] = em['Electrode'].map(clust_res)
         self.electrode_mapping = em.copy()
         self.process_status['blech_clust_run'] = True
+        self.process_status['cleanup_clustering'] = False
         dio.h5io.write_electrode_map_to_h5(self.h5_file, em)
         self.save()
         print('Clustering Complete\n------------------')
@@ -819,6 +820,7 @@ class dataset(data_object):
                                                    violation_file)
         if len(violations) == 0:
             userIO.tell_user('No similarity violations found!', shell=shell)
+            self.process_status['units_similarity'] = True
             return violations, sim
 
         out_str = ['Units Similarity Violations Found:']
@@ -936,7 +938,7 @@ class dataset(data_object):
     def post_sorting(self):
         self.make_unit_plots()
         self.make_unit_arrays()
-        self.units_similarity()
+        self.units_similarity(shell=True)
         self.make_psth_arrays()
 
 

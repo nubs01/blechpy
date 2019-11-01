@@ -13,7 +13,7 @@ from blechpy.utils.decorators import Timer
 from blechpy.utils.print_tools import println
 
 
-def create_empty_data_h5(filename, shell=False):
+def create_empty_data_h5(filename, overwrite=False, shell=False):
     '''Create empty h5 store for blech data with approriate data groups
 
     Parameters
@@ -30,8 +30,12 @@ def create_empty_data_h5(filename, shell=False):
 
     # Check if file exists, and ask to delete if it does
     if os.path.isfile(filename):
-        q = userIO.ask_user('%s already exists. Would you like to delete?' %
-                            filename, choices=['No', 'Yes'], shell=shell)
+        if overwrite:
+            q=1
+        else:
+            q = userIO.ask_user('%s already exists. Would you like to delete?' %
+                                filename, choices=['No', 'Yes'], shell=shell)
+
         if q == 0:
             return None
         else:
@@ -433,7 +437,7 @@ def compress_and_repack(h5_file, new_file=None):
     -------
     str, new path to h5 file
     '''
-    if new_file is None:
+    if new_file is None or new_file == h5_file:
         new_file = os.path.join(os.path.dirname(h5_file), 'tmp.h5')
         tmp = True
     else:
@@ -531,10 +535,11 @@ def cleanup_clustering(file_dir):
     if changes:
         if hdf5_file.endswith('_repacked.h5'):
             new_fn = hdf5_file
+            new_h5 = compress_and_repack(hdf5_file, new_fn)
         else:
             new_fn = hdf5_file.replace('.h5', '_repacked.h5')
+            new_h5 = compress_and_repack(hdf5_file)
 
-        new_h5 = compress_and_repack(hdf5_file, new_fn)
         return new_h5
 
     else:
