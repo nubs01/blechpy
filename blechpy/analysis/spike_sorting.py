@@ -940,8 +940,8 @@ def calc_units_similarity(h5_file, fs, similarity_cutoff=50,
         out_str = '%i units similarity violations found:\n' % violations
         out_str += 'Unit_1    Unit_2    Similarity\n'
         for x,y in violation_pairs:
-            u1 = dio.h5io.parse_unit_number(x)
-            u2 = dio.h5io.parse_unit_number(y)
+            u1 = h5io.parse_unit_number(x)
+            u2 = h5io.parse_unit_number(y)
             out_str += '   {:<10}{:<10}{}\n'.format(x, y,
                                                     unit_distances[u1][u2])
 
