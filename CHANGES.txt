@@ -1,7 +1,9 @@
 v1.1.9, (2019-11-08)
 --------------------
 - Fix typo in spike_sorting units_similarity
-- 
+- Critcal Bug Fix:
+    - Fix bug with CAR group assignment via GUI 
+
 
 v1.1.8, (2019-10-28)
 --------------------

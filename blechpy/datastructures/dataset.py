@@ -211,7 +211,7 @@ class dataset(data_object):
                 if group_keyword is None:
                     ValueError('Must provide a keyword or number of groups')
 
-            elif group_keyword.isnumeric():
+            if group_keyword.isnumeric():
                 num_groups = int(group_keyword)
                 group_electrodes = dio.params.select_CAR_groups(num_groups, em,
                                                                 shell=shell)

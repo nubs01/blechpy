@@ -71,7 +71,7 @@ def get_intra_J3(rec_dirs):
 
         for un in unit_names:
             print('    Computing for %s...' % un)
-            # waves, descrip, fs = get_unit_waveforms(rd, unit)
+            # waves, descrip, fs = h5io.get_unit_waveforms(rd, un)
             waves, descrip, fs = h5io.get_raw_unit_waveforms(rd, un)
             if descrip['single_unit'] == 1:
                 pca = PCA(n_components=3)
@@ -122,7 +122,7 @@ def find_held_units(rec_dirs, percent_criterion=95, rec_names=None):
         unit_names2 = h5io.get_unit_names(rd2)
 
         for unit1 in unit_names1:
-            # wf1, descrip1, fs1 = get_unit_waveforms(rd1, unit1)
+            # wf1, descrip1, fs1 = h5io.get_unit_waveforms(rd1, unit1)
             wf1, descrip1, fs1 = h5io.get_raw_unit_waveforms(rd1, unit1)
             electrode = descrip1['electrode_number']
             single_unit = bool(descrip1['single_unit'])
@@ -130,7 +130,7 @@ def find_held_units(rec_dirs, percent_criterion=95, rec_names=None):
 
             if descrip1['single_unit'] == 1:
                 for unit2 in unit_names2:
-                    # wf2, descrip2, fs2 = get_unit_waveforms(rd2, unit2)
+                    # wf2, descrip2, fs2 = h5io.get_unit_waveforms(rd2, unit2, required_descrip=descrip1)
                     wf2, descrip2, fs2 = \
                             h5io.get_raw_unit_waveforms(rd2, unit2,
                                                         required_descrip=descrip1)

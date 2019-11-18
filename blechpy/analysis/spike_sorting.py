@@ -954,3 +954,7 @@ def calc_units_similarity(h5_file, fs, similarity_cutoff=50,
 
     return violation_pairs, unit_distances
 
+
+def get_sorted_unit_metrics(file_dir, unit_num):
+    pass
+

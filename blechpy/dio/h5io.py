@@ -948,7 +948,7 @@ def get_raw_unit_waveforms(rec_dir, unit_name, electrode_mapping=None,
     return slices_dj, descriptor, fs*10
 
 
-def get_unit_waveforms(file_dir, unit):
+def get_unit_waveforms(file_dir, unit, required_descrip=None):
     if isinstance(unit, int):
         un = '%03i' % unit
     else:
@@ -961,6 +961,10 @@ def get_unit_waveforms(file_dir, unit):
     with tables.open_file(h5_file, 'r') as hf5:
         waveforms = hf5.root.sorted_units[un].waveforms[:]
         descriptor = hf5.root.unit_descriptor[unit]
+
+    if required_descrip is not None:
+        if descriptor != required_descrip:
+            return None, descriptor, fs
 
     return waveforms, descriptor, fs*10
 
