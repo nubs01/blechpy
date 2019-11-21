@@ -678,7 +678,7 @@ class dataset(data_object):
         self.save()
 
     @Logger('Running Blech Clust')
-    def blech_clust_run(self, data_quality=None):
+    def blech_clust_run(self, data_quality=None, n_cores=None):
         '''Write clustering parameters to file and
         Run blech_process on each electrode using GNU parallel
 
@@ -742,7 +742,9 @@ class dataset(data_object):
 
             pbar.update()
 
-        cores = multiprocessing.cpu_count()
+        if cores is None or cores > multiprocessing.cpu_count():
+            cores = multiprocessing.cpu_count() - 1
+
         pool = multiprocessing.Pool(cores)
         for x in electrodes:
             pool.apply_async(blech_clust_process,

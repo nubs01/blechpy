@@ -447,10 +447,20 @@ def get_cluster_data(file_dir, electrode_num, solution_num, cluster_num, fs,
     spike_waveforms, spike_times, pca_slices, energy, amplitudes, predictions \
         = get_unit_metrics(file_dir, electrode_num, solution_num, cluster_num)
 
-    data = np.zeros((len(spike_times), n_pc+2))
+    data = np.zeros((len(spike_times), n_pc+3))
     data[:, 0] = energy/np.max(energy)
     data[:, 1] = np.abs(amplitudes)/np.max(amplitudes)
-    data[:, 2:] = pca_slices[:, : n_pc]
+    data[:, 3:] = pca_slices[:, : n_pc]
+    # Get slopes
+    for i, wave in enumerate(slices_dejittered):
+        peaks = find_peaks(wave)[0]
+        minima = np.argmin(wave)
+        if not any(peaks < minima):
+            maxima = np.argmax(wave[:minima])
+        else:
+            maxima = max(peaks[np.where(peaks < minima)[0]])
+
+        data[i, 2] = (wave[minima]-wave[maxima])/(minima-maxima)
 
     ISI, violations1, violations2 = get_ISI_and_violations(spike_times, fs)
     cluster = {'Cluster Name': 'E%iS%i_cluster%i' % (electrode_num,
@@ -957,4 +967,3 @@ def calc_units_similarity(h5_file, fs, similarity_cutoff=50,
 
 def get_sorted_unit_metrics(file_dir, unit_num):
     pass
-

@@ -80,7 +80,7 @@ def scale_waveforms(slices_dejittered):
 
 def implement_pca(scaled_slices):
     pca = PCA()
-    pca_slices = pca.fit_transform(scaled_slices)    
+    pca_slices = pca.fit_transform(scaled_slices)
     return pca_slices, pca.explained_variance_ratio_
 
 def clusterGMM(data, n_clusters, n_iter, restarts, threshold):
@@ -99,7 +99,6 @@ def clusterGMM(data, n_clusters, n_iter, restarts, threshold):
     #print len(akaike)
     bayesian = np.array(bayesian)
     best_fit = np.where(bayesian == np.min(bayesian))[0][0]
-    
     predictions = g[best_fit].predict(data)
 
     return g[best_fit], predictions, np.min(bayesian)

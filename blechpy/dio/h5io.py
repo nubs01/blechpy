@@ -950,7 +950,7 @@ def get_raw_unit_waveforms(rec_dir, unit_name, electrode_mapping=None,
 
 def get_unit_waveforms(file_dir, unit, required_descrip=None):
     if isinstance(unit, int):
-        un = '%03i' % unit
+        un = 'unit%03i' % unit
     else:
         un = unit
         unit = parse_unit_number(un)
