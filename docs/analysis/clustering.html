@@ -32,11 +32,9 @@ from sklearn.mixture import GaussianMixture
 import pylab as plt
 from sklearn.decomposition import PCA
 
-voltage_scaling = 0.195
-
 def get_filtered_electrode(data, freq = [300.0, 3000.0], sampling_rate = 30000.0):
-    el = voltage_scaling*(data)
-    m, n = butter(2, [2.0*freq[0]/sampling_rate, 2.0*freq[1]/sampling_rate], btype = &#39;bandpass&#39;) 
+    el = data
+    m, n = butter(2, [2.0*freq[0]/sampling_rate, 2.0*freq[1]/sampling_rate], btype = &#39;bandpass&#39;)
     filt_el = filtfilt(m, n, el)
     return filt_el
 
@@ -108,7 +106,7 @@ def scale_waveforms(slices_dejittered):
 
 def implement_pca(scaled_slices):
     pca = PCA()
-    pca_slices = pca.fit_transform(scaled_slices)    
+    pca_slices = pca.fit_transform(scaled_slices)
     return pca_slices, pca.explained_variance_ratio_
 
 def clusterGMM(data, n_clusters, n_iter, restarts, threshold):
@@ -127,7 +125,6 @@ def clusterGMM(data, n_clusters, n_iter, restarts, threshold):
     #print len(akaike)
     bayesian = np.array(bayesian)
     best_fit = np.where(bayesian == np.min(bayesian))[0][0]
-    
     predictions = g[best_fit].predict(data)
 
     return g[best_fit], predictions, np.min(bayesian)</code></pre>
@@ -165,7 +162,6 @@ def clusterGMM(data, n_clusters, n_iter, restarts, threshold):
     #print len(akaike)
     bayesian = np.array(bayesian)
     best_fit = np.where(bayesian == np.min(bayesian))[0][0]
-    
     predictions = g[best_fit].predict(data)
 
     return g[best_fit], predictions, np.min(bayesian)</code></pre>
@@ -259,8 +255,8 @@ def clusterGMM(data, n_clusters, n_iter, restarts, threshold):
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def get_filtered_electrode(data, freq = [300.0, 3000.0], sampling_rate = 30000.0):
-    el = voltage_scaling*(data)
-    m, n = butter(2, [2.0*freq[0]/sampling_rate, 2.0*freq[1]/sampling_rate], btype = &#39;bandpass&#39;) 
+    el = data
+    m, n = butter(2, [2.0*freq[0]/sampling_rate, 2.0*freq[1]/sampling_rate], btype = &#39;bandpass&#39;)
     filt_el = filtfilt(m, n, el)
     return filt_el</code></pre>
 </details>
@@ -276,7 +272,7 @@ def clusterGMM(data, n_clusters, n_iter, restarts, threshold):
 </summary>
 <pre><code class="python">def implement_pca(scaled_slices):
     pca = PCA()
-    pca_slices = pca.fit_transform(scaled_slices)    
+    pca_slices = pca.fit_transform(scaled_slices)
     return pca_slices, pca.explained_variance_ratio_</code></pre>
 </details>
 </dd>

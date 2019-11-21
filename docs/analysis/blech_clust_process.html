@@ -33,6 +33,7 @@ import pylab as plt
 import matplotlib.cm as cm
 from scipy.spatial.distance import mahalanobis
 from scipy import linalg
+from scipy.signal import find_peaks
 from blechpy.utils import memory_monitor as mm
 from blechpy.plotting import blech_waveforms_datashader
 from blechpy.dio import h5io
@@ -189,12 +190,25 @@ def blech_clust_process(electrode_num, file_dir, params):
     plt.close(&#34;all&#34;)
 
     # Make an array of the data to be used for clustering, and delete pca_slices, scaled_slices, energy and amplitudes
+    # Use trough to prior peak slope and the first 3 PCs
     n_pc = 3
-    data = np.zeros((len(pca_slices), n_pc + 2))
-    data[:,2:] = pca_slices[:,:n_pc]
+    data = np.zeros((len(pca_slices), n_pc + 3))
+    data[:,3:] = pca_slices[:,:n_pc]
     data[:,0] = energy[:]/np.max(energy)
     data[:,1] = np.abs(amplitudes)/np.max(np.abs(amplitudes))
     del pca_slices; del scaled_slices; del energy
+
+    # Get slopes
+    for i, wave in enumerate(slices_dejittered):
+        peaks = find_peaks(wave)[0]
+        minima = np.argmin(wave)
+        if not any(peaks &lt; minima):
+            maxima = np.argmax(wave[:minima])
+        else:
+            maxima = max(peaks[np.where(peaks &lt; minima)[0]])
+
+        data[i,2] = (wave[minima]-wave[maxima])/(minima-maxima)
+
 
     # Run GMM, from 2 to max_clusters
     for i in range(max_clusters-1):
@@ -482,12 +496,25 @@ def blech_clust_process(electrode_num, file_dir, params):
     plt.close(&#34;all&#34;)
 
     # Make an array of the data to be used for clustering, and delete pca_slices, scaled_slices, energy and amplitudes
+    # Use trough to prior peak slope and the first 3 PCs
     n_pc = 3
-    data = np.zeros((len(pca_slices), n_pc + 2))
-    data[:,2:] = pca_slices[:,:n_pc]
+    data = np.zeros((len(pca_slices), n_pc + 3))
+    data[:,3:] = pca_slices[:,:n_pc]
     data[:,0] = energy[:]/np.max(energy)
     data[:,1] = np.abs(amplitudes)/np.max(np.abs(amplitudes))
     del pca_slices; del scaled_slices; del energy
+
+    # Get slopes
+    for i, wave in enumerate(slices_dejittered):
+        peaks = find_peaks(wave)[0]
+        minima = np.argmin(wave)
+        if not any(peaks &lt; minima):
+            maxima = np.argmax(wave[:minima])
+        else:
+            maxima = max(peaks[np.where(peaks &lt; minima)[0]])
+
+        data[i,2] = (wave[minima]-wave[maxima])/(minima-maxima)
+
 
     # Run GMM, from 2 to max_clusters
     for i in range(max_clusters-1):

@@ -64,9 +64,6 @@ def sort_units(file_dir, fs, shell=False):
     quit_flag = False
 
     # Start loop to label a cluster
-    clust_info = {&#39;Electrode&#39;: 0, &#39;Clusters in solution&#39;: 7,
-                  &#39;Cluster Numbers&#39;: [], &#39;Edit Clusters&#39;: False}
-    clust_query = userIO.dictIO(clust_info, shell=shell)
     print((&#39;Beginning spike sorting for: \n\t%s\n&#39;
           &#39;Sorting Log written to: \n\t%s&#39;) % (hf5_file, sorting_log))
     print((&#39;To select multiple clusters, simply type in the numbers of each\n&#39;
@@ -77,7 +74,9 @@ def sort_units(file_dir, fs, shell=False):
            &#39; of current cluster.\nIf using shell interface,&#39;
            &#39; type abort at any time.\n&#39;))
     while not quit_flag:
-        clust_info = clust_query.fill_dict()
+        clust_info = {&#39;Electrode&#39;: int, &#39;Clusters in solution&#39;: int,
+                      &#39;Cluster Numbers&#39;: [], &#39;Edit Clusters&#39;: bool}
+        clust_info = userIO.fill_dict(clust_info, shell=shell)
         if clust_info is None:
             quit_flag = True
             break
@@ -358,8 +357,8 @@ def split_cluster(cluster, fs, params=None, shell=True):
                              &#39;Max Number of Iterations&#39;: 1000,
                              &#39;Convergence Criterion&#39;: 0.00001,
                              &#39;GMM random restarts&#39;: 10}
-        params_filler = userIO.dictIO(clustering_params, shell=shell)
-        params = params_filler.fill_dict()
+        params = userIO.fill_dict(clustering_params,
+                                  &#39;Set parameters for clustering&#39;, shell=shell)
 
     if params is None:
         return None
@@ -474,10 +473,20 @@ def get_cluster_data(file_dir, electrode_num, solution_num, cluster_num, fs,
     spike_waveforms, spike_times, pca_slices, energy, amplitudes, predictions \
         = get_unit_metrics(file_dir, electrode_num, solution_num, cluster_num)
 
-    data = np.zeros((len(spike_times), n_pc+2))
+    data = np.zeros((len(spike_times), n_pc+3))
     data[:, 0] = energy/np.max(energy)
     data[:, 1] = np.abs(amplitudes)/np.max(amplitudes)
-    data[:, 2:] = pca_slices[:, : n_pc]
+    data[:, 3:] = pca_slices[:, : n_pc]
+    # Get slopes
+    for i, wave in enumerate(slices_dejittered):
+        peaks = find_peaks(wave)[0]
+        minima = np.argmin(wave)
+        if not any(peaks &lt; minima):
+            maxima = np.argmax(wave[:minima])
+        else:
+            maxima = max(peaks[np.where(peaks &lt; minima)[0]])
+
+        data[i, 2] = (wave[minima]-wave[maxima])/(minima-maxima)
 
     ISI, violations1, violations2 = get_ISI_and_violations(spike_times, fs)
     cluster = {&#39;Cluster Name&#39;: &#39;E%iS%i_cluster%i&#39; % (electrode_num,
@@ -967,8 +976,8 @@ def calc_units_similarity(h5_file, fs, similarity_cutoff=50,
         out_str = &#39;%i units similarity violations found:\n&#39; % violations
         out_str += &#39;Unit_1    Unit_2    Similarity\n&#39;
         for x,y in violation_pairs:
-            u1 = dio.h5io.parse_unit_number(x)
-            u2 = dio.h5io.parse_unit_number(y)
+            u1 = h5io.parse_unit_number(x)
+            u2 = h5io.parse_unit_number(y)
             out_str += &#39;   {:&lt;10}{:&lt;10}{}\n&#39;.format(x, y,
                                                     unit_distances[u1][u2])
 
@@ -979,7 +988,11 @@ def calc_units_similarity(h5_file, fs, similarity_cutoff=50,
     with open(violation_file, &#39;w&#39;) as vf:
         print(out_str, file=vf)
 
-    return violation_pairs, unit_distances</code></pre>
+    return violation_pairs, unit_distances
+
+
+def get_sorted_unit_metrics(file_dir, unit_num):
+    pass</code></pre>
 </details>
 </section>
 <section>
@@ -1084,8 +1097,8 @@ unit_similarity_violations.txt saved in the same directory as the hf5</dd>
         out_str = &#39;%i units similarity violations found:\n&#39; % violations
         out_str += &#39;Unit_1    Unit_2    Similarity\n&#39;
         for x,y in violation_pairs:
-            u1 = dio.h5io.parse_unit_number(x)
-            u2 = dio.h5io.parse_unit_number(y)
+            u1 = h5io.parse_unit_number(x)
+            u2 = h5io.parse_unit_number(y)
             out_str += &#39;   {:&lt;10}{:&lt;10}{}\n&#39;.format(x, y,
                                                     unit_distances[u1][u2])
 
@@ -1510,10 +1523,20 @@ manipulations : str, log of actions taken on this cluster</p>
     spike_waveforms, spike_times, pca_slices, energy, amplitudes, predictions \
         = get_unit_metrics(file_dir, electrode_num, solution_num, cluster_num)
 
-    data = np.zeros((len(spike_times), n_pc+2))
+    data = np.zeros((len(spike_times), n_pc+3))
     data[:, 0] = energy/np.max(energy)
     data[:, 1] = np.abs(amplitudes)/np.max(amplitudes)
-    data[:, 2:] = pca_slices[:, : n_pc]
+    data[:, 3:] = pca_slices[:, : n_pc]
+    # Get slopes
+    for i, wave in enumerate(slices_dejittered):
+        peaks = find_peaks(wave)[0]
+        minima = np.argmin(wave)
+        if not any(peaks &lt; minima):
+            maxima = np.argmax(wave[:minima])
+        else:
+            maxima = max(peaks[np.where(peaks &lt; minima)[0]])
+
+        data[i, 2] = (wave[minima]-wave[maxima])/(minima-maxima)
 
     ISI, violations1, violations2 = get_ISI_and_violations(spike_times, fs)
     cluster = {&#39;Cluster Name&#39;: &#39;E%iS%i_cluster%i&#39; % (electrode_num,
@@ -1634,6 +1657,19 @@ for an electrode</p>
     else:
         out = &#39;unit%03d&#39; % int(max(units)+1)
     return out</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.spike_sorting.get_sorted_unit_metrics"><code class="name flex">
+<span>def <span class="ident">get_sorted_unit_metrics</span></span>(<span>file_dir, unit_num)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_sorted_unit_metrics(file_dir, unit_num):
+    pass</code></pre>
 </details>
 </dd>
 <dt id="blechpy.analysis.spike_sorting.get_unit_metrics"><code class="name flex">
@@ -2182,9 +2218,6 @@ post_stimulus : int, ms after stimulus to include in array</dd>
     quit_flag = False
 
     # Start loop to label a cluster
-    clust_info = {&#39;Electrode&#39;: 0, &#39;Clusters in solution&#39;: 7,
-                  &#39;Cluster Numbers&#39;: [], &#39;Edit Clusters&#39;: False}
-    clust_query = userIO.dictIO(clust_info, shell=shell)
     print((&#39;Beginning spike sorting for: \n\t%s\n&#39;
           &#39;Sorting Log written to: \n\t%s&#39;) % (hf5_file, sorting_log))
     print((&#39;To select multiple clusters, simply type in the numbers of each\n&#39;
@@ -2195,7 +2228,9 @@ post_stimulus : int, ms after stimulus to include in array</dd>
            &#39; of current cluster.\nIf using shell interface,&#39;
            &#39; type abort at any time.\n&#39;))
     while not quit_flag:
-        clust_info = clust_query.fill_dict()
+        clust_info = {&#39;Electrode&#39;: int, &#39;Clusters in solution&#39;: int,
+                      &#39;Cluster Numbers&#39;: [], &#39;Edit Clusters&#39;: bool}
+        clust_info = userIO.fill_dict(clust_info, shell=shell)
         if clust_info is None:
             quit_flag = True
             break
@@ -2277,8 +2312,8 @@ post_stimulus : int, ms after stimulus to include in array</dd>
                              &#39;Max Number of Iterations&#39;: 1000,
                              &#39;Convergence Criterion&#39;: 0.00001,
                              &#39;GMM random restarts&#39;: 10}
-        params_filler = userIO.dictIO(clustering_params, shell=shell)
-        params = params_filler.fill_dict()
+        params = userIO.fill_dict(clustering_params,
+                                  &#39;Set parameters for clustering&#39;, shell=shell)
 
     if params is None:
         return None
@@ -2356,6 +2391,7 @@ post_stimulus : int, ms after stimulus to include in array</dd>
 <li><code><a title="blechpy.analysis.spike_sorting.get_cluster_data" href="#blechpy.analysis.spike_sorting.get_cluster_data">get_cluster_data</a></code></li>
 <li><code><a title="blechpy.analysis.spike_sorting.get_clustering_metrics" href="#blechpy.analysis.spike_sorting.get_clustering_metrics">get_clustering_metrics</a></code></li>
 <li><code><a title="blechpy.analysis.spike_sorting.get_next_unit_name" href="#blechpy.analysis.spike_sorting.get_next_unit_name">get_next_unit_name</a></code></li>
+<li><code><a title="blechpy.analysis.spike_sorting.get_sorted_unit_metrics" href="#blechpy.analysis.spike_sorting.get_sorted_unit_metrics">get_sorted_unit_metrics</a></code></li>
 <li><code><a title="blechpy.analysis.spike_sorting.get_unit_metrics" href="#blechpy.analysis.spike_sorting.get_unit_metrics">get_unit_metrics</a></code></li>
 <li><code><a title="blechpy.analysis.spike_sorting.get_unit_numbers" href="#blechpy.analysis.spike_sorting.get_unit_numbers">get_unit_numbers</a></code></li>
 <li><code><a title="blechpy.analysis.spike_sorting.label_single_unit" href="#blechpy.analysis.spike_sorting.label_single_unit">label_single_unit</a></code></li>

@@ -61,7 +61,7 @@ class experiment(data_object):
         file_dirs = [x for x in fd if (os.path.isdir(x) and
                                        dio.h5io.get_h5_filename(x) is not None)]
         if file_dirs == []:
-            q = uerIO.ask_user(&#39;No recording directories with h5 files found &#39;
+            q = userIO.ask_user(&#39;No recording directories with h5 files found &#39;
                                &#39;in experiment directory\nContinue creating&#39;
                                &#39;empty experiment?&#39;, shell=shell)
             if q == 0:
@@ -409,7 +409,7 @@ False (default) for GUI</dd>
         file_dirs = [x for x in fd if (os.path.isdir(x) and
                                        dio.h5io.get_h5_filename(x) is not None)]
         if file_dirs == []:
-            q = uerIO.ask_user(&#39;No recording directories with h5 files found &#39;
+            q = userIO.ask_user(&#39;No recording directories with h5 files found &#39;
                                &#39;in experiment directory\nContinue creating&#39;
                                &#39;empty experiment?&#39;, shell=shell)
             if q == 0:
