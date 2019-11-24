@@ -140,12 +140,18 @@ class dataset(data_object):
         # Setup digital input mapping
         #TODO: Setup digital output mapping...ignoring for now
         if rec_info.get('dig_in'):
-            self._setup_din_mapping(dig_in_names, shell)
+            self._setup_digital_mapping('in', dig_in_names, shell)
             dim = self.dig_in_mapping.copy()
             spike_array_params['laser_channels'] = dim.channel[dim['laser']].to_list()
             spike_array_params['dig_ins_to_use'] = dim.channel[dim['spike_array']].to_list()
         else:
             self.dig_in_mapping = None
+
+        if rec_info.get('dig_out'):
+            self._setup_digital_mapping('out', dig_out_names, shell)
+            dom = self.dig_out_mapping.copy()
+        else:
+            self.dig_out_mapping = None
 
         # Setup electrode and emg mapping
         self._setup_channel_mapping(ports, channels, emg_port,
@@ -239,7 +245,7 @@ class dataset(data_object):
         self.CAR_electrodes = group_electrodes
         self.electrode_mapping = em.copy()
 
-    def _setup_din_mapping(self, dig_in_names=None, shell=False):
+    def _setup_digital_mapping(self, dig_type, dig_in_names=None, shell=False):
         '''sets up dig_in_mapping dataframe  and queries user to fill in columns
 
         Parameters
@@ -251,7 +257,7 @@ class dataset(data_object):
         '''
         rec_info = self.rec_info
         df = pd.DataFrame()
-        df['channel'] = rec_info.get('dig_in')
+        df['channel'] = rec_info.get('dig_%s' % dig_type)
         n_dig_in = len(df)
         # Names
         if dig_in_names:
@@ -260,25 +266,34 @@ class dataset(data_object):
             df['name'] = ''
 
         # Parameters to query
-        df['palatability_rank'] = 0
-        df['laser'] = False
-        df['spike_array'] = True
+        if dig_type == 'in':
+            df['palatability_rank'] = 0
+            df['laser'] = False
+            df['spike_array'] = True
+
         df['exclude'] = False
         # Re-format for query
         idx = df.index
-        df.index = ['dig_in_%i' % x for x in df.channel]
+        df.index = ['dig_%s_%i' % (dig_type, x) for x in df.channel]
+        dig_str = dig_type + 'put'
         # Query for user input
-        prompt = ('Digital Input Parameters\nSet palatability ranks from 1 to %i'
-                  '\nor blank to exclude from pal_id analysis') % len(df)
+        prompt = ('Digital %s Parameters\nSet palatability ranks from 1 to %i'
+                  '\nor blank to exclude from pal_id analysis') % (dig_str, len(df))
         tmp = userIO.fill_dict(df.to_dict(), prompt=prompt, shell=shell)
         # Reformat for storage
         df2 = pd.DataFrame.from_dict(tmp)
         df2 = df2.sort_values(by=['channel'])
         df2.index = idx
-        df2['palatability_rank'] = df2['palatability_rank'].fillna(-1).astype('int')
-        self.dig_in_mapping = df2.copy()
+        if dig_type == 'in':
+            df2['palatability_rank'] = df2['palatability_rank'].fillna(-1).astype('int')
+
+        if dig_type == 'in':
+            self.dig_in_mapping = df2.copy()
+        else:
+            self.dig_out_mapping = df2.copy()
+
         if os.path.isfile(self.h5_file):
-            dio.h5io.write_digital_map_to_h5(self.h5_file, self.dig_in_mapping, 'in')
+            dio.h5io.write_digital_map_to_h5(self.h5_file, self.dig_in_mapping, dig_type)
 
     def _setup_channel_mapping(self, ports, channels, emg_port, emg_channels, shell=False):
         '''Creates electrode_mapping and emg_mapping DataFrames with columns:
@@ -549,6 +564,9 @@ class dataset(data_object):
         if self.dig_in_mapping is not None:
             dio.h5io.write_digital_map_to_h5(self.h5_file, self.dig_in_mapping, 'in')
 
+        if self.dig_out_mapping is not None:
+            dio.h5io.write_digital_map_to_h5(self.h5_file, self.dig_in_mapping, 'out')
+
         # update status
         self.h5_file = filename
         self.process_status['extract_data'] = True
@@ -607,7 +625,7 @@ class dataset(data_object):
             userIO.tell_user('Making traces figure for dead channel detection...',
                              shell=True)
             save_file = os.path.join(self.root_dir, 'Electrode_Traces.png')
-            fig, ax = datplt.plot_traces_and_outliers(self.h5_filei, save_file=save_file)
+            fig, ax = datplt.plot_traces_and_outliers(self.h5_file, save_file=save_file)
             if not shell:
                 # Better to open figure outside of python since its a lot of
                 # data on figure and matplotlib is slow
@@ -742,10 +760,10 @@ class dataset(data_object):
 
             pbar.update()
 
-        if cores is None or cores > multiprocessing.cpu_count():
-            cores = multiprocessing.cpu_count() - 1
+        if n_cores is None or n_cores > multiprocessing.cpu_count():
+            n_cores = multiprocessing.cpu_count() - 1
 
-        pool = multiprocessing.Pool(cores)
+        pool = multiprocessing.Pool(n_cores)
         for x in electrodes:
             pool.apply_async(blech_clust_process,
                              args=(x, data_dir, self.clustering_params),

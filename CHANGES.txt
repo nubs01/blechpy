@@ -1,3 +1,19 @@
+v1.1.14 (2019-11-23)
+--------------------
+- Make blech clust use less than all cores, or user specified number of cores
+
+v1.1.13 (2019-11-23)
+--------------------
+- typo fix
+
+v1.1.12 (2019-11-23)
+--------------------
+- typo fix
+
+v1.1.11 (2019-11-23)
+--------------------
+- Add support for digital outputs
+
 v1.1.10, (2010-11-20)
 ---------------------
 - Fix h5io.get_unit_waveforms

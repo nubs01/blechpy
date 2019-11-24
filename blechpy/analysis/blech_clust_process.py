@@ -300,4 +300,3 @@ def blech_clust_process(electrode_num, file_dir, params):
     f.close()    
     print('Finished clustering electrode %i' % electrode_num)
     return electrode_num, 1, recording_cutoff
-        
