@@ -13,6 +13,9 @@ def get_filtered_electrode(data, freq = [300.0, 3000.0], sampling_rate = 30000.0
     return filt_el
 
 def extract_waveforms(filt_el, spike_snapshot = [0.5, 1.0], sampling_rate = 30000.0):
+    '''Detects spikes in the filtered electrode trace and returns the waveforms
+    and spike_times
+    '''
     m = np.mean(filt_el)
     th = 5.0*np.median(np.abs(filt_el)/0.6745)
     pos = np.where(filt_el <= m-th)[0]
@@ -42,6 +45,9 @@ def extract_waveforms(filt_el, spike_snapshot = [0.5, 1.0], sampling_rate = 3000
     return np.array(slices), spike_times
 
 def dejitter(slices, spike_times, spike_snapshot = [0.5, 1.0], sampling_rate = 30000.0):
+    '''Upsamples (by 10) and aligns spike waveforms to minima. Returns the
+    upsampled waveforms are correct spike_times
+    '''
     x = np.arange(0,len(slices[0]),1)
     xnew = np.arange(0,len(slices[0])-1,0.1)
 
@@ -88,7 +94,7 @@ def clusterGMM(data, n_clusters, n_iter, restarts, threshold):
     bayesian = []
 
     for i in range(restarts):
-        g.append(GaussianMixture(n_components = n_clusters, covariance_type = 'full', 
+        g.append(GaussianMixture(n_components = n_clusters, covariance_type = 'full',
             tol = threshold, random_state = i, max_iter = n_iter))
         g[-1].fit(data)
         if g[-1].converged_:
@@ -102,3 +108,18 @@ def clusterGMM(data, n_clusters, n_iter, restarts, threshold):
     predictions = g[best_fit].predict(data)
 
     return g[best_fit], predictions, np.min(bayesian)
+
+
+def get_waveforms(filt_el, spike_times, spike_snapshot = [0.5, 1.0], sampling_rate = 30000.0):
+    '''Returns waveform slices based on the given spike_times (in samples)
+    '''
+    pre_pts = sampling_rate * spike_snapshot[0]/1000
+    post_pts = sampling_rate * spike_snapshot[1]/1000
+
+    waves = []
+    for st in spike_times:
+        idx = np.arange(st-pre_pts-1, st+post_pts+2) # a few extra points so that dejittering can work fine
+        waves.append(filt_el[idx])
+
+    return np.array(waves)
+
