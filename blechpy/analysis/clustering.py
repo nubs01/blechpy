@@ -110,16 +110,20 @@ def clusterGMM(data, n_clusters, n_iter, restarts, threshold):
     return g[best_fit], predictions, np.min(bayesian)
 
 
-def get_waveforms(filt_el, spike_times, spike_snapshot = [0.5, 1.0], sampling_rate = 30000.0):
+def get_waveforms(el_trace, spike_times, snapshot = [0.5, 1.0],
+                  sampling_rate = 30000.0, bandpass=[300, 3000]):
     '''Returns waveform slices based on the given spike_times (in samples)
     '''
-    pre_pts = sampling_rate * spike_snapshot[0]/1000
-    post_pts = sampling_rate * spike_snapshot[1]/1000
+    # Filter and extract waveforms
+    filt_el = get_filtered_electrode(el_trace, freq=bandpass,
+                                     sampling_rate=sampling_rate)
+    del el_trace
+    pre_pts = int((snapshot[0]+0.1) * (sampling_rate/1000))
+    post_pts = int((snapshot[1]+0.2) * (sampling_rate/1000))
+    slices = np.zeros((spike_times.shape[0], pre_pts+post_pts))
+    for i, st in enumerate(spike_times):
+        slices[i, :] = filt_el[st - pre_pts: st + post_pts]
 
-    waves = []
-    for st in spike_times:
-        idx = np.arange(st-pre_pts-1, st+post_pts+2) # a few extra points so that dejittering can work fine
-        waves.append(filt_el[idx])
+    slices_dj, times_dj = dejitter(slices, spike_times, snapshot, sampling_rate)
 
-    return np.array(waves)
-
+    return slices_dj, sampling_rate*10

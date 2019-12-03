@@ -1,0 +1,110 @@
+### Note that depending on the file format selected, the parameters in the data section can vary
+### You should refer to the documentation to know what are the needed parameters for a given
+### file format. Otherwise, launch the code and a message will tell you what is needed
+
+[data]
+file_format    = numpy
+stream_mode    = None      
+mapping        = bilateral32.prb
+suffix         =            
+overwrite      = True       
+parallel_hdf5  = False       
+output_dir     =            
+sampling_rate  = 
+
+[detection]
+radius         = auto       
+N_t            = 2
+spike_thresh   = 6          
+peaks          = negative   
+alignment      = True       
+dead_channels  =            
+
+[filtering]
+cut_off        = 300, 3000
+filter         = True       
+remove_median  = False       
+common_ground  =            
+
+[triggers]
+trig_file      =            
+trig_windows   =            
+trig_unit      = ms         
+clean_artefact = False      
+dead_file      =            
+dead_unit      = ms         
+ignore_times   = False      
+make_plots     =            
+
+[whitening]
+spatial        = True       
+max_elts       = 1000       
+nb_elts        = 0.8        
+output_dim     = 5          
+
+[clustering]
+extraction     = median-raw 
+sub_dim        = 10         
+max_elts       = 10000      
+nb_elts        = 0.8        
+nclus_min      = 0.01      
+nb_repeats     = 3          
+smart_search   = True       
+merging_method = distance   
+merging_param  = default    
+sensitivity    = 3          
+cc_merge       = 1          
+dispersion     = (5, 5)     
+make_plots     = png      
+
+[fitting]
+amp_limits     = (0.3, 5)   
+amp_auto       = True       
+collect_all    = False      
+
+[merging]
+erase_all      = True       
+cc_overlap     = 0.85       
+cc_bin         = 2          
+default_lag    = 5          
+auto_mode      = 0.75       
+remove_noise   = False      
+noise_limit    = 1.05       
+time_rpv       = 5          
+rpv_threshold  = 0.02       
+merge_drifts   = False      
+drift_limit    = 0.1        
+
+[converting]
+erase_all      = True       
+export_pcs     = all
+export_all     = False      
+sparse_export  = True       
+prelabelling   = False      
+
+[validating]
+nearest_elec   = auto       
+max_iter       = 200        
+learning_rate  = 1.0e-3     
+roc_sampling   = 10         
+test_size      = 0.3        
+radius_factor  = 0.5        
+juxta_dtype    = uint16     
+juxta_thresh   = 6          
+juxta_valley   = False      
+juxta_spikes   =            
+filter         = True       
+make_plots     = png        
+
+[extracting]
+safety_time    = 1          
+max_elts       = 1000       
+output_dim     = 5          
+cc_merge       = 0.975      
+noise_thr      = 0.8        
+
+[noedits]
+filter_done    = False      
+artefacts_done = False      
+median_done    = False      
+ground_done    = False      

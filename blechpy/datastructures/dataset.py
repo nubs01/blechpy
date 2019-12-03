@@ -10,7 +10,7 @@ from tqdm import tqdm
 from copy import deepcopy
 from blechpy.utils import print_tools as pt, write_tools as wt, userIO
 from blechpy.utils.decorators import Logger
-from blechpy.analysis import palatability_analysis as pal_analysis, spike_sorting as ss, spike_analysis
+from blechpy.analysis import palatability_analysis as pal_analysis, spike_sorting as ss, spike_analysis, circus_interface as circ
 from blechpy.analysis.blech_clust_process import blech_clust_process
 from blechpy.plotting import palatability_plot as pal_plt, data_plot as datplt
 from blechpy import dio
@@ -952,8 +952,30 @@ class dataset(data_object):
         unit_table = dio.h5io.get_unit_table(self.root_dir)
         return unit_table
 
+    def circus_clust_run(self, shell=False):
+        circ.prep_for_circus(self.root_dir, self.electrode_mapping,
+                             self.data_name, self.sampling_rate)
+        circ.start_the_show()
+
     def extract_and_cluster(self, shell=False):
         pass
+
+    def extract_and_circus_cluster(self, dead_channels=None, shell=True):
+        print('Extracting Data...')
+        self.extract_data()
+        print('Marking dead channels...')
+        self.mark_dead_channels(dead_channels, shell=shell)
+        print('Common average referencing...')
+        self.common_average_reference()
+        print('Initiating circus clustering...')
+        circus = circ.circus_clust(self.root_dir, self.data_name,
+                                   self.sampling_rate, self.electrode_mapping)
+        print('Preparing for circus...')
+        circus.prep_for_circus()
+        print('Starting circus clustering...')
+        circus.start_the_show()
+        print('Plotting cluster waveforms...')
+        circus.plot_cluster_waveforms()
 
     def post_sorting(self):
         self.make_unit_plots()
@@ -1160,9 +1182,3 @@ def validate_data_integrity(rec_dir, verbose=False):
 
         numbers['max_recording_length (s)'] = max_samples/fs
         numbers['min_recording_length (s)'] = min_samples/fs
-
-
-
-
-
-

@@ -1,0 +1,26 @@
+"""
+bilateral32.prb
+
+Author: Roshan Nanu
+Created: Nov 21 2019
+
+This the probe geometry for two bundles of 16 single channel electrodes. 
+The raidus 100 mirons is good for extracellular recordings, but 
+since its impossible to know the exact configuration of our electrodes 
+this configurations sets each electrode at least 200 microns away from others
+so that the templates do not overlap. 
+"""
+
+total_nb_channels = 32
+radius = 100
+
+right_bundle = list(range(8)) + list(range(24,32))
+left_bundle = list(range(8,24))
+channel_group[1]['channels'] = right_bundle
+channel_group[2]['channels'] = left_bundle
+
+channel_group[1]['graph'] = []
+channel_group[2]['graph'] = []
+
+channel_group[1]['geometry'] = {b : [0, a*2*radius] for a,b in enumerate(right_bundle)}
+channel_group[2]['geometry'] = {b : [2*radius, a*2*radius] for a,b in enumerate(left_bundle)} 

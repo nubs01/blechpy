@@ -335,7 +335,7 @@ def plot_cluster_pca(clusters):
     -------
     matplotlib.pyplot.figure, matplotlib.pyplot.Axes
     '''
-    fig, axs = plt.subplots(2, 2, sharex=False, sharey=False)
+    fig, axs = plt.subplots(2, 2, sharex=False, sharey=False, figsize=(20,15))
 
     pca = PCA(n_components=3)
     pca.fit(np.concatenate(tuple(x['spike_waveforms'] for x in clusters), axis=0))

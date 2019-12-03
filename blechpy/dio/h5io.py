@@ -933,19 +933,9 @@ def get_raw_unit_waveforms(rec_dir, unit_name, electrode_mapping=None,
     if raw_el is None:
         raise FileNotFoundError('Raw data not found')
 
-    # Filter and extract waveforms
-    filt_el = clust.get_filtered_electrode(raw_el, freq=bandpass,
-                                           sampling_rate=fs)
-    del raw_el
-    pre_pts = int((snapshot[0]+0.1) * (fs/1000))
-    post_pts = int((snapshot[1]+0.2) * (fs/1000))
-    slices = np.zeros((spike_times.shape[0], pre_pts+post_pts))
-    for i, st in enumerate(spike_times):
-        slices[i, :] = filt_el[st - pre_pts: st + post_pts]
-
-    slices_dj, times_dj = clust.dejitter(slices, spike_times, snapshot, fs)
-
-    return slices_dj, descriptor, fs*10
+    slices_dj, new_fs = clust.get_waveforms(raw_el, spike_times, sampling_rate=fs,
+                                            snapshot=snapshot, bandpass=bandpass)
+    return slices_dj, descriptor, new_fs
 
 
 def get_unit_waveforms(file_dir, unit, required_descrip=None):
