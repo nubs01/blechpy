@@ -361,7 +361,13 @@ def split_cluster(cluster, fs, params=None, shell=True):
                 (cluster['electrode'], cluster['solution'], clust_id)
             clust_waveforms = spike_waveforms[clust_idx]
             clust_times = spike_times[clust_idx]
-            clust_data = data[clust_idx, :]
+            # re-compute pca
+            scaled_slices, clust_energy = clust.scale_waveforms(clust_waveforms)
+            pca_slices = clust.implement_pca(scaled_slices)
+            clust_amps = np.array([np.min(x) for x in clust_waveforms])
+            clust_slopes = get_spike_slopes(clust_waveforms)
+            clust_data = np.vstack((clust_amps, clust_energy, clust_slopes)).T
+            clust_data = np.hstack((clust_data, pca_slices[:,:3]))
             clust_log = cluster['manipulations'] + \
                 '\nSplit %s with parameters: ' \
                 '\n%s\nCluster %i from split results. Named %s' \
@@ -614,14 +620,22 @@ def merge_clusters(clusters, fs):
         clust['cluster_id'] = clust['cluster_id']+c['cluster_id']
         clust['spike_times'] = np.concatenate((clust['spike_times'],
                                                c['spike_times']))
-        clust['data'] = np.concatenate((clust['data'], c['data']))
         clust['spike_waveforms'] = np.concatenate((clust['spike_waveforms'],
                                                    c['spike_waveforms']))
+        # re-compute pca
+        scaled_slices, clust_energy = clust.scale_waveforms(clust['spike_waveforms'])
+        pca_slices = clust.implement_pca(scaled_slices)
+        clust_amps = np.array([np.min(x) for x in clust['spike_waveforms']])
+        clust_slopes = get_spike_slopes(clust['spike_waveforms'])
+        clust_data = np.vstack((clust_amps, clust_energy, clust_slopes)).T
+        clust_data = np.hstack((clust_data, pca_slices[:,:3]))
+        clust['data'] = clust_data
         new_name = 'E%iS%i_cluster%s' % (clust['electrode'], clust['solution'],
                                          clust['cluster_id'])
         clust['manipulations'] += ('Cluster %s merged with cluster %s.\n'
                                    'New Cluster named: %s') \
             % (clust['Cluster Name'], c['Cluster Name'], new_name)
+
     idx = np.argsort(clust['spike_times'])
     clust['Cluster Name'] = 'E%iS%i_cluster%s' % (clust['electrode'],
                                                   clust['solution'],
@@ -967,3 +981,18 @@ def calc_units_similarity(h5_file, fs, similarity_cutoff=50,
 
 def get_sorted_unit_metrics(file_dir, unit_num):
     pass
+
+def get_spike_slopes(waves):
+    # Get slopes
+    out = np.zeros((waves.shape[0],))
+    for i, wave in enumerate(waves):
+        peaks = find_peaks(wave)[0]
+        minima = np.argmin(wave)
+        if not any(peaks < minima):
+            maxima = np.argmax(wave[:minima])
+        else:
+            maxima = max(peaks[np.where(peaks < minima)[0]])
+
+        out[i] = (wave[minima]-wave[maxima])/(minima-maxima)
+
+    return out
