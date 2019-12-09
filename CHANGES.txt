@@ -1,3 +1,7 @@
+v1.1.15 (2019-12-9)
+-------------------
+- Fix spike sorting to re-compute pca after splitting or merging clusters
+
 v1.1.14 (2019-11-23)
 --------------------
 - Make blech clust use less than all cores, or user specified number of cores
