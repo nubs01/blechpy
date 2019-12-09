@@ -420,3 +420,35 @@ def plot_cluster_waveforms(cluster, index=None):
     plt.xticks(fontsize=10)
     plt.yticks(fontsize=10)
     return fig, ax
+
+
+def plot_recording_cutoff(filt_el, fs, cutoff, out_file=None):
+    fig, ax = plt.subplots(figsize=(15,10))
+    test_el = np.reshape(filt_el[:int(fs)*int(len(filt_el)/fs)], (-1, int(fs)))
+    ax.plot(np.arange(test_el.shape[0]), np.mean(test_el, axis = 1))
+    ax.axvline(cutoff, 'k-', linewidth=4.0)
+    ax.set_xlabel('Recording time (secs)', fontsize=18)
+    ax.set_ylabel('Average voltage recorded\nper sec (microvolts)', fontsize=18)
+    ax.set_title('Recording cutoff time\n(indicated by the black horizontal line)', fontsize=18)
+
+    if out_file is not None:
+        fig.savefig(out_file, bbox_inches='tight')
+        plt.close(fig)
+        return None, None
+
+    return fig, ax
+
+
+def plot_explained_pca_variance(explained_variance_ratio, out_file=None):
+    fig, ax = plt.subplots(figsize=(15,10))
+    x = np.arange(len(explained_variance_ratio))
+    ax.plot(x, explained_variance_ratio)
+    ax.set_title('Variance ratios explained by PCs',fontsize=26)
+    ax.set_xlabel('PC #',fontsize=24)
+    ax.set_ylabel('Explained variance ratio',fontsize=24)
+    if out_file is not None:
+        fig.savefig(out_file, bbox_inches='tight')
+        plt.close(fig)
+        return None, None
+
+    return fig, ax

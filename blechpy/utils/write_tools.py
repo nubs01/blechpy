@@ -12,7 +12,7 @@ def write_dict_to_json(dat, save_file):
     save_file : str
     '''
     with open(save_file, 'w') as f:
-        json.dump(dat, f, indent=True)
+        json.dump(dat, f, indent=4)
 
 
 def write_params_to_json(param_name, rec_dir, params):

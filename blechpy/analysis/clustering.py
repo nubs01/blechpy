@@ -65,9 +65,9 @@ def dejitter(slices, spike_times, spike_snapshot = [0.5, 1.0], sampling_rate = 3
         orig_min_time = x[orig_min] / (sampling_rate/1000)
         minimum = np.where(ynew == np.min(ynew))[0][0]
         min_time = xnew[minimum] / (sampling_rate/1000)
-                # Only accept spikes if the interpolated minimum has shifted by
-                # less than 1/10th of a ms (3 samples for a 30kHz recording, 30
-                # samples after interpolation)
+        # Only accept spikes if the interpolated minimum has shifted by
+        # less than 1/10th of a ms (3 samples for a 30kHz recording, 30
+        # samples after interpolation)
         if np.abs(min_time - orig_min_time) <= 0.1:
             # If minimum is too close to the end for a full snapshot then toss out spike
             if minimum + after*10 < len(ynew) and minimum - before*10 >= 0:
