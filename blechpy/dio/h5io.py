@@ -758,6 +758,27 @@ def get_unit_table(rec_dir):
     return unit_table
 
 
+def get_next_unit_name(rec_dir):
+    '''returns node name for next sorted unit
+
+    Parameters
+    ----------
+    rec_dir : str, full path to recording directory
+
+    Returns
+    -------
+    str , name of next unit in sequence ex: "unit001"
+    '''
+    units = get_unit_names(rec_dir)
+    unit_nums = sorted([parse_unit_number(i) for i in units])
+    if units == []:
+        out = 'unit%03d' % 0
+    else:
+        out = 'unit%03d' % int(max(unit_nums)+1)
+
+    return out
+
+
 def get_spike_data(rec_dir, unit, din):
     '''Opens hf5 file in rec_dir and returns a Trial x Time spike array and a
     1D time vector
@@ -1083,3 +1104,117 @@ def read_unit_description(unit_description):
         return 'Fast-spiking'
     else:
         return 'Unlabelled'
+
+
+def add_new_unit(rec_dir, electrode, waves, times, single_unit, pyramidal, interneuron):
+    '''Adds new sorted unit to h5_file and returns the new unit name
+    Creates new row for unit description and add waveforms and times arrays
+
+    Parameters
+    ----------
+    rec_dir : str
+    electrode : int
+    waves : np.array
+    times : np.array
+    single_unit : bool or int
+    pyramidal : bool or int
+    interneuron : bool or int
+
+    Returns
+    -------
+    str : unit_name
+    '''
+    h5_file = get_h5_filename(rec_dir)
+    unit_name = get_next_unit_name(rec_dir)
+
+    with tables.open_file(hf5_file, 'r+') as hf5:
+        if '/sorted_units' not in hf5:
+            hf5.create_group('/', 'sorted_units')
+
+        if '/unit_descriptor' not in hf5:
+            hf5.create_table('/', 'unit_descriptor',
+                             description=particles.unit_descriptor)
+
+
+        table = hf5.root.unit_descriptor
+        unit_descrip = table.row
+        unit_descrip['electrode_number'] = int(electrode)
+        unit_descrip['single_unit'] = int(single_unit)
+        unit_descrip['regular_spiking'] = int(pyramidal)
+        unit_descrip['fast_spiking'] = int(interneuron)
+
+        hf5.create_group('/sorted_units', unit_name, title=unit_name)
+        waveforms = hf5.create_array('/sorted_units/%s' % unit_name,
+                                     'waveforms', waves)
+        times = hf5.create_array('/sorted_units/%s' % unit_name,
+                                 'times', times)
+        unit_descrip.append()
+        table.flush()
+        hf5.flush()
+
+
+def delete_unit(file_dir, unit_num):
+    '''Delete a sorted unit and re-label all following units.
+
+    Parameters
+    ----------
+    file_dir : str, full path to recording directory
+    unit_num : int, number of unit to delete
+    '''
+    if isinstance(unit_num, str):
+        unit_num = parse_unit_number(unit_num)
+
+    print('\n----------\nDeleting unit %i from dataset\n----------\n'
+          % unit_num)
+    h5_file = h5io.get_h5_filename(file_dir)
+    unit_names = get_unit_names(file_dir)
+    unit_numbers = [parse_unit_number(i) for i in unit_names]
+    if unit_num not in unit_numbers:
+        print('Unit %i not found in data. Nothing being deleted' % unit_num)
+        return False
+
+    metrics_dir = os.path.join(file_dir, 'sorted_unit_metrics')
+    plot_dir = os.path.join(file_dir, 'unit_waveforms_plots')
+
+    # Remove metrics
+    if os.path.exists(os.path.join(metrics_dir, unit_name)):
+        shutil.rmtree(os.path.join(metrics_dir, unit_name))
+
+    unit_name = 'unit%03d' % unit_num
+    change_units = [x for x in unit_numbers if x > unit_num]
+    new_units = [x-1 for x in change_units]
+    new_names = ['unit%03d' % x for x in new_units]
+    old_names = ['unit%03d' % x for x in change_units]
+
+    # remove unit from hdf5 store
+    with tables.open_file(h5_file, 'r+') as hf5:
+        hf5.remove_node('/sorted_units', name=unit_name, recursive=True)
+        table = hf5.root.unit_descriptor
+        table.remove_row(unit_num)
+        # rename rest of units in hdf5 and metrics folders
+        print('Renaming following units...')
+        for x, y in zip(old_names, new_names):
+            print('Renaming %s to %s' % (x,y))
+            hf5.rename_node('/sorted_units', newname=y, name=x)
+            os.rename(os.path.join(metrics_dir, x),
+                      os.path.join(metrics_dir, y))
+
+        hf5.flush()
+
+    # delete and rename plot files
+    if os.path.exists(plot_dir):
+        plot_files = os.listdir(plot_dir)
+        print('Correcting names of plots and metrics...')
+        for x in plot_files:
+            if x.startswith('Unit%i' % unit_num):
+                os.remove(os.path.join(plot_dir, x))
+            elif any([x.startswith(y) for y in old_prefix]):
+                pre = [b for a, b in zip(old_prefix, new_prefix)
+                       if x.startswith(a)]
+                old_file = os.path.join(plot_dir, x)
+                new_file = os.path.join(plot_dir, x.replace(pre[0][0], pre[0][1]))
+                os.rename(old_file, new_file)
+
+    compress_and_repack(h5_file)
+    print('Finished deleting unit\n----------')
+    return True

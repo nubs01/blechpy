@@ -338,6 +338,7 @@ def get_user_input(msg, default=None, shell=False):
 
         return out
 
+
 def select_from_list(prompt, items, title='', multi_select=False, shell=False):
     '''makes a popup for list selections, can be multichoice or single choice
     default is single selection

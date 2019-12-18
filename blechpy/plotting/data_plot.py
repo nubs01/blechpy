@@ -394,7 +394,7 @@ def plot_cluster_raster(clusters):
     return fig
 
 
-def plot_cluster_waveforms(cluster, index=None):
+def plot_cluster_waveforms(cluster, index=None, save_file=None):
     '''Plots a cluster with isi and violation info for viewing
 
     Parameters
@@ -419,7 +419,72 @@ def plot_cluster_waveforms(cluster, index=None):
     ax.set_title(title_str, fontsize=12)
     plt.xticks(fontsize=10)
     plt.yticks(fontsize=10)
-    return fig, ax
+
+    if save_file is not None:
+        fig.savefig(save_file)
+        plt.close(fig)
+        return None, None
+    else:
+        return fig, ax
+
+
+def plot_waveforms(waveforms, title=None, save_file=None):
+    '''Plots a cluster with isi and violation info for viewing
+
+    Parameters
+    ----------
+    cluster : dict with cluster info
+
+    '''
+    fig, ax = blech_waveforms_datashader.waveforms_datashader(waveforms)
+    ax.set_xlabel('Samples', fontsize=12)
+    ax.set_ylabel('Voltage (microvolts)', fontsize=12)
+    ax.set_title(title, fontsize=12)
+    plt.xticks(fontsize=10)
+    plt.yticks(fontsize=10)
+
+    if save_file is not None:
+        fig.savefig(save_file)
+        plt.close(fig)
+        return None, None
+    else:
+        return fig, ax
+
+
+def plot_ISIs(ISIs, save_file=None):
+    '''Plots a cluster with isi and violation info for viewing
+
+    Parameters
+    ----------
+    ISIs : np.array, list of ISIs in ms
+    save_file : str (optional)
+        path to save figure to. Closes figure after save.
+
+    Returns
+    -------
+    pyplot.Figure, pyplot.Axes
+        if save_file is provided figured is saved and close and None, None is
+        returned
+    '''
+    total_spikes = len(ISIs)+1
+    1ms_viol = np.sum(ISIs < 1.0)
+    2ms_viol = np.sum(ISIs < 2.0)
+    fig, ax = plt.subplots(figsize=(15,10))
+    ax.hist(ISIs, bins = [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, np.max(ISIs)])
+    ax.set_xlim((0.0, 10.0))
+    title_str = ('2ms violations = %0.1f %% (%i/%i)\n'
+                 '1ms violations = %0.1f %% (%i/%i)' % (2ms_viol/total_spikes,
+                                                        2ms_viol, total_spikes,
+                                                        1ms_viol/total_spikes,
+                                                        1ms_viol, total_spikes))
+    ax.set_title(title_str)
+    ax.set_xlabel('ISIs (ms)')
+    if save_file is not None:
+        fig.savefig(save_file)
+        plt.close(fig)
+        return None, None
+    else:
+        return fig, ax
 
 
 def plot_recording_cutoff(filt_el, fs, cutoff, out_file=None):
@@ -452,3 +517,68 @@ def plot_explained_pca_variance(explained_variance_ratio, out_file=None):
         return None, None
 
     return fig, ax
+
+
+def plot_cluster_features(data, clusters, x_label='X', y_label='Y', save_file=None):
+    '''Plot scatter of feature1 vs feature2 for each cluster
+
+    Parameters
+    ----------
+    data : np.array
+        2-column data array of where columns are features and rows are points
+    clusters : np.array
+        1-d array corresponding to each row of data, labels each data point as
+        part of a cluster
+    x_label : str (optional), x-label of plot, default is X
+    y_label : str (optional), y-label of plot, default is Y
+    save_file : str (optional)
+        if given, figure will be saved and closed
+        otherwise, figure and axis handles will be returned
+
+    Returns
+    -------
+    pyplot.figure, pyplot.axes
+        if no save_file is given, otherwise returns None, None
+    '''
+    unique_clusters = np.unique(abs(clusters))
+    colors = matplotlib.cm.rainbow(np.linspace(0,1,len(unique_clusters)))
+    fig, ax = plt.subplots(figsize=(15,10))
+    for clust in unique_clusters:
+        idx = np.where(clusters == clust)[0]
+        tmp = ax.scatter(data[idx, 0], data[idx, 1],
+                         color=colors[clust], s=0.8)
+        tmp.set_label('Cluster %i' % clust)
+
+    ax.set_xlabel(x_label)
+    ax.set_ylabel(y_label)
+    ax.legend(scatterpoints = 1, loc = 'best', ncol = 3, fontsize = 8, shadow=True)
+    ax.set_title("Feature plot for %i cluster solution" % len(unique_clusters))
+
+    if save_file is not None:
+        fig.savefig(save_file)
+        plt.close(fig)
+        return None, None
+    else:
+        return fig, ax
+
+
+def plot_mahalanobis_to_cluster(distances, save_file=None):
+    unique_clusters = sorted(list(distances.keys()))
+    colors = matplotlib.cm.rainbow(np.linspace(0,1,len(unique_clusters)))
+    fig, ax = plt.subplots(figsize=(15,10))
+    for clust, dists in distances.items():
+        y, binEdges = np.histogram(dists)
+        bincenters = 0.5*(binEdges[1:] + binEdges[:-1])
+        ax.plot(bincenters, y, label = 'Dist from cluster %i' % clust)
+
+   ax.set_xlabel('Mahalanobis distance')
+   ax.set_ylabel('Frequency')
+   ax.legend(loc = 'upper right', fontsize = 8)
+   ax.set_title('Mahalanobis distance of Cluster %i from all other clusters' % cluster, fontsize=24)
+
+   if save_file is not None:
+       fig.savefig(save_file)
+       plt.close(fig)
+       return None, None
+   else:
+       return fig, ax
