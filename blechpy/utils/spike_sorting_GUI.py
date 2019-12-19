@@ -16,11 +16,12 @@ class SpikeSorterGUI(ttk.Frame):
         self.root = parent
         self.root.style = ttk.Style()
         self.root.style.theme_use('clam')
-        self.root.geometry('910x600')
+        self.root.geometry('915x600')
         self.pack(fill='both', expand=True)
         window_center(self.root)
 
         self.sorter = spike_sorter
+        self.sorter._shell = False
         self.electrode = spike_sorter.electrode
         self.initUI()
 
@@ -40,13 +41,13 @@ class SpikeSorterGUI(ttk.Frame):
 
         buttons.pack(side='right', padx=10)
         checks.pack(side='right', padx=10)
-        
+
         solution_row.pack(side='top', anchor='n', pady=30)
         click_row.pack(side='top', anchor='n')
 
         figs.pack(side='left', fill='both', expand=True)
         ui.pack(side='left')
-        
+
         row1.pack(side='top')
         row2.pack(side='top', fill='both', expand=True, anchor='n')
 
@@ -65,7 +66,7 @@ class SpikeSorterGUI(ttk.Frame):
         ttk.Label(solution_row, text='Solution Clusters: ').pack(side='right')
 
         self._solution_var.trace('w', self.change_solution)
-        
+
         # Set sorter to max solutions
         self.sorter.set_active_clusters(self._solution_var.get())
 
@@ -94,6 +95,8 @@ class SpikeSorterGUI(ttk.Frame):
         viewISI.pack(side='top', fill='x', pady=5)
         discard.pack(side='top', fill='x', pady=5)
         undoSave.pack(side='top', fill='x', pady=5)
+
+        self._ui_frame = ui
 
         # Figures
         self._wavepane = WaveformPane(figs)
@@ -153,7 +156,17 @@ class SpikeSorterGUI(ttk.Frame):
         if len(chosen) == 0:
             return
 
-        self.sorter.save_clusters(chosen)
+        cell_types = {}
+        for i in chosen:
+            cell_types[i] = {'single_unit': False, 'pyramidal': False,
+                             'interneuron': False}
+
+        cell_types = userIO.fill_dict(cell_types, shell=False)
+        single = [cell_types[i]['single_unit'] for i in sorted(cell_types.keys())]
+        pyramidal = [cell_types[i]['pyramidal'] for i in sorted(cell_types.keys())]
+        interneuron = [cell_types[i]['interneuron'] for i in sorted(cell_types.keys())]
+        self.sorter.save_clusters(chosen, single, pyramidal, interneuron)
+        self.update()
 
     def view_waves(self, *args):
         chosen = self._check_bar.get_selected()
@@ -194,6 +207,24 @@ class SpikeSorterGUI(ttk.Frame):
     def undo_save(self, *args):
         self.sorter.undo_last_save()
         self.update()
+
+    def cstate(self,state,widget=None):
+        if widget is None:
+            widget = self
+        if widget.winfo_children:
+            for w in widget.winfo_children():
+                try:
+                    w.state((state,))
+                except:
+                    pass
+                self.cstate(state,widget=w)
+
+    def enable_all(self):
+        self.cstate('!disabled')
+
+    def disable_all(self):
+        self.cstate('disabled')
+
 
 
 class CheckBar(ttk.Frame):
@@ -364,9 +395,8 @@ class DummySorter(object):
         new_clusts = [cluster*10+i for i in range(n_clust)]
         selection_list = ['all'] + ['%i' % i for i in range(len(new_clusts))]
         prompt = 'Select split clusters to keep'
-        #ans = userIO.select_from_list(prompt, selection_list,
-        #                              multi_select=True, shell=self._shell)
-        ans = input(prompt)
+        ans = userIO.select_from_list(prompt, selection_list,
+                                      multi_select=True, shell=self._shell)
         if ans is None or 'all' in ans:
             print('Reset to before split')
             self._active.insert(target_cluster, cluster)
@@ -388,9 +418,11 @@ class DummySorter(object):
 
         self._active.append(new_clust)
 
-    def discard_cluster(self, target_cluster):
-        c = self._active.pop(target_cluster)
-        self._waves.pop(c)
+    def discard_clusters(self, target_clusters):
+        self._active = [self._active[i] for i in range(len(self._active))
+                        if i not in target_clusters]
+        for i in target_clusters:
+            self._waves.pop(i)
 
     def plot_clusters_waveforms(self, target_clusters):
         pass
@@ -426,5 +458,3 @@ class DummySorter(object):
 
     def get_possible_solutions(self):
         return list(range(8))
-
-

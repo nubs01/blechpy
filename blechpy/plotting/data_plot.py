@@ -486,6 +486,105 @@ def plot_ISIs(ISIs, save_file=None):
     else:
         return fig, ax
 
+def plot_spike_raster(spike_times, waveforms,
+                      cluster_ids=None, save_file=None):
+    '''Plot raster view of a cluster from blechpy.analysis.spike_sorting
+
+    Parameters
+    ----------
+    spike_times : list of np.array
+        spike_times for each cluster to be plotted
+    spike_waveforms: list of np.array
+        spike_waveforms for each cluster to be plotted
+    cluster_ids : list
+        names or numbers with which to label each cluster plotted
+    save_file : str (optional)
+        path to save figure to, if provided, figure is saved and closed and
+        this returns None
+
+    Returns
+    -------
+    matplotlib.pyplot.figure
+    '''
+    if cluster_ids is None:
+        cluster_ids = list(range(len(spike_times)))
+
+    fig = plt.figure(figsize=(15,10))
+
+    all_waves = np.vstack(waveforms)
+    pca = PCA(n_components=1)
+    pca.fit(all_waves, axis=0)
+    colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+    for i, c in enumerate(zip(cluster_ids, spike_times, waveforms)):
+        pcs = pca.transform(c[2])
+        plt.scatter(c[1], pcs[:, 0], s=5,
+                    color=colors[i], label=str(c[0]))
+
+    plt.legend(loc='best')
+
+    if save_file:
+        fig.savefig(save_file)
+        plt.close(fig)
+        return None
+    else:
+        return fig
+
+
+def plot_waveforms_pca(waveforms, cluster_ids=None, save_file=None):
+    '''Plot PCA view of clusters from spike_sorting
+
+    Parameters
+    ----------
+    waveforms : list of np.array
+        list of np.arrays containing waveforms for each cluster
+    cluster_ids : list
+        names or numbers with which to label each cluster plotted
+    save_file : str (optional)
+        path to save figure to, if provided, figure is saved and closed and
+        this returns None
+
+    Returns
+    -------
+    matplotlib.pyplot.figure, matplotlib.pyplot.Axes
+    '''
+    if cluster_ids is None:
+        cluster_ids = list(range(len(waveforms)))
+
+    fig, axs = plt.subplots(2, 2, sharex=False, sharey=False, figsize=(20,15))
+
+    pca = PCA(n_components=3)
+    all_waves = np.vstack(waveforms)
+    pca.fit(all_waves, axis=0)
+
+    colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+    for i, c in enumerate(zip(cluster_ids, waveforms)):
+        pcs = pca.transform(c[1])
+
+        axs[0, 0].scatter(pcs[:, 0], pcs[:, 1], alpha=0.4, s=5,
+                          color=colors[i], label=str(c[0]))
+        axs[0, 1].scatter(pcs[:, 0], pcs[:, 2], alpha=0.4, s=5,
+                          color=colors[i], label=str(c[0]))
+        axs[1, 0].scatter(pcs[:, 1], pcs[:, 2], alpha=0.4, s=5,
+                          color=colors[i], label=str(c[0]))
+
+    handles, labels = axs[0, 0].get_legend_handles_labels()
+    axs[1, 1].set_axis_off()
+    axs[1, 1].legend(handles, labels, loc='center')
+
+    axs[0, 0].set_xlabel('PC1')
+    axs[0, 0].set_ylabel('PC2')
+    axs[0, 1].set_xlabel('PC1')
+    axs[0, 1].set_ylabel('PC3')
+    axs[1, 0].set_xlabel('PC2')
+    axs[1, 0].set_ylabel('PC3')
+
+    if save_file:
+        fig.savefig(save_file)
+        plt.close(fig)
+        return None
+    else:
+        return fig
+
 
 def plot_recording_cutoff(filt_el, fs, cutoff, out_file=None):
     fig, ax = plt.subplots(figsize=(15,10))

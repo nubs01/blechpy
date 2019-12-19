@@ -8,7 +8,7 @@ import multiprocessing
 import subprocess
 from tqdm import tqdm
 from copy import deepcopy
-from blechpy.utils import print_tools as pt, write_tools as wt, userIO
+from blechpy.utils import print_tools as pt, write_tools as wt, userIO, blech_clustering
 from blechpy.utils.decorators import Logger
 from blechpy.analysis import palatability_analysis as pal_analysis, spike_sorting as ss, spike_analysis, circus_interface as circ
 from blechpy.analysis.blech_clust_process import blech_clust_process
@@ -57,8 +57,8 @@ class dataset(data_object):
         self.processing_steps = ['initialize parameters',
                                  'extract_data', 'create_trial_list',
                                  'mark_dead_channels',
-                                 'common_average_reference', 'blech_clust_run',
-                                 'cleanup_clustering',
+                                 'common_average_reference', 'spike_detection',
+                                 'spike_clustering',
                                  'sort_units', 'make_unit_plots',
                                  'units_similarity', 'make_unit_arrays',
                                  'make_psth_arrays', 'plot_psths',
@@ -695,10 +695,11 @@ class dataset(data_object):
         self.process_status['common_average_reference'] = True
         self.save()
 
-    @Logger('Running Blech Clust')
-    def blech_clust_run(self, data_quality=None, n_cores=None):
-        '''Write clustering parameters to file and
-        Run blech_process on each electrode using GNU parallel
+    @Logger('Running Spike Detection')
+    def detect_spikes(self, data_quality=None, n_cores=None):
+        '''Run spike detection on each electrode. Prepares for clustering with
+        BlechClust. Works for both single recording clustering or
+        multi-recording clustering
 
         Parameters
         ----------
@@ -706,42 +707,25 @@ class dataset(data_object):
             set if you want to change the data quality parameters for cutoff
             and spike detection before running clustering. These parameters are
             automatically set as "clean" during initial parameter setup
-        accept_params : bool, False (default)
-            set to True in order to skip popup confirmation of parameters when
-            running
+        n_cores : int (optional)
+            number of cores to use for parallel processing. default is max-1.
         '''
         if data_quality:
             tmp = dio.params.load_params('clustering_params', self.root_dir,
                                          default_keyword=data_quality)
             if tmp:
                 self.clustering_params = tmp
+                wt.write_params_to_json('clustering_params', self.root_dir, tmp)
             else:
                 raise ValueError('%s is not a valid data_quality preset. Must '
                                  'be "clean" or "noisy" or None.')
 
-        print('\nRunning Blech Clust\n-------------------')
+        print('\nRunning Spike Detection\n-------------------')
         print('Parameters\n%s' % pt.print_dict(self.clustering_params))
 
         # Create folders for saving things within recording dir
         data_dir = self.root_dir
-        directories = ['spike_waveforms', 'spike_times',
-                       'clustering_results',
-                       'Plots', 'memory_monitor_clustering']
-        for d in directories:
-            tmp_dir = os.path.join(data_dir, d)
-            if os.path.exists(tmp_dir):
-                shutil.rmtree(tmp_dir)
 
-            os.mkdir(tmp_dir)
-
-        # Set file for clusting log
-        self.clustering_log = os.path.join(data_dir, 'results.log')
-        if os.path.exists(self.clustering_log):
-            os.remove(self.clustering_log)
-
-        process_path = os.path.realpath(__file__)
-        process_path = os.path.join(os.path.dirname(process_path),
-                                    'blech_process.py')
         em = self.electrode_mapping
         if 'dead' in em.columns:
             electrodes = em.Electrode[em['dead'] == False].tolist()
@@ -751,7 +735,6 @@ class dataset(data_object):
 
         pbar = tqdm(total = len(electrodes))
         results = [(None, None, None)] * (max(electrodes)+1)
-        clust_errors = [(x, None) for x in electrodes]
         def update_pbar(ans):
             if isinstance(ans, tuple) and ans[0] is not None:
                 results[ans[0]] = ans
@@ -764,10 +747,9 @@ class dataset(data_object):
             n_cores = multiprocessing.cpu_count() - 1
 
         pool = multiprocessing.Pool(n_cores)
-        for x in electrodes:
-            pool.apply_async(blech_clust_process,
-                             args=(x, data_dir, self.clustering_params),
-                             callback=update_pbar)
+        spike_detectors = [blech_clustering.SpikeDetection(data_dir, x, self.clustering_params) for x in electrodes]
+        for sd in spike_detectors:
+            pool.apply_async(sd.run, callback=update_pbar)
 
         pool.close()
         pool.join()
@@ -792,12 +774,73 @@ class dataset(data_object):
         em['cutoff_time'] = em['Electrode'].map(cutoffs)
         em['clustering_result'] = em['Electrode'].map(clust_res)
         self.electrode_mapping = em.copy()
-        self.process_status['blech_clust_run'] = True
-        self.process_status['cleanup_clustering'] = False
+        self.process_status['spike_detection'] = True
+        dio.h5io.write_electrode_map_to_h5(self.h5_file, em)
+        self.save()
+        print('Spike Detection Complete\n------------------')
+        return results
+
+    @Logger('Running Blech Clust')
+    def blech_clust_run(self, data_quality=None, n_cores=None):
+        '''Write clustering parameters to file and
+        Run blech_process on each electrode using GNU parallel
+
+        Parameters
+        ----------
+        data_quality : {'clean', 'noisy', None (default)}
+            set if you want to change the data quality parameters for cutoff
+            and spike detection before running clustering. These parameters are
+            automatically set as "clean" during initial parameter setup
+        accept_params : bool, False (default)
+            set to True in order to skip popup confirmation of parameters when
+            running
+        '''
+        if self.process_status['spike_sorting'] == False:
+            raise FileNotFoundError('Must run spike detection before clustering.')
+
+        if data_quality:
+            tmp = dio.params.load_params('clustering_params', self.root_dir,
+                                         default_keyword=data_quality)
+            if tmp:
+                self.clustering_params = tmp
+                wt.write_params_to_json('clustering_params', self.root_dir, tmp)
+            else:
+                raise ValueError('%s is not a valid data_quality preset. Must '
+                                 'be "clean" or "noisy" or None.')
+
+        print('\nRunning Blech Clust\n-------------------')
+        print('Parameters\n%s' % pt.print_dict(self.clustering_params))
+
+        # Get electrodes, throw out 'dead' electrodes
+        em = self.electrode_mapping
+        if 'dead' in em.columns:
+            electrodes = em.Electrode[em['dead'] == False].tolist()
+        else:
+            electrodes = em.Electrode.tolist()
+
+
+        pbar = tqdm(total = len(electrodes))
+        def update_pbar(ans):
+            pbar.update()
+
+        if n_cores is None or n_cores > multiprocessing.cpu_count():
+            n_cores = multiprocessing.cpu_count() - 1
+
+        pool = multiprocessing.Pool(n_cores)
+        clust_objs = [blech_clustering.BlechClust(self.root_dir,
+                                                  x, params=self.clustering_params)
+                      for x in electrodes]
+        for x in clust_objs:
+            pool.apply_async(x.run, callback=update_pbar)
+
+        pool.close()
+        pool.join()
+        pbar.close()
+
+        self.process_status['spike_clustering'] = True
         dio.h5io.write_electrode_map_to_h5(self.h5_file, em)
         self.save()
         print('Clustering Complete\n------------------')
-        return results
 
     @Logger('Cleaning up clustering memory logs. Removing raw data and setting'
             'up hdf5 for unit sorting')
@@ -808,19 +851,6 @@ class dataset(data_object):
         h5_file = dio.h5io.cleanup_clustering(self.root_dir)
         self.h5_file = h5_file
         self.process_status['cleanup_clustering'] = True
-        self.save()
-
-    def sort_units(self, shell=False):
-        '''Begins processes to allow labelling of clusters as sorted units
-
-        Parameters
-        ----------
-        shell : bool
-            True if command-line interfaced desired, False for GUI (default)
-        '''
-        fs = self.sampling_rate
-        ss.sort_units(self.root_dir, fs, shell)
-        self.process_status['sort_units'] = True
         self.save()
 
     @Logger('Calculating Units Similarity')

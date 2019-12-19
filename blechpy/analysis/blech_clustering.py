@@ -4,6 +4,7 @@ import numpy as np
 from scipy.spatial.distance import mahalanobis
 from scipy import linalg
 from scipy.signal import find_peaks
+from scipy.stats import sem
 from blechpy.utils import write_tools as wt, print_tools as pt, math_tools as mt
 from blechpy.dio import h5io
 import pylab as plt
@@ -89,11 +90,11 @@ def compute_waveform_metrics(waves, n_pc=3):
 
 def get_waveform_amplitudes(waves):
     '''Returns array of waveform amplitudes
-    
+
     Parameters
     ----------
     waves : np.array, matrix of waveforms, with row for each spike
-    
+
     Returns
     -------
     np.array
@@ -103,11 +104,11 @@ def get_waveform_amplitudes(waves):
 
 def get_waveform_energy(waves):
     '''Returns array of waveform energies
-    
+
     Parameters
     ----------
     waves : np.array, matrix of waveforms, with row for each spike
-    
+
     Returns
     -------
     np.array
@@ -118,11 +119,11 @@ def get_waveform_energy(waves):
 
 def get_spike_slopes(waves):
     '''Returns array of spike slopes (initial downward slope of spike)
-    
+
     Parameters
     ----------
     waves : np.array, matrix of waveforms, with row for each spike
-    
+
     Returns
     -------
     np.array
@@ -141,13 +142,19 @@ def get_spike_slopes(waves):
     return slopes
 
 
-def get_ISI_and_violations(spike_times, fs):
+def get_ISI_and_violations(spike_times, fs, rec_map=None):
     '''returns array of ISIs in ms and # of 1ms and 2ms violations
 
     Parameters
     ----------
     spike_time  numpy.array
     fs : float, sampling rate in Hz
+    rec_map : np.array (optional)
+        if not passed, it is assumed all spike times are from same recording
+        if passed, spike times are split into recordings and ISIs are computed
+        per recording.
+        If fs is different for each recording, fs should be a dict with keys as
+        rec ids in rec_map
 
     Returns
     -------
@@ -155,23 +162,38 @@ def get_ISI_and_violations(spike_times, fs):
     int : 1ms violations
     int : 2ms violations
     '''
-    fs = float(fs/1000.0)
-    ISIs = np.ediff1d(np.sort(spike_times))/fs
-    violations1 = np.sum(ISIs < 1.0)
-    violations2 = np.sum(ISIs < 2.0)
+    if rec_map is not None:
+        if not isinstance(fs, dict):
+            fs = dict.fromkeys(np.unique(rec_map), fs)
+
+        ISIs = np.array([])
+        violations1 = 0
+        violations2 = 0
+        for i in np.unique(rec_map):
+            idx = np.where(rec_map == i)[0]
+            tmp_isi, v1, v2 = get_ISI_and_violations(spike_times[idx], fs[i])
+            violations1 += v1
+            violations2 += v2
+            ISIs = np.concatenate((ISIs, tmp_isi))
+
+    else:
+        fs = float(fs/1000.0)
+        ISIs = np.ediff1d(np.sort(spike_times))/fs
+        violations1 = np.sum(ISIs < 1.0)
+        violations2 = np.sum(ISIs < 2.0)
 
     return ISIs, violations1, violations2
 
 
 def scale_waveforms(waves, energy=None):
     '''Scales each waveform to its own energy
-    
+
     Parameters
     ----------
     waves : np.array, matrix of waveforms, with row for each spike
     energy : np.array (optional)
         array of waveform energies, saves computation time
-    
+
     Returns
     -------
     np.array
@@ -192,14 +214,14 @@ def scale_waveforms(waves, energy=None):
 def get_mahalanobis_distances_to_cluster(data, model, clusters, target_cluster):
     '''computes mahalanobis distance from spikes in target_cluster to all clusters
     in GMM model
-    
+
     Parameters
     ----------
     data : np.array, data used to train GMM
     model : fitted GMM model
     clusters : np.array, maps data points to clusters
     target_cluster : int, cluster for which to compute distances
-    
+
     Returns
     -------
     np.array
@@ -375,7 +397,7 @@ class SpikeDetection(object):
             dplt.plot_recording_cutoff(filt_el, fs, self.recording_cutoff,
                                        out_file=fn)
 
-        # Truncate electrode trace, deal with early cutoff
+        # Truncate electrode trace, deal with early cutoff (<60s)
         if self.recording_cutoff < 60:
             print('Immediate Cutoff for electrode %i...exiting' % electrode)
             return electrode, 0, self.recording_cutoff
@@ -548,8 +570,11 @@ class BlechClust(object):
         self.rec_dirs = rec_dirs
         self.electrode = electrode
         if out_dir is None:
-            top = os.path.dirname(rec_dirs[0])
-            out_dir = os.path.join(top, 'BlechClust', 'electrode_%i' % electrode)
+            if len(rec_dirs) > 1:
+                top = os.path.dirname(rec_dirs[0])
+                out_dir = os.path.join(top, 'BlechClust', 'electrode_%i' % electrode)
+            else:
+                out_dir = os.path.join(rec_dirs[0], 'BlechClust', 'electrode_%i' % electrode)
 
         if overwrite:
             shutil.rmtree(out_dir)
@@ -582,6 +607,8 @@ class BlechClust(object):
             rec_key = {x:y for x,y in enumerate(self.rec_dirs)}
             self._rec_key = rec_key
             wt.write_dict_to_json(rec_key, self._files['rec_key'])
+        elif self._rec_key is None:
+            ValueError('Existing rec_key not found and no_write is enabled')
 
         # Check to see if spike detection is already completed on all recording directories
         spike_check = self._check_spike_detection()
@@ -654,13 +681,13 @@ class BlechClust(object):
 
     def run(self, overwrite=False):
         if self.clustered and not overwrite:
-            return
+            return True
 
         GMM = ClusterGMM(self.params['max_iterations'],
                          self.params['num_restarts'], self.params['threshold'])
 
         # Collect data from all recordings
-        waveforms, spike_times, spike_map, fs = self.get_spike_data()
+        waveforms, spike_times, spike_map, fs, offsets = self.get_spike_data()
 
         # Save array to map spikes and predictions back to original recordings
         np.save(self._files['spike_map'], spike_map)
@@ -696,31 +723,15 @@ class BlechClust(object):
 
                 idx = np.where(predictions == c)[0]
                 spikes_per_clust.append(len(idx))
-                ISIs = []
-                1ms_violations = []
-                2ms_violations = []
-                for rec_num in self._rec_key.keys():
-                    rec_idx = np.where(spike_id == rec_num)[0]
-                    tmp_idx = np.intersect1d(idx, rec_idx)
-                    tmp_times = spike_times[tmp_idx]
-                    tmp_isi, tmp_1ms, tmp_2ms = get_ISI_and_violations(tmp_times, fs[rec_num])
-                    ISIs.append(tmp_isi)
-                    1ms_violations.append(tmp_1ms)
-                    2ms_violations.append(tmp_2ms)
-
-
-                del tmp_times, tmp_isi, tmp_1ms, tmp_2ms, rec_idx
 
                 # Plot waveforms and ISIs of cluster
-                ISIs = np.hstack(ISIs)
-                1ms_violations = np.sum(1ms_violations)
-                2ms_violations = np.sum(2ms_violations)
+                ISIs, 1ms_violations, 2ms_violations = get_ISI_and_violations(spike_times[idx], fs, spike_map)
                 cluster_waves = waveforms[idx]
                 cluster_times = spike_times[idx]
                 isi_fn = os.path.join(wave_plot_dir, 'Cluster%i_ISI.png' % c)
                 wave_fn = os.path.join(wave_plot_dir, 'Cluster%i_waveforms.png' % c)
-                title_str = ('Cluster%i\n1ms_violations = %0.1f, '
-                             '2ms_violations = %0.1f\n'
+                title_str = ('Cluster%i\n1ms_violations = %i, '
+                             '2ms_violations = %i\n'
                              'Number of waveforms = %i' %
                              (c, 1ms_violations, 2ms_violations, len(idx)))
                 dplt.plot_waveforms(cluster_waves, title=title_str, save_file=wave_fn)
@@ -754,6 +765,7 @@ class BlechClust(object):
         self.results = clust_results
         wt.write_pandas_to_table(clust_results, self._files['clustering_results'])
         self.clustered = True
+        return True
 
     def get_spike_data(self):
         # Collect data from all recordings
@@ -761,6 +773,8 @@ class BlechClust(object):
         tmp_times = []
         tmp_id = []
         fs = dict.fromkeys(self._rec_key.keys())
+        offsets = dict.fromkeys(self._rec_key.keys())
+        offset = 0
         for i in sorted(self._rec_key.keys()):
             rec = self._rec_key[i]
             spike_detect = SpikeDetection(rec, self.electrode)
@@ -769,6 +783,8 @@ class BlechClust(object):
             tmp_times.append(t)
             tmp_id.append(np.ones((t.shape[0],))*i)
             fs[i] = spike_detect.params['sampling_rate']
+            offset = offset + max(t) + 3*fs[i]
+            offsets[i] = offset
 
         waveforms = np.hstack(tmp_waves)
         spike_times = np.hstack(tmp_times)
@@ -780,13 +796,13 @@ class BlechClust(object):
             if len(orig_map) != len(spike_map):
                 raise ValueError('Spike detection has changed, please re-cluster with overwrite=True')
 
-        return waveforms, spike_times, spike_id, fs
+        return waveforms, spike_times, spike_id, fs, offsets
 
     def get_clusters(self, solution_num, cluster_nums):
         if not isinstance(cluster_nums, list):
             cluster_nums = [cluster_nums]
 
-        waveforms, times, spike_map, fs = self.get_spike_data()
+        waveforms, times, spike_map, fs, offsets = self.get_spike_data()
         predictions = self.get_predictions(solution_num)
         out = []
         for c in cluster_nums:
@@ -803,6 +819,7 @@ class BlechClust(object):
                          'spike_map': spike_map[idx],
                          'rec_key': self._rec_key.copy(),
                          'fs': fs,
+                         'offsets': offsets
                          'manipulations': ''}
             out.append(tmp_clust)
 
@@ -853,7 +870,7 @@ class ClusterGMM(object):
 
 
 class SpikeSorter(object):
-    def __init__(self, rec_dirs, electrode, clustering_dir=None, shell=True):
+    def __init__(self, rec_dirs, electrode, clustering_dir=None, shell=False):
         if isinstance(rec_dirs, str):
             rec_dirs = [rec_dirs]
 
@@ -861,12 +878,15 @@ class SpikeSorter(object):
         self.rec_dirs = rec_dirs
         self.electrode = electrode
         if clustering_dir is None:
-            top = os.path.dirname(rec_dirs[0])
-            clustering_dir = os.path.join(top, 'BlechClust', 'electrode_%i' % electrode)
+            if len(rec_dirs) > 1:
+                top = os.path.dirname(rec_dirs[0])
+                clustering_dir = os.path.join(top, 'BlechClust', 'electrode_%i' % electrode)
+            else:
+                clustering_dir = os.path.join(rec_dirs[0], 'BlechClust', 'electrode_%i' % electrode)
 
         self.clustering_dir = clustering_dir
         try:
-            clust = BlechClust(rec_dirs, electrode, out_dir = clustering_dir)
+            clust = BlechClust(rec_dirs, electrode, out_dir = clustering_dir, no_write=True)
         except FileNotFoundError:
             clust = None
 
@@ -1006,22 +1026,14 @@ class SpikeSorter(object):
         # Plot cluster and ask to choose which to keep
         figs = []
         for i, c in enumerate(new_clusts):
-            1ms_viol = 0
-            2ms_viol = 0
-            for ri, rec in c['rec_key'].items():
-                idx = np.where(c['spike_map']==ri)[0]
-                _, 1ms, 2ms = get_ISI_and_violations(c['spike_times'][idx],
-                                                     fs[ri])
-                1ms_viol += 1ms
-                2ms_viol += 2ms
-
+            _, 1ms_viol, 2ms_viol = get_ISI_and_violations(c['spike_times'], fs, c['spike_map'])
             plot_title = ('Index: %i\n1ms violations: %i, 2ms violations: %i\n'
                           'Total Waveforms: %i'
                           % (i, 1ms_viol, 2ms_viol, len(c['spike_times'])))
             tmp_fig = dplt.plot_waveforms(c['spike_waveforms'], title=plot_title)
             figs.append(tmp_fig)
 
-        f2, ax2 = dplt.plot_cluster_pca(clusters)
+        f2, ax2 = dplt.plot_waveforms_pca([c['spike_waveforms'] for c in new_clusts])
         figs.append(f2)
         plt.show()
         selection_list = ['all'] + ['%i' % i for i in range(len(new_clusts))]
@@ -1101,25 +1113,76 @@ class SpikeSorter(object):
                         if i not in target_clusters]
 
     def plot_clusters_waveforms(self, target_clusters):
-        pass
+        if len(target_clusters) == 0:
+            return
+
+        figs = []
+        for i in target_clusters:
+            c = self._active[i]
+            isi, v1, v2 = get_ISI_and_violations(c['spike_times'], c['fs'], c['spike_map'])
+            title = ('Index : %i\n1ms violations: %0.1f, 2ms violations: %0.1f'
+                     '\ntotal waveforms: %i'
+                     % (i, v1, v2, len(c['spike_waveforms'])))
+            figs.append(dplt.plot_waveforms(c['spike_waveforms'], title=title))
+
+        plt.show()
 
     def plot_clusters_pca(self, target_clusters):
-        pass
+        if len(target_clusters) == 0:
+            return
+
+        waves = [self._active[i]['spike_waveforms'] for i in target_clusters]
+        dplt.plot_waveforms_pca(waves, cluster_ids=target_clusters)
+        plt.show()
 
     def plot_clusters_raster(self, target_clusters):
-        pass
+        if len(target_clusters) == 0:
+            return
+
+        clusters = [self._active[i] for i in target_clusters]
+        spike_times = []
+        spike_waves = []
+        for c in clusters:
+            # Adjust spike times by offset so recordings are not overlapping
+            sm = c['spike_map']
+            st = c['spike_times']
+            for i in np.unique(sm):
+                idx = np.where(sm==i)[0]
+                st[idx] += c['offsets'][i]
+
+            spike_times.append(st)
+            spike_waves.append(c['spike_waveforms'])
+
+        dplt.plot_spike_raster(spike_times, spike_waveforms, target_clusters)
+        plt.show()
+
+    def plot_clusters_ISI(self, target_clusters):
+        if len(target_clusters) == 0:
+            return
+
+        figs = []
+        for i in target_clusters:
+            cluster = self._active[i]
+            isi, v1, v2 = get_ISI_and_violations(cluster['spike_times'],
+                                                 cluster['fs'],
+                                                 cluster['spike_map'])
+            fig, ax = dplt.plot_ISIs(isi)
+            title= ax.get_title()
+            title = 'Index: %i\n%s' % (i, title)
+            ax.set_title(title)
+
+        plt.show()
 
     def get_mean_waveform(self, target_cluster):
         '''Returns mean waveform of target_cluster in active clusters. Also
         returns SEM of waveforms
         '''
-        pass
+        cluster = self._active[target_cluster]
+        mean_wave = np.mean(cluster['spike_waveforms'], axis=0)
+        sem_wave = sem(cluster['spike_waveforms'], axis=0)
+        return mean_wave, sem_wave
 
     def get_possible_solutions(self):
         results = self.clustering.results.dropna()
         converged = list(results[results['converged']].index)
         return converged
-
-
-
-

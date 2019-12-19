@@ -328,3 +328,79 @@ class experiment(data_object):
         row['electrode'] = electrode
         row['area'] = area
         return row
+
+    @Logger('Running Spike Clustering')
+    def cluster_spikes(self, data_quality=None, n_cores=None):
+        '''Write clustering parameters to file and
+        Run blech_process on each electrode using GNU parallel
+
+        Parameters
+        ----------
+        data_quality : {'clean', 'noisy', None (default)}
+            set if you want to change the data quality parameters for cutoff
+            and spike detection before running clustering. These parameters are
+            automatically set as "clean" during initial parameter setup
+        accept_params : bool, False (default)
+            set to True in order to skip popup confirmation of parameters when
+            running
+        '''
+        clustering_params = None
+        if data_quality:
+            tmp = dio.params.load_params('clustering_params', self.root_dir,
+                                         default_keyword=data_quality)
+            if tmp:
+                clustering_params = tmp
+            else:
+                raise ValueError('%s is not a valid data_quality preset. Must '
+                                 'be "clean" or "noisy" or None.')
+
+        print('\nRunning Blech Clust\n-------------------')
+        print('Parameters\n%s' % pt.print_dict(self.clustering_params))
+
+        # Get electrodes, throw out 'dead' electrodes
+        em = self.electrode_mapping
+        if 'dead' in em.columns:
+            electrodes = em.Electrode[em['dead'] == False].tolist()
+        else:
+            electrodes = em.Electrode.tolist()
+
+
+        # Setup progress bar
+        pbar = tqdm(total = len(electrodes))
+        def update_pbar(ans):
+            pbar.update()
+
+        if n_cores is None or n_cores > multiprocessing.cpu_count():
+            n_cores = multiprocessing.cpu_count() - 1
+
+        # get clustering params
+        rec_dirs = list(self.rec_labels.values())
+        if clustering_params is None:
+            dat =  load_dataset(rec_dirs[0])
+            clustering_params = dat.clustering_params.copy()
+
+        # Write clustering params to recording directories & check for spike detection
+        spike_detect = True
+        for rd in rec_dirs:
+            dat = load_dataset(rd)
+            if dat.process_status['spike_detection'] == False:
+                raise FileNotFoundError('Spike detection has not been run on %s' % rd)
+
+            dat.clustering_params = clustering_params
+            wt.write_params_to_json('clustering_params', rd, clustering_params)
+            dat.save()
+
+        # Run clustering
+        pool = multiprocessing.Pool(n_cores)
+        clust_objs = [blech_clustering.BlechClust(rec_dirs, x, params=clustering_params) for x in electrodes]
+        for x in clust_objs:
+            pool.apply_async(x.run, callback=update_pbar)
+
+        pool.close()
+        pool.join()
+        pbar.close()
+
+        self.process_status['spike_clustering'] = True
+        dio.h5io.write_electrode_map_to_h5(self.h5_file, em)
+        self.save()
+        print('Clustering Complete\n------------------')
