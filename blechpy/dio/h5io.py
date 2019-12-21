@@ -474,28 +474,6 @@ def cleanup_clustering(file_dir):
     -------
     str, path to new hdf5 file
     '''
-    # Check for memory_monitor_clustering files
-    # If found write all conents into memory_usage.txt and delete files
-    println('Consolidating clustering memory usage logs...')
-    mem_dir = os.path.join(file_dir, 'memory_monitor_clustering')
-    mem_file = os.path.join(mem_dir, 'memory_usage.txt')
-
-    if not os.path.isfile(mem_file):
-        file_list = os.listdir(mem_dir)
-
-        with open(mem_file, 'w') as write_file:
-            for f in file_list:
-                try:
-                    mem_usage = np.loadtxt(os.path.join(mem_dir, f))
-                    print('electrode%s\t%sMB' % (f.replace('.txt', ''),
-                                                 str(mem_usage)),
-                          file=write_file)
-                    os.remove(os.path.join(mem_dir, f))
-                except OSError as os_error:
-                    print('No clustering memory files to consolidate')
-
-    print('Done!')
-
     # Grab h5 filename
     hdf5_file = get_h5_filename(file_dir)
 
@@ -522,11 +500,6 @@ def cleanup_clustering(file_dir):
             changes = True
 
         if '/unit_descriptor' not in hf5:
-            hf5.create_table('/', 'unit_descriptor',
-                             description=particles.unit_descriptor)
-            changes = True
-        else:
-            hf5.remove_node('/unit_descriptor', recursive=1)
             hf5.create_table('/', 'unit_descriptor',
                              description=particles.unit_descriptor)
             changes = True

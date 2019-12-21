@@ -138,7 +138,6 @@ class dataset(data_object):
         clustering_params['sampling_rate'] = sampling_rate
 
         # Setup digital input mapping
-        #TODO: Setup digital output mapping...ignoring for now
         if rec_info.get('dig_in'):
             self._setup_digital_mapping('in', dig_in_names, shell)
             dim = self.dig_in_mapping.copy()
