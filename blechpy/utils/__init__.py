@@ -1,7 +1,8 @@
-import decorators
-import math_tools
-import particles
-import print_tools
-import write_tools
-import tk_widgets
-import spike_sorting_GUI
+from . import decorators
+from . import math_tools
+from . import particles
+from . import print_tools
+from . import write_tools
+from . import tk_widgets
+from . import spike_sorting_GUI
+from . import data_reset

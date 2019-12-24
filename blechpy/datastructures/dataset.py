@@ -8,9 +8,11 @@ import multiprocessing
 import subprocess
 from tqdm import tqdm
 from copy import deepcopy
-from blechpy.utils import print_tools as pt, write_tools as wt, userIO, blech_clustering
+from blechpy.utils import print_tools as pt, write_tools as wt, userIO
 from blechpy.utils.decorators import Logger
-from blechpy.analysis import palatability_analysis as pal_analysis, spike_sorting as ss, spike_analysis, circus_interface as circ
+from blechpy.analysis import palatability_analysis as pal_analysis
+from blechpy.analysis import spike_sorting as ss, spike_analysis, circus_interface as circ
+from blechpy.analysis import blech_clustering
 from blechpy.analysis.blech_clust_process import blech_clust_process
 from blechpy.plotting import palatability_plot as pal_plt, data_plot as datplt
 from blechpy import dio
@@ -1083,6 +1085,9 @@ def port_in_dataset(rec_dir=None, shell=False):
 
 
 def validate_data_integrity(rec_dir, verbose=False):
+    '''incomplete
+    '''
+    # TODO: Finish this
     print('Raw Data Validation\n' + '-'*19)
     test_names = ['file_type', 'recording_info', 'files', 'dropped_packets', 'data_length']
     number_names = ['sample_rate', 'dropped_packets', 'missing_files', 'recording_length']

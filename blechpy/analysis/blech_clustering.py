@@ -1,12 +1,17 @@
 import os
 import shutil
 import numpy as np
+import pandas as pd
+import itertools as it
 from scipy.spatial.distance import mahalanobis
 from scipy import linalg
 from scipy.signal import find_peaks
 from scipy.stats import sem
+from sklearn.mixture import GaussianMixture
 from blechpy.utils import write_tools as wt, print_tools as pt, math_tools as mt
 from blechpy.dio import h5io
+from blechpy.analysis import clustering as clust
+from blechpy.plotting import data_plot as dplt
 import pylab as plt
 
 
@@ -32,12 +37,14 @@ def detect_spikes(filt_el, spike_snapshot = [0.5, 1.0], fs = 30000.0):
     '''
     # get indices of spike snapshot, expand by .1 ms in each direction
     snapshot = np.arange(-(spike_snapshot[0]+0.1)*fs/1000,
-                         1+(spike_snapshot[1]+0.1)*fs/1000)
+                         1+(spike_snapshot[1]+0.1)*fs/1000).astype('int64')
     m = np.mean(filt_el)
     th = 5.0*np.median(np.abs(filt_el)/0.6745)
     pos = np.where(filt_el <= m-th)[0]
     consecutive = mt.group_consecutives(pos)
 
+    waves = []
+    times = []
     for idx in consecutive:
         minimum = idx[np.argmin(filt_el[idx])]
         spike_idx = minimum + snapshot
@@ -48,7 +55,7 @@ def detect_spikes(filt_el, spike_snapshot = [0.5, 1.0], fs = 30000.0):
     if len(waves) == 0:
         return None, None
 
-    waves_dj, times_dj = clust.dejitter(np.array(waves), times, spike_snapshot, fs)
+    waves_dj, times_dj = clust.dejitter(np.array(waves), np.array(times), spike_snapshot, fs)
     return waves_dj, times_dj
 
 
@@ -75,15 +82,15 @@ def compute_waveform_metrics(waves, n_pc=3):
         if not any(peaks < minima):
             maxima = np.argmax(wave[:minima])
         else:
-            maxima = max(peak[np.where(peaks < minima)[0]])
+            maxima = max(peaks[np.where(peaks < minima)[0]])
 
         data[i,2] = (wave[minima]-wave[maxima])/(minima-maxima)
 
     # Scale waveforms to energy before running PCA
-    scaled_waves = scale_waveforms(waves, energy=energy)
-    pc_waves = clust.implement_pca(scaled_waves)
+    scaled_waves = scale_waveforms(waves, energy=data[:,1])
+    pc_waves, _ = clust.implement_pca(scaled_waves)
     data = np.hstack((data, pc_waves[:,:n_pc]))
-    data_columns = ['ampltiude', 'energy', 'spike_slope']
+    data_columns = ['amplitude', 'energy', 'spike_slope']
     data_columns.extend(['PC%i' % i for i in range(n_pc)])
     return data, data_columns
 
@@ -204,7 +211,7 @@ def scale_waveforms(waves, energy=None):
         raise ValueError(('Energies must correspond to each waveforms.'
                           'Different lengths are not allowed'))
 
-    sclaed_slices = np.zeros(waves.shape)
+    scaled_slices = np.zeros(waves.shape)
     for i, w in enumerate(zip(waves, energy)):
         scaled_slices[i] = w[0]/w[1]
 
@@ -356,7 +363,7 @@ class SpikeDetection(object):
         '''Checks which files already exist and updates _status so as to avoid
         re-creation later
         '''
-        for k, v in self._file.items():
+        for k, v in self._files.items():
             if os.path.isfile(v):
                 self._status[k] = True
             else:
@@ -388,7 +395,7 @@ class SpikeDetection(object):
         del ref_el
         # Get recording cutoff
         if not status['recording_cutoff']:
-            self.recording_cutoff = get_recording_cutoff(filt_el, fs, **params)
+            self.recording_cutoff = get_recording_cutoff(filt_el, **params)
             with open(self._files['recording_cutoff'], 'w') as f:
                 f.write(str(self.recording_cutoff))
 
@@ -424,19 +431,21 @@ class SpikeDetection(object):
 
         # Get various metrics and scale waveforms
         if not status['spike_amplitudes']:
-            amplitudes = get_spike_amplitudes(waves)
-            np.save(self._files['spike_amplitudes'], ampltitudes)
+            amplitudes = get_waveform_amplitudes(waves)
+            np.save(self._files['spike_amplitudes'], amplitudes)
             status['spike_amplitudes'] = True
 
         if not status['slopes']:
             slopes = get_spike_slopes(waves)
-            np.save(self._files['slopes'], ampltitudes)
+            np.save(self._files['slopes'], slopes)
             status['slopes'] = True
 
         if not status['energy']:
-            energy = get_spike_energy(waves)
-            np.save(self._files['energy'], ampltitudes)
+            energy = get_waveform_energy(waves)
+            np.save(self._files['energy'], energy)
             status['energy'] = True
+        else:
+            energy=None
 
         # get pca of scaled waveforms
         if not status['pca_waveforms']:
@@ -536,7 +545,7 @@ class SpikeDetection(object):
         energy = self.get_energy()
         slopes = self.get_spike_slopes()
         pca_waves = self.get_pca_waveforms()
-        out = np.vstack((ampltiude, energy, slopes)).T
+        out = np.vstack((amplitude, energy, slopes)).T
         out = np.hstack((out, pca_waves[:,:n_pc]))
         return out
 
@@ -640,6 +649,7 @@ class BlechClust(object):
         # Deal with existing rec key
         if file_check['rec_key']:
             rec_key = wt.read_dict_from_json(self._files['rec_key'])
+            rec_key = {int(x): y for x,y in rec_key.items()}
             inverted = {v:k for k,v in rec_key.items()}
             self.rec_dirs = sorted(self.rec_dirs, key=lambda i: inverted[i])
             self._rec_key = rec_key
@@ -679,7 +689,7 @@ class BlechClust(object):
 
         return out
 
-    def run(self, overwrite=False):
+    def run(self, n_pc=3, overwrite=False):
         if self.clustered and not overwrite:
             return True
 
@@ -693,7 +703,7 @@ class BlechClust(object):
         np.save(self._files['spike_map'], spike_map)
 
         data, data_columns = compute_waveform_metrics(waveforms, n_pc)
-        amplitudes = get_spike_amplitudes(waveforms)
+        amplitudes = get_waveform_amplitudes(waveforms)
 
         # Run GMM for each number of clusters from 2 to max_clusters
         tested_clusters = np.arange(2, self.params['max_clusters']+1)
@@ -704,6 +714,26 @@ class BlechClust(object):
             data_dir = os.path.join(self._data_dir, '%i_clusters' % n_clust)
             plot_dir = os.path.join(self._plot_dir, '%i_clusters' % n_clust)
             wave_plot_dir = os.path.join(self._plot_dir, '%i_clusters_waveforms_ISIs' % n_clust)
+            bic_file = os.path.join(data_dir, 'bic.npy')
+            pred_file = os.path.join(data_dir, 'predictions.npy')
+
+            if os.path.isfile(bic_file) and os.path.isfile(pred_file):
+                bic = np.load(bic_file)
+                predictions = np.load(pred_file)
+                spikes_per_clust = [len(np.where(predictions == c)[0])
+                                    for c in np.unique(predictions)]
+                clust_results.loc[n_clust] = [n_clust, bic, True, spikes_per_clust]
+                continue
+
+            if not os.path.isdir(wave_plot_dir):
+                os.makedirs(wave_plot_dir)
+
+            if not os.path.isdir(data_dir):
+                os.makedirs(data_dir)
+
+            if not os.path.isdir(plot_dir):
+                os.makedirs(plot_dir)
+
             model, predictions, bic = GMM.fit(data, n_clust)
             if model is None:
                 clust_results.loc[n_clust] = [n_clust, bic, False, [0]]
@@ -716,37 +746,34 @@ class BlechClust(object):
             for c in range(n_clust):
                 idx = np.where(predictions == c)[0]
                 mean_amp = np.mean(amplitudes[idx])
-                sd_amp = np.std(ampltitudes[idx])
+                sd_amp = np.std(amplitudes[idx])
                 cutoff_amp = mean_amp - (sd_amp * self.params['wf_amplitude_sd_cutoff'])
                 rejected_idx = np.array([i for i in idx if amplitudes[i] <= cutoff_amp])
-                predictions[rejected_idx] = -1
+                if len(rejected_idx) > 0:
+                    predictions[rejected_idx] = -1
 
                 idx = np.where(predictions == c)[0]
                 spikes_per_clust.append(len(idx))
 
                 # Plot waveforms and ISIs of cluster
-                ISIs, 1ms_violations, 2ms_violations = get_ISI_and_violations(spike_times[idx], fs, spike_map)
+                ISIs, violations_1ms, violations_2ms = get_ISI_and_violations(spike_times[idx], fs, spike_map[idx])
                 cluster_waves = waveforms[idx]
                 cluster_times = spike_times[idx]
                 isi_fn = os.path.join(wave_plot_dir, 'Cluster%i_ISI.png' % c)
                 wave_fn = os.path.join(wave_plot_dir, 'Cluster%i_waveforms.png' % c)
-                title_str = ('Cluster%i\n1ms_violations = %i, '
-                             '2ms_violations = %i\n'
+                title_str = ('Cluster%i\nviolations_1ms = %i, '
+                             'violations_2ms = %i\n'
                              'Number of waveforms = %i' %
-                             (c, 1ms_violations, 2ms_violations, len(idx)))
+                             (c, violations_1ms, violations_2ms, len(idx)))
                 dplt.plot_waveforms(cluster_waves, title=title_str, save_file=wave_fn)
-                dplt.plot_ISIs(ISI, save_file=isi_fn)
+                dplt.plot_ISIs(ISIs, save_file=isi_fn)
 
 
             clust_results.loc[n_clust] = [n_clust, bic, True, spikes_per_clust]
 
-            # Save data
-            np.save(os.path.join(data_dir, 'bic.npy'), bic)
-            np.save(os.path.join(data_dir, 'predictions.npy'), predictions)
-
             # Plot feature pairs
             feature_pairs = it.combinations(list(range(data.shape[1])), 2)
-            for f1, f2 in features_pairs:
+            for f1, f2 in feature_pairs:
                 fn = '%sVS%s.png' % (data_columns[f1], data_columns[f2])
                 fn = os.path.join(plot_dir, fn)
                 dplt.plot_cluster_features(data[:, [f1,f2]], predictions,
@@ -759,7 +786,12 @@ class BlechClust(object):
                 distances = get_mahalanobis_distances_to_cluster(data,  model,
                                                                  predictions, c)
                 fn = os.path.join(plot_dir, 'Mahalanobis_cluster%i.png' % c)
-                dplt.plot_mahalanobis_to_cluster(distances, save_file=fn)
+                title = ('Mahalanobis distance of Cluster %i from all other clusters' % c)
+                dplt.plot_mahalanobis_to_cluster(distances, title=title, save_file=fn)
+
+            # Save data
+            np.save(bic_file, bic)
+            np.save(pred_file, predictions)
 
         # Save results table
         self.results = clust_results
@@ -778,15 +810,20 @@ class BlechClust(object):
         for i in sorted(self._rec_key.keys()):
             rec = self._rec_key[i]
             spike_detect = SpikeDetection(rec, self.electrode)
-            tmp_waves.append(spike_detect.get_spike_waveforms())
             t = spike_detect.get_spike_times()
+            fs[i] = spike_detect.params['sampling_rate']
+            if t is None:
+                offsets[i] = offset
+                offset = offset + 3*fs[i]
+                continue
+
+            tmp_waves.append(spike_detect.get_spike_waveforms())
             tmp_times.append(t)
             tmp_id.append(np.ones((t.shape[0],))*i)
-            fs[i] = spike_detect.params['sampling_rate']
-            offset = offset + max(t) + 3*fs[i]
             offsets[i] = offset
+            offset = offset + max(t) + 3*fs[i]
 
-        waveforms = np.hstack(tmp_waves)
+        waveforms = np.vstack(tmp_waves)
         spike_times = np.hstack(tmp_times)
         spike_map = np.hstack(tmp_id)
 
@@ -796,7 +833,7 @@ class BlechClust(object):
             if len(orig_map) != len(spike_map):
                 raise ValueError('Spike detection has changed, please re-cluster with overwrite=True')
 
-        return waveforms, spike_times, spike_id, fs, offsets
+        return waveforms, spike_times, spike_map, fs, offsets
 
     def get_clusters(self, solution_num, cluster_nums):
         if not isinstance(cluster_nums, list):
@@ -819,7 +856,7 @@ class BlechClust(object):
                          'spike_map': spike_map[idx],
                          'rec_key': self._rec_key.copy(),
                          'fs': fs,
-                         'offsets': offsets
+                         'offsets': offsets,
                          'manipulations': ''}
             out.append(tmp_clust)
 
@@ -846,7 +883,7 @@ class ClusterGMM(object):
         if n_clusters is not None:
             self.params['clusters'] = n_clusters
 
-        for i in range(restarts):
+        for i in range(self.params['restarts']):
             model = GaussianMixture(n_components = self.params['clusters'],
                                     covariance_type = 'full',
                                     tol = self.params['thresh'],
@@ -1026,10 +1063,10 @@ class SpikeSorter(object):
         # Plot cluster and ask to choose which to keep
         figs = []
         for i, c in enumerate(new_clusts):
-            _, 1ms_viol, 2ms_viol = get_ISI_and_violations(c['spike_times'], fs, c['spike_map'])
+            _, viol_1ms, viol_2ms = get_ISI_and_violations(c['spike_times'], fs, c['spike_map'])
             plot_title = ('Index: %i\n1ms violations: %i, 2ms violations: %i\n'
                           'Total Waveforms: %i'
-                          % (i, 1ms_viol, 2ms_viol, len(c['spike_times'])))
+                          % (i, viol_1ms, viol_2ms, len(c['spike_times'])))
             tmp_fig = dplt.plot_waveforms(c['spike_waveforms'], title=plot_title)
             figs.append(tmp_fig)
 

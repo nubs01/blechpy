@@ -1,4 +1,5 @@
 # yaml.load is deprecated so hide the warnings
+import os
 import warnings
 import yaml
 warnings.simplefilter('ignore',category=yaml.YAMLLoadWarning)
@@ -16,6 +17,9 @@ import shutil
 
 # A function that accepts a numpy array of waveforms and creates a datashader image from them
 def waveforms_datashader(waveforms, dir_name = "datashader_temp"):
+    tmp_fn = os.path.join(dir_name, 'tempfile_%i.png' % waveforms.shape[0])
+    if not os.path.isdir(dir_name):
+        os.makedirs(dir_name)
 
     if waveforms.shape[0]==0:
         return None
@@ -47,10 +51,10 @@ def waveforms_datashader(waveforms, dir_name = "datashader_temp"):
     # Aggregate the data
     agg = canvas.line(df, 'x', 'y', ds.count())   
     # Transfer the aggregated data to image using log transform and export the temporary image file
-    export(tf.shade(agg, how='eq_hist'),'tempfile')
+    export(tf.shade(agg, how='eq_hist'),'tempfile_%i' % waveforms.shape[0])
 
     # Read in the temporary image file
-    img = imread(dir_name + "/tempfile.png")
+    img = imread(tmp_fn)
     
     # Figure sizes chosen so that the resolution is 100 dpi
     fig,ax = plt.subplots(1, 1, figsize = (12,8), dpi = 200)
@@ -66,7 +70,7 @@ def waveforms_datashader(waveforms, dir_name = "datashader_temp"):
     del df, waveforms, new_waveforms
 
     # Also remove the directory with the temporary image files
-    shutil.rmtree(dir_name, ignore_errors = True)
+    os.remove(tmp_fn)
 
     # Return and figure and axis for adding axis labels, title and saving the file
     return fig, ax

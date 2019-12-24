@@ -1,4 +1,3 @@
-import pylab as plt
 import pandas as pd
 import numpy as np
 import tables
@@ -11,6 +10,7 @@ from sklearn.decomposition import PCA
 from blechpy.plotting import blech_waveforms_datashader
 import matplotlib
 matplotlib.use('TkAgg')
+import pylab as plt
 
 plot_params = {'xtick.labelsize': 14, 'ytick.labelsize': 14,
                'axes.titlesize': 26, 'figure.titlesize': 28,
@@ -467,16 +467,16 @@ def plot_ISIs(ISIs, save_file=None):
         returned
     '''
     total_spikes = len(ISIs)+1
-    1ms_viol = np.sum(ISIs < 1.0)
-    2ms_viol = np.sum(ISIs < 2.0)
+    viol_1ms = np.sum(ISIs < 1.0)
+    viol_2ms = np.sum(ISIs < 2.0)
     fig, ax = plt.subplots(figsize=(15,10))
     ax.hist(ISIs, bins = [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, np.max(ISIs)])
     ax.set_xlim((0.0, 10.0))
     title_str = ('2ms violations = %0.1f %% (%i/%i)\n'
-                 '1ms violations = %0.1f %% (%i/%i)' % (2ms_viol/total_spikes,
-                                                        2ms_viol, total_spikes,
-                                                        1ms_viol/total_spikes,
-                                                        1ms_viol, total_spikes))
+                 '1ms violations = %0.1f %% (%i/%i)' % (viol_2ms/total_spikes,
+                                                        viol_2ms, total_spikes,
+                                                        viol_1ms/total_spikes,
+                                                        viol_1ms, total_spikes))
     ax.set_title(title_str)
     ax.set_xlabel('ISIs (ms)')
     if save_file is not None:
@@ -590,7 +590,7 @@ def plot_recording_cutoff(filt_el, fs, cutoff, out_file=None):
     fig, ax = plt.subplots(figsize=(15,10))
     test_el = np.reshape(filt_el[:int(fs)*int(len(filt_el)/fs)], (-1, int(fs)))
     ax.plot(np.arange(test_el.shape[0]), np.mean(test_el, axis = 1))
-    ax.axvline(cutoff, 'k-', linewidth=4.0)
+    ax.axvline(cutoff, color='black', linewidth=4.0)
     ax.set_xlabel('Recording time (secs)', fontsize=18)
     ax.set_ylabel('Average voltage recorded\nper sec (microvolts)', fontsize=18)
     ax.set_title('Recording cutoff time\n(indicated by the black horizontal line)', fontsize=18)
@@ -661,7 +661,7 @@ def plot_cluster_features(data, clusters, x_label='X', y_label='Y', save_file=No
         return fig, ax
 
 
-def plot_mahalanobis_to_cluster(distances, save_file=None):
+def plot_mahalanobis_to_cluster(distances, title=None, save_file=None):
     unique_clusters = sorted(list(distances.keys()))
     colors = matplotlib.cm.rainbow(np.linspace(0,1,len(unique_clusters)))
     fig, ax = plt.subplots(figsize=(15,10))
@@ -670,14 +670,15 @@ def plot_mahalanobis_to_cluster(distances, save_file=None):
         bincenters = 0.5*(binEdges[1:] + binEdges[:-1])
         ax.plot(bincenters, y, label = 'Dist from cluster %i' % clust)
 
-   ax.set_xlabel('Mahalanobis distance')
-   ax.set_ylabel('Frequency')
-   ax.legend(loc = 'upper right', fontsize = 8)
-   ax.set_title('Mahalanobis distance of Cluster %i from all other clusters' % cluster, fontsize=24)
+    ax.set_xlabel('Mahalanobis distance')
+    ax.set_ylabel('Frequency')
+    ax.legend(loc = 'upper right', fontsize = 8)
+    if title:
+        ax.set_title(title)
 
-   if save_file is not None:
-       fig.savefig(save_file)
-       plt.close(fig)
-       return None, None
-   else:
-       return fig, ax
+    if save_file is not None:
+        fig.savefig(save_file)
+        plt.close(fig)
+        return None, None
+    else:
+        return fig, ax
