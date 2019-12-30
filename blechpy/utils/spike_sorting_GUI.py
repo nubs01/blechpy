@@ -458,3 +458,4 @@ class DummySorter(object):
 
     def get_possible_solutions(self):
         return list(range(8))
+

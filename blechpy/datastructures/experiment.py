@@ -334,7 +334,7 @@ class experiment(data_object):
         return row
 
     @Logger('Running Spike Clustering')
-    def cluster_spikes(self, data_quality=None, n_cores=None):
+    def cluster_spikes(self, data_quality=None, n_cores=None, custom_params=None):
         '''Write clustering parameters to file and
         Run blech_process on each electrode using GNU parallel
 
@@ -349,7 +349,9 @@ class experiment(data_object):
             running
         '''
         clustering_params = None
-        if data_quality:
+        if custom_params:
+            clustering_params = custom_params
+        elif data_quality:
             tmp = dio.params.load_params('clustering_params', self.root_dir,
                                          default_keyword=data_quality)
             if tmp:
