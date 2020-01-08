@@ -415,11 +415,21 @@ class experiment(data_object):
         self.save()
         print('Clustering Complete\n------------------')
 
-    def sort_spikes(self, electrode, shell=False):
+    def sort_spikes(self, electrode=None, shell=False):
+        if electrode is None:
+            electrode = userIO.get_user_input('Electrode #: ', shell=shell)
+            if electrode is None or not electrode.isnumeric():
+                return
+
+            electrode = int(electrode)
+
         rec_dirs = list(self.rec_labels.values())
         for rd in rec_dirs:
             dat = load_dataset(rd)
-            dat.cleanup_clustering()
+            if not dat.process_status['cleanup_clustering']:
+                dat.cleanup_clustering()
+
+            dat.process_status['sort_units'] = True
 
         sorter = blech_clustering.SpikeSorter(rec_dirs, electrode, shell=shell)
         if not shell:

@@ -12,11 +12,11 @@ from blechpy.utils import print_tools as pt, write_tools as wt, userIO
 from blechpy.utils.decorators import Logger
 from blechpy.analysis import palatability_analysis as pal_analysis
 from blechpy.analysis import spike_sorting as ss, spike_analysis, circus_interface as circ
-from blechpy.analysis import blech_clustering
-from blechpy.analysis.blech_clust_process import blech_clust_process
+from blechpy.analysis import blech_clustering as clust
 from blechpy.plotting import palatability_plot as pal_plt, data_plot as datplt
 from blechpy import dio
 from blechpy.datastructures.objects import data_object
+from blechpy.utils import spike_sorting_GUI as ssg
 
 
 class dataset(data_object):
@@ -748,7 +748,7 @@ class dataset(data_object):
             n_cores = multiprocessing.cpu_count() - 1
 
         pool = multiprocessing.Pool(n_cores)
-        spike_detectors = [blech_clustering.SpikeDetection(data_dir, x, self.clustering_params) for x in electrodes]
+        spike_detectors = [clust.SpikeDetection(data_dir, x, self.clustering_params) for x in electrodes]
         for sd in spike_detectors:
             pool.apply_async(sd.run, callback=update_pbar)
 
@@ -828,8 +828,8 @@ class dataset(data_object):
             n_cores = multiprocessing.cpu_count() - 1
 
         pool = multiprocessing.Pool(n_cores)
-        clust_objs = [blech_clustering.BlechClust(self.root_dir,
-                                                  x, params=self.clustering_params)
+        clust_objs = [clust.BlechClust(self.root_dir,
+                                       x, params=self.clustering_params)
                       for x in electrodes]
         for x in clust_objs:
             pool.apply_async(x.run, callback=update_pbar)
@@ -857,6 +857,31 @@ class dataset(data_object):
         self.h5_file = h5_file
         self.process_status['cleanup_clustering'] = True
         self.save()
+
+    def sort_spikes(self, electrode=None, shell=False):
+        if electrode is None:
+            electrode = userIO.get_user_input('Electrode #: ', shell=shell)
+            if electrode is None or not electrode.isnumeric():
+                return
+
+            electrode = int(electrode)
+
+        if not self.process_status['spike_detection']:
+            raise ValueError('Must run spike detection first.')
+
+        if not self.process_status['cleanup_clustering']:
+            self.cleanup_clustering()
+
+        sorter = clust.SpikeSorter(self.root_dir, electrode=electrode, shell=shell)
+        if not shell:
+            root = ssg.SpikeSorterGUI(sorter)
+        else:
+            # TODO: Make shell UI
+            # TODO: Make sort by table
+            print('No shell UI yet')
+            return
+
+        self.process_status['sort_units'] = True
 
     @Logger('Calculating Units Similarity')
     def units_similarity(self, similarity_cutoff=50, shell=False):
