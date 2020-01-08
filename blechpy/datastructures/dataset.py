@@ -60,7 +60,7 @@ class dataset(data_object):
                                  'extract_data', 'create_trial_list',
                                  'mark_dead_channels',
                                  'common_average_reference', 'spike_detection',
-                                 'spike_clustering',
+                                 'spike_clustering', 'cleanup_clustering',
                                  'sort_units', 'make_unit_plots',
                                  'units_similarity', 'make_unit_arrays',
                                  'make_psth_arrays', 'plot_psths',
@@ -839,6 +839,7 @@ class dataset(data_object):
         pbar.close()
 
         self.process_status['spike_clustering'] = True
+        self.process_status['cleanup_clustering'] = False
         dio.h5io.write_electrode_map_to_h5(self.h5_file, em)
         self.save()
         print('Clustering Complete\n------------------')
@@ -849,6 +850,9 @@ class dataset(data_object):
         '''Consolidates memory monitor files, removes raw and referenced data
         and setups up hdf5 store for sorted units data
         '''
+        if self.process_status['cleanup_clustering']:
+            return
+
         h5_file = dio.h5io.cleanup_clustering(self.root_dir)
         self.h5_file = h5_file
         self.process_status['cleanup_clustering'] = True

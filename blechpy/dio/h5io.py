@@ -692,8 +692,11 @@ def get_unit_names(rec_dir):
     h5_file = get_h5_filename(rec_dir)
 
     with tables.open_file(h5_file, 'r') as hf5:
-        units = hf5.list_nodes('/sorted_units')
-        unit_names = [x._v_name for x in units]
+        if '/sorted_units' in  hf5:
+            units = hf5.list_nodes('/sorted_units')
+            unit_names = [x._v_name for x in units]
+        else:
+            unit_names = []
 
     return unit_names
 
@@ -1100,7 +1103,7 @@ def add_new_unit(rec_dir, electrode, waves, times, single_unit, pyramidal, inter
     h5_file = get_h5_filename(rec_dir)
     unit_name = get_next_unit_name(rec_dir)
 
-    with tables.open_file(hf5_file, 'r+') as hf5:
+    with tables.open_file(h5_file, 'r+') as hf5:
         if '/sorted_units' not in hf5:
             hf5.create_group('/', 'sorted_units')
 
@@ -1124,6 +1127,8 @@ def add_new_unit(rec_dir, electrode, waves, times, single_unit, pyramidal, inter
         unit_descrip.append()
         table.flush()
         hf5.flush()
+
+    return unit_name
 
 
 def delete_unit(file_dir, unit_num):

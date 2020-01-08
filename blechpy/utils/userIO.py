@@ -230,7 +230,12 @@ class dict_fill_pane(ttk.Frame):
                 prompt += ' : '
                 label = ttk.Label(line, text=prompt)
                 if t is bool:
-                    var = tk.BooleanVar(self, value=v)
+                    if isinstance(v, type):
+                        val = False
+                    else:
+                        val = v
+
+                    var = tk.BooleanVar(self, value=val)
                     entry = ttk.Checkbutton(line, text='', variable=var)
                 else:
                     var = tk.StringVar(self, value=default)
@@ -614,3 +619,45 @@ def get_files(prompt='', root=None, filetypes=None, multi=False, shell=False):
         out = None
 
     return out
+
+
+class fill_dict_popup(object):
+    def __init__(self, data, master=None, prompt=None):
+        if master:
+            top = self.top = tk.Toplevel(master)
+        else:
+            top = self.top = tk.Tk()
+
+        top.style = ttk.Style()
+        top.style.theme_use('clam')
+        self.data = data
+
+        if prompt:
+            prompt_label = ttk.Label(top, text=prompt)
+            prompt_label.pack(side='top', fill='x', expand='True')
+            ttk.Separator(top, orient='horizontal').pack(side='top', fill='x',
+                                                         expand=True, pady=10)
+
+        type_dict = make_type_dict(data)
+        dict_pane = dict_fill_pane(top, data, type_dict)
+        dict_pane.pack(side='top', fill='both', expand=True)
+        self.dict_pane = dict_pane
+        line = ttk.Frame(top)
+        submit = ttk.Button(line, text='Submit', command=self.submit)
+        cancel = ttk.Button(line, text='Cancel', command=self.cancel)
+        submit.pack(side='left')
+        cancel.pack(side='right')
+        line.pack(side='bottom', anchor='e', pady=5)
+        center(top)
+        if master is None:
+            top.mainloop()
+
+    def submit(self):
+        output = self.dict_pane.get_values()
+        for k,v in output.items():
+            self.data[k] = v
+
+        self.top.destroy()
+
+    def cancel(self):
+        self.top.destroy()

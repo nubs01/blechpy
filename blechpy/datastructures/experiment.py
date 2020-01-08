@@ -7,14 +7,13 @@ import pandas as pd
 from itertools import combinations
 from blechpy import dio
 from blechpy.datastructures.objects import data_object, load_dataset
-from blechpy.utils import userIO, print_tools as pt, write_tools as wt
+from blechpy.utils import userIO, print_tools as pt, write_tools as wt, spike_sorting_GUI as ssg
 from blechpy.analysis import held_unit_analysis as hua, blech_clustering
 from blechpy.plotting import data_plot as dplt
 from blechpy.utils.decorators import Logger
 
 
 class experiment(data_object):
-
     def __init__(self, exp_dir=None, exp_name=None, shell=False, order_dict=None):
         '''Setup for analysis across recording sessions
 
@@ -410,7 +409,23 @@ class experiment(data_object):
         for rd in rec_dirs:
             dat = load_dataset(rd)
             dat.process_status['spike_clustering'] = True
+            dat.process_status['cleanup_clustering'] = False
             dat.save()
 
         self.save()
         print('Clustering Complete\n------------------')
+
+    def sort_spikes(self, electrode, shell=False):
+        rec_dirs = list(self.rec_labels.values())
+        # for rd in rec_dirs:
+        #     dat = load_dataset(rd)
+        #     dat.cleanup_clustering()
+
+        sorter = blech_clustering.SpikeSorter(rec_dirs, electrode, shell=shell)
+        if not shell:
+           root = ssg.launch_sorter_GUI(sorter)
+        else:
+            print('No shell UI yet')
+            return
+
+

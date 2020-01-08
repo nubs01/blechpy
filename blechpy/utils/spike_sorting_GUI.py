@@ -3,6 +3,7 @@ import sys
 from tkinter import ttk
 import numpy as np
 import matplotlib
+from blechpy.utils import userIO, tk_widgets as tkw
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -144,11 +145,28 @@ class SpikeSorterGUI(ttk.Frame):
                   'thresh': 10e-6,
                   'n_clusters': int}
 
-        params = userIO.fill_dict(params, shell=False)
-        self.sorter.split_cluster(chosen, params['n_iterations'],
-                                  params['n_restarts'],
-                                  params['thresh'],
-                                  params['n_clusters'])
+        popup = userIO.fill_dict_popup(params, master=self.root,
+                                       prompt='Input parameters for splitting')
+        self.disable_all()
+        self.root.wait_window(popup.top)
+        self.enable_all()
+
+        new_clusts = self.sorter.split_cluster(chosen, params['n_iterations'],
+                                               params['n_restarts'],
+                                               params['thresh'],
+                                               params['n_clusters'],
+                                               store_split=True)
+
+        choices = ['%i' % i for i in range(len(new_clusts))]
+        popup = tkw.ListSelectPopup(choices, self.root,
+                                    'Select split clusters to keep.\n'
+                                    'Cancel to undo split.', multi_select=True)
+        self.disable_all()
+        self.root.wait_window(popup.root)
+        self.enable_all()
+        chosen = list(map(int, popup.output))
+
+        self.sorter.set_split(chosen)
         self.update()
 
     def save(self, *args):
@@ -161,7 +179,11 @@ class SpikeSorterGUI(ttk.Frame):
             cell_types[i] = {'single_unit': False, 'pyramidal': False,
                              'interneuron': False}
 
-        cell_types = userIO.fill_dict(cell_types, shell=False)
+        popup  = userIO.fill_dict_popup(cell_types, master=self.root)
+        self.disable_all()
+        self.root.wait_window(popup.top)
+        self.enable_all()
+
         single = [cell_types[i]['single_unit'] for i in sorted(cell_types.keys())]
         pyramidal = [cell_types[i]['pyramidal'] for i in sorted(cell_types.keys())]
         interneuron = [cell_types[i]['interneuron'] for i in sorted(cell_types.keys())]
@@ -187,7 +209,7 @@ class SpikeSorterGUI(ttk.Frame):
         if len(chosen) == 0:
             return
 
-        self.sorter.plot_clusters_ISIs(chosen)
+        self.sorter.plot_clusters_ISI(chosen)
 
     def view_raster(self, *args):
         chosen = self._check_bar.get_selected()
@@ -284,6 +306,7 @@ class WaveformPane(ttk.Frame):
         tk.Frame.__init__(self, parent, **kwargs)
         self.parent = parent
         self._fig_rows = []
+        self._all_figs = []
         self.initUI()
 
     def initUI(self):
@@ -299,16 +322,23 @@ class WaveformPane(ttk.Frame):
             for row in self._fig_rows:
                 row.destroy()
 
+        if len(self._all_figs) > 0:
+            for f in self._all_figs:
+                plt.close(f)
+
         self._fig_rows = []
+        self._all_figs = []
 
         if self._wave_dict is None:
             return
 
         row = None
+        figs = []
         for k, v in self._wave_dict.items():
             wave = v[0]
             wave_sem = v[1]
             fig = make_waveform_plot(wave, wave_sem, index=k)
+            figs.append(fig)
 
             if row is None:
                 row = ttk.Frame(self.scrollpane.viewport)
@@ -326,6 +356,7 @@ class WaveformPane(ttk.Frame):
             if delFlag:
                 row = None
 
+        self._all_figs = figs
         self.scrollpane.bind_children_to_mouse()
 
 
@@ -458,4 +489,9 @@ class DummySorter(object):
 
     def get_possible_solutions(self):
         return list(range(8))
+
+def launch_sorter_GUI(sorter):
+    root = tk.Tk()
+    sorter_GUI = SpikeSorterGUI(root, sorter)
+    return root
 

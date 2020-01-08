@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import ttk
+import sys
 
 class ScrollFrame(ttk.Frame):
     def __init__(self,parent,*args,**kwargs):
@@ -62,3 +63,74 @@ def window_center(win):
     x = (win.winfo_screenwidth() // 2) - (width // 2)
     y = (win.winfo_screenheight() // 2) - (height // 2)
     win.geometry('{}x{}+{}+{}'.format(width, height, x, y))
+
+
+class ListSelectFrame(ttk.Frame):
+    def __init__(self, parent, choices, multi_select=False):
+        self.root = parent
+        self.choices = choices
+        ttk.Frame.__init__(self, parent)
+        if multi_select:
+            self.select_mode = select = 'extended'
+        else:
+            self.select_mode = select = 'single'
+
+        scroll = ttk.Scrollbar(self, orient='vertical')
+        self.listbox = tk.Listbox(self, exportselection=False,
+                                  selectmode=select, width=15,
+                                  yscrollcommand=scroll.set)
+        scroll.config(command=self.listbox.yview)
+        self.listbox.pack(side='left', fill='both', expand=True)
+        scroll.pack(side='left',fill='y')
+
+        for item in choices:
+            self.listbox.insert('end', item)
+
+    def get_selection(self):
+        idx = map(int, self.listbox.curselection())
+        chosen = [self.choices[i] for i in idx]
+        return chosen
+
+class ListSelectPopup(object):
+    def __init__(self, choices, master=None, prompt=None, multi_select=False):
+        if master is None:
+            self.root = root = tk.Tk()
+        else:
+            self.root = root = tk.Toplevel()
+
+        root.style = ttk.Style()
+        root.style.theme_use('clam')
+        self.output = []
+
+        if multi_select:
+            txt = '(shift or ctrl to select multiple)'
+            if prompt:
+                prompt += '\n' + txt
+            else:
+                prompt = txt
+
+        if prompt:
+            prompt_label = ttk.Label(root, text=prompt)
+            prompt_label.pack(side='top', fill='x', expand='True')
+            ttk.Separator(root, orient='horizontal').pack(side='top', fill='x',
+                                                          expand=True, pady=10)
+
+        self.listframe = ListSelectFrame(root, choices, multi_select=multi_select)
+        self.listframe.pack(side='top', fill='both', expand=True)
+        line = ttk.Frame(root)
+        submit = ttk.Button(line, text='Submit', command=self.submit)
+        cancel = ttk.Button(line, text='Cancel', command=self.cancel)
+        submit.pack(side='left')
+        cancel.pack(side='right')
+        line.pack(side='bottom', anchor='e', pady=5)
+        window_center(root)
+
+        if master is None:
+            root.mainloop()
+
+    def submit(self):
+        self.output = self.listframe.get_selection()
+        self.root.destroy()
+
+    def cancel(self):
+        self.root.destroy()

@@ -470,12 +470,13 @@ def plot_ISIs(ISIs, save_file=None):
     viol_1ms = np.sum(ISIs < 1.0)
     viol_2ms = np.sum(ISIs < 2.0)
     fig, ax = plt.subplots(figsize=(15,10))
-    ax.hist(ISIs, bins = [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, np.max(ISIs)])
+    max_bin = max(np.max(ISIs), 11.0)
+    ax.hist(ISIs, bins = [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, max_bin])
     ax.set_xlim((0.0, 10.0))
     title_str = ('2ms violations = %0.1f %% (%i/%i)\n'
-                 '1ms violations = %0.1f %% (%i/%i)' % (viol_2ms/total_spikes,
+                 '1ms violations = %0.1f %% (%i/%i)' % (100*viol_2ms/total_spikes,
                                                         viol_2ms, total_spikes,
-                                                        viol_1ms/total_spikes,
+                                                        100*viol_1ms/total_spikes,
                                                         viol_1ms, total_spikes))
     ax.set_title(title_str)
     ax.set_xlabel('ISIs (ms)')
@@ -513,7 +514,7 @@ def plot_spike_raster(spike_times, waveforms,
 
     all_waves = np.vstack(waveforms)
     pca = PCA(n_components=1)
-    pca.fit(all_waves, axis=0)
+    pca.fit(all_waves)
     colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
     for i, c in enumerate(zip(cluster_ids, spike_times, waveforms)):
         pcs = pca.transform(c[2])
@@ -554,7 +555,7 @@ def plot_waveforms_pca(waveforms, cluster_ids=None, save_file=None):
 
     pca = PCA(n_components=3)
     all_waves = np.vstack(waveforms)
-    pca.fit(all_waves, axis=0)
+    pca.fit(all_waves)
 
     colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
     for i, c in enumerate(zip(cluster_ids, waveforms)):
@@ -639,13 +640,14 @@ def plot_cluster_features(data, clusters, x_label='X', y_label='Y', save_file=No
     pyplot.figure, pyplot.axes
         if no save_file is given, otherwise returns None, None
     '''
-    unique_clusters = np.unique(abs(clusters))
+    unique_clusters = np.unique(clusters)
+    unique_clusters = unique_clusters[unique_clusters >= 0]
     colors = matplotlib.cm.rainbow(np.linspace(0,1,len(unique_clusters)))
     fig, ax = plt.subplots(figsize=(15,10))
-    for clust in unique_clusters:
+    for i, clust in enumerate(unique_clusters):
         idx = np.where(clusters == clust)[0]
         tmp = ax.scatter(data[idx, 0], data[idx, 1],
-                         color=colors[clust], s=0.8)
+                         color=colors[i], s=0.8)
         tmp.set_label('Cluster %i' % clust)
 
     ax.set_xlabel(x_label)

@@ -3,12 +3,13 @@ import shutil
 import numpy as np
 import pandas as pd
 import itertools as it
+from copy import deepcopy
 from scipy.spatial.distance import mahalanobis
 from scipy import linalg
 from scipy.signal import find_peaks
 from scipy.stats import sem
 from sklearn.mixture import GaussianMixture
-from blechpy.utils import write_tools as wt, print_tools as pt, math_tools as mt
+from blechpy.utils import write_tools as wt, print_tools as pt, math_tools as mt, userIO
 from blechpy.dio import h5io
 from blechpy.analysis import clustering as clust
 from blechpy.plotting import data_plot as dplt
@@ -722,7 +723,7 @@ class BlechClust(object):
                 predictions = np.load(pred_file)
                 spikes_per_clust = [len(np.where(predictions == c)[0])
                                     for c in np.unique(predictions)]
-                clust_results.loc[n_clust] = [n_clust, bic, True, spikes_per_clust]
+                clust_results.loc[n_clust] = [n_clust, True, bic, spikes_per_clust]
                 continue
 
             if not os.path.isdir(wave_plot_dir):
@@ -755,6 +756,9 @@ class BlechClust(object):
                 idx = np.where(predictions == c)[0]
                 spikes_per_clust.append(len(idx))
 
+                if len(idx) == 0:
+                    continue
+
                 # Plot waveforms and ISIs of cluster
                 ISIs, violations_1ms, violations_2ms = get_ISI_and_violations(spike_times[idx], fs, spike_map[idx])
                 cluster_waves = waveforms[idx]
@@ -769,7 +773,7 @@ class BlechClust(object):
                 dplt.plot_ISIs(ISIs, save_file=isi_fn)
 
 
-            clust_results.loc[n_clust] = [n_clust, bic, True, spikes_per_clust]
+            clust_results.loc[n_clust] = [n_clust, True, bic, spikes_per_clust]
 
             # Plot feature pairs
             feature_pairs = it.combinations(list(range(data.shape[1])), 2)
@@ -813,14 +817,14 @@ class BlechClust(object):
             t = spike_detect.get_spike_times()
             fs[i] = spike_detect.params['sampling_rate']
             if t is None:
-                offsets[i] = offset
+                offsets[i] = int(offset)
                 offset = offset + 3*fs[i]
                 continue
 
             tmp_waves.append(spike_detect.get_spike_waveforms())
             tmp_times.append(t)
             tmp_id.append(np.ones((t.shape[0],))*i)
-            offsets[i] = offset
+            offsets[i] = int(offset)
             offset = offset + max(t) + 3*fs[i]
 
         waveforms = np.vstack(tmp_waves)
@@ -937,6 +941,9 @@ class SpikeSorter(object):
         self._last_saved = None
         self._previous = None
         self._shell = shell
+        self._split_results = None
+        self._split_starter = None
+        self._split_index = None
 
     def set_active_clusters(self, solution_num):
         cluster_nums = list(range(solution_num))
@@ -967,7 +974,7 @@ class SpikeSorter(object):
 
         n_clusters = len(target_clusters)
         if (len(single_unit) != n_clusters or len(pyramidal) != n_clusters or
-            len(interneuon) != len(clusters)):
+            len(interneuron) != n_clusters):
             raise ValueError('Length of input lists must match number of '
                              'active clusters. Expected %i' % n_clusters)
 
@@ -976,7 +983,7 @@ class SpikeSorter(object):
         self._last_saved = dict.fromkeys(rec_key.keys(), [])
 
         for clust, single, pyr, intr in zip(clusters, single_unit,
-                                            pyramidal, interneuon):
+                                            pyramidal, interneuron):
             for i, rec in rec_key.items():
                 idx = np.where(clust['spike_map'] == i)[0]
                 waves = clust['spike_waveforms'][idx]
@@ -1031,7 +1038,7 @@ class SpikeSorter(object):
         self._last_saved = None
         self._previous = None
 
-    def split_cluster(self, target_clust, n_iter, n_restart, thresh, n_clust):
+    def split_cluster(self, target_clust, n_iter, n_restart, thresh, n_clust, store_split=False):
         '''splits the target active cluster using a GMM
         '''
         if target_clust >= len(self._active):
@@ -1040,7 +1047,7 @@ class SpikeSorter(object):
         cluster = self._active.pop(target_clust)
         GMM = ClusterGMM(n_iter, n_restart, thresh)
         waves = cluster['spike_waveforms']
-        data = compute_waveform_metrics(waves)
+        data, data_columns = compute_waveform_metrics(waves)
         model, predictions, bic = GMM.fit(data, n_clust)
         new_clusts = []
         for i in np.unique(predictions):
@@ -1057,32 +1064,57 @@ class SpikeSorter(object):
                          'spike_map': cluster['spike_map'][idx],
                          'rec_key': cluster['rec_key'].copy(),
                          'fs': cluster['fs'],
+                         'offsets': cluster['offsets'],
                          'manipulations': edit_str}
             new_clusts.append(tmp_clust)
 
         # Plot cluster and ask to choose which to keep
         figs = []
         for i, c in enumerate(new_clusts):
-            _, viol_1ms, viol_2ms = get_ISI_and_violations(c['spike_times'], fs, c['spike_map'])
+            _, viol_1ms, viol_2ms = get_ISI_and_violations(c['spike_times'], c['fs'], c['spike_map'])
             plot_title = ('Index: %i\n1ms violations: %i, 2ms violations: %i\n'
                           'Total Waveforms: %i'
                           % (i, viol_1ms, viol_2ms, len(c['spike_times'])))
-            tmp_fig = dplt.plot_waveforms(c['spike_waveforms'], title=plot_title)
+            tmp_fig, _ = dplt.plot_waveforms(c['spike_waveforms'], title=plot_title)
             figs.append(tmp_fig)
+            tmp_fig.show()
 
-        f2, ax2 = dplt.plot_waveforms_pca([c['spike_waveforms'] for c in new_clusts])
+        f2 = dplt.plot_waveforms_pca([c['spike_waveforms'] for c in new_clusts])
         figs.append(f2)
-        plt.show()
-        selection_list = ['all'] + ['%i' % i for i in range(len(new_clusts))]
-        prompt = 'Select split clusters to keep'
-        ans = userIO.select_from_list(prompt, selection_list,
-                                      multi_select=True, shell=self._shell)
-        if ans is None or 'all' in ans:
-            print('Reset to before split')
-            self._active.insert(target_cluster, cluster)
+        f2.show()
+
+        if store_split:
+            self._split_results = new_clusts
+            self._split_starter = cluster
+            self._split_index = target_clust
+            return new_clusts
         else:
-            keepers = [new_clusts[int(i)] for i in ans]
+            selection_list = ['all'] + ['%i' % i for i in range(len(new_clusts))]
+            prompt = 'Select split clusters to keep\nCancel to reset.'
+            ans = userIO.select_from_list(prompt, selection_list,
+                                          multi_select=True, shell=self._shell)
+            if ans is None or 'all' in ans:
+                print('Reset to before split')
+                self._active.insert(target_clust, cluster)
+            else:
+                keepers = [new_clusts[int(i)] for i in ans]
+                self._active.extend(keepers)
+
+            return True
+
+    def set_split(self, choices):
+        if self._split_starter is None:
+            raise ValueError('Not split stored.')
+
+        if len(choices) == 0:
+            self._active.insert(self._split_index, self._split_starter)
+        else:
+            keepers = [self._split_results[i] for i in choices]
             self._active.extend(keepers)
+
+        self._split_index = None
+        self._split_results = None
+        self._split_starter = None
 
     def merge_clusters(self, target_clusters):
         if any([i >= len(self._active) for i in target_clusters]):
@@ -1102,9 +1134,9 @@ class SpikeSorter(object):
             sw1 = new_clust['spike_waveforms']
             sw2 = clust['spike_waveforms']
 
-            spike_map = np.hstack(sm1, sm2)
-            spike_times = np.hstack(st1, st2)
-            spike_waveforms = np.vstack(sw1, sw2)
+            spike_map = np.hstack((sm1, sm2))
+            spike_times = np.hstack((st1, st2))
+            spike_waveforms = np.vstack((sw1, sw2))
 
             # Re-order to spike_map
             idx = np.argsort(spike_map)
@@ -1153,24 +1185,22 @@ class SpikeSorter(object):
         if len(target_clusters) == 0:
             return
 
-        figs = []
         for i in target_clusters:
             c = self._active[i]
             isi, v1, v2 = get_ISI_and_violations(c['spike_times'], c['fs'], c['spike_map'])
             title = ('Index : %i\n1ms violations: %0.1f, 2ms violations: %0.1f'
                      '\ntotal waveforms: %i'
                      % (i, v1, v2, len(c['spike_waveforms'])))
-            figs.append(dplt.plot_waveforms(c['spike_waveforms'], title=title))
-
-        plt.show()
+            fig, ax = dplt.plot_waveforms(c['spike_waveforms'], title=title)
+            fig.show()
 
     def plot_clusters_pca(self, target_clusters):
         if len(target_clusters) == 0:
             return
 
         waves = [self._active[i]['spike_waveforms'] for i in target_clusters]
-        dplt.plot_waveforms_pca(waves, cluster_ids=target_clusters)
-        plt.show()
+        fig = dplt.plot_waveforms_pca(waves, cluster_ids=target_clusters)
+        fig.show()
 
     def plot_clusters_raster(self, target_clusters):
         if len(target_clusters) == 0:
@@ -1190,8 +1220,8 @@ class SpikeSorter(object):
             spike_times.append(st)
             spike_waves.append(c['spike_waveforms'])
 
-        dplt.plot_spike_raster(spike_times, spike_waveforms, target_clusters)
-        plt.show()
+        fig = dplt.plot_spike_raster(spike_times, spike_waves, target_clusters)
+        fig.show()
 
     def plot_clusters_ISI(self, target_clusters):
         if len(target_clusters) == 0:
@@ -1207,8 +1237,7 @@ class SpikeSorter(object):
             title= ax.get_title()
             title = 'Index: %i\n%s' % (i, title)
             ax.set_title(title)
-
-        plt.show()
+            fig.show()
 
     def get_mean_waveform(self, target_cluster):
         '''Returns mean waveform of target_cluster in active clusters. Also

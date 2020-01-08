@@ -56,12 +56,10 @@ def write_pandas_to_table(df, save_file, overwrite=False, shell=True):
         if q == 0:
             return
 
-
-    with open(save_file, 'w') as f:
-        f.write(df.to_string())
+    df.to_csv(save_file, sep='\t')
 
 
 def read_pandas_from_table(fn):
-    df = pd.read_csv(fn, sep='\t')
+    df = pd.read_csv(fn, sep='\t', index_col=0)
     return df
 
