@@ -1241,12 +1241,12 @@ class SpikeSorter(object):
 
     def get_mean_waveform(self, target_cluster):
         '''Returns mean waveform of target_cluster in active clusters. Also
-        returns SEM of waveforms
+        returns St. Dev. of waveforms
         '''
         cluster = self._active[target_cluster]
         mean_wave = np.mean(cluster['spike_waveforms'], axis=0)
-        sem_wave = sem(cluster['spike_waveforms'], axis=0)
-        return mean_wave, sem_wave
+        std_wave = np.std(cluster['spike_waveforms'], axis=0)
+        return mean_wave, std_wave
 
     def get_possible_solutions(self):
         results = self.clustering.results.dropna()

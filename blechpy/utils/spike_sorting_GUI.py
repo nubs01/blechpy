@@ -279,14 +279,14 @@ class CheckBar(ttk.Frame):
         return out
 
 
-def make_waveform_plot(wave, wave_sem, index=None):
+def make_waveform_plot(wave, wave_std, index=None):
     fig, ax = plt.subplots(figsize=(3, 2))
     ax.xaxis.set_tick_params(bottom=False, top=False, labelbottom=False)
     ax.yaxis.set_tick_params(bottom=False, top=False, labelbottom=False)
     fig.tight_layout()
     X = list(range(len(wave)))
-    ax.fill_between(X, [i+j for i,j in zip(wave, wave_sem)],
-                    [i-j for i,j in zip(wave, wave_sem)],
+    ax.fill_between(X, [i+j for i,j in zip(wave, wave_std)],
+                    [i-j for i,j in zip(wave, wave_std)],
                     alpha=0.4)
     ax.plot(X, wave, linewidth=3)
     ax.autoscale(axis='x', tight=True)
@@ -336,8 +336,8 @@ class WaveformPane(ttk.Frame):
         figs = []
         for k, v in self._wave_dict.items():
             wave = v[0]
-            wave_sem = v[1]
-            fig = make_waveform_plot(wave, wave_sem, index=k)
+            wave_std = v[1]
+            fig = make_waveform_plot(wave, wave_std, index=k)
             figs.append(fig)
 
             if row is None:

@@ -661,3 +661,7 @@ class fill_dict_popup(object):
 
     def cancel(self):
         self.top.destroy()
+
+
+def new_fill_dict(data, prompt=None, shell=False, gui_root=None):
+    pass
