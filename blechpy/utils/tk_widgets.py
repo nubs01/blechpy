@@ -101,6 +101,7 @@ class ListSelectPopup(object):
         root.style = ttk.Style()
         root.style.theme_use('clam')
         self.output = []
+        self.cancelled = False
 
         if multi_select:
             txt = '(shift or ctrl to select multiple)'
@@ -133,4 +134,5 @@ class ListSelectPopup(object):
         self.root.destroy()
 
     def cancel(self):
+        self.cancelled = True
         self.root.destroy()

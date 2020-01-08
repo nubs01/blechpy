@@ -893,7 +893,7 @@ class dataset(data_object):
         return violations, sim
 
     @Logger('Deleting Unit')
-    def delete_unit(self, unit_num, shell=False):
+    def delete_unit(self, unit_num, confirm=False, shell=False):
         if isinstance(unit_num, str):
             unit_num = dio.h5io.parse_unit_number(unit_num)
 
@@ -901,14 +901,17 @@ class dataset(data_object):
             print('No unit deleted')
             return
 
-        q = userIO.ask_user('Are you sure you want to delete unit%03i?' % unit_num,
-                            choices = ['No','Yes'], shell=shell)
+        if not confirm:
+            q = userIO.ask_user('Are you sure you want to delete unit%03i?' % unit_num,
+                                choices = ['No','Yes'], shell=shell)
+        else:
+            q = 1
+
         if q == 0:
             print('No unit deleted')
             return
-
         else:
-            tmp = ss.delete_unit(self.root_dir, unit_num)
+            tmp = h5io.delete_unit(self.root_dir, unit_num)
             if tmp is False:
                 userIO.tell_user('Unit %i not found in dataset. No unit deleted'
                                  % unit_num, shell=shell)

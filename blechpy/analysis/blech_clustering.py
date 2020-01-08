@@ -13,7 +13,7 @@ from blechpy.utils import write_tools as wt, print_tools as pt, math_tools as mt
 from blechpy.dio import h5io
 from blechpy.analysis import clustering as clust
 from blechpy.plotting import data_plot as dplt
-import pylab as plt
+import datetime as dt
 
 
 def detect_spikes(filt_el, spike_snapshot = [0.5, 1.0], fs = 30000.0):
@@ -770,7 +770,7 @@ class BlechClust(object):
                              'Number of waveforms = %i' %
                              (c, violations_1ms, violations_2ms, len(idx)))
                 dplt.plot_waveforms(cluster_waves, title=title_str, save_file=wave_fn)
-                dplt.plot_ISIs(ISIs, save_file=isi_fn)
+                dplt.plot_ISIs(ISIs, total_spikes=len(idx), save_file=isi_fn)
 
 
             clust_results.loc[n_clust] = [n_clust, True, bic, spikes_per_clust]
@@ -980,7 +980,7 @@ class SpikeSorter(object):
 
         clusters = [self._active[i] for i in target_clusters]
         rec_key = self.clustering._rec_key
-        self._last_saved = dict.fromkeys(rec_key.keys(), [])
+        self._last_saved = dict.fromkeys(rec_key.keys(), None)
 
         for clust, single, pyr, intr in zip(clusters, single_unit,
                                             pyramidal, interneuron):
@@ -1000,13 +1000,13 @@ class SpikeSorter(object):
                     os.makedirs(metrics_dir)
 
                 # Write cluster info to file
-                c = clust.copy()
+                print_clust = clust.copy()
                 for k,v in clust.items():
                     if isinstance(v, np.ndarray):
-                        c.pop(k)
+                        print_clust.pop(k)
 
-                c.pop('rec_key')
-                c.pop('fs')
+                print_clust.pop('rec_key')
+                print_clust.pop('fs')
                 clust_info_file = os.path.join(metrics_dir, 'cluster.info')
                 with open(clust_info_file, 'a+') as log:
                     print('%s sorted on %s'
@@ -1028,10 +1028,10 @@ class SpikeSorter(object):
         if self._last_saved is None:
             return
 
-        rec_key = self._rec_key
+        rec_key = self.clustering._rec_key
         last_saved = self._last_saved
         for i, rec in rec_key.items():
-            for unit in last_saved[i]:
+            for unit in reversed(np.sort(last_saved[i])):
                 h5io.delete_unit(rec, unit)
 
         self._active.extend(self._previous)
@@ -1209,18 +1209,27 @@ class SpikeSorter(object):
         clusters = [self._active[i] for i in target_clusters]
         spike_times = []
         spike_waves = []
+        vlines = {}
         for c in clusters:
             # Adjust spike times by offset so recordings are not overlapping
             sm = c['spike_map']
-            st = c['spike_times']
+            st = c['spike_times'].copy()
             for i in np.unique(sm):
                 idx = np.where(sm==i)[0]
                 st[idx] += c['offsets'][i]
+                st[idx] = st[idx]/c['fs'][i]  # convert to seconds
+                if vlines.get(i) is None and c['offsets'][i] != 0:
+                    vlines[i] = c['offsets'][i]/c['fs'][i]
+
 
             spike_times.append(st)
             spike_waves.append(c['spike_waveforms'])
 
-        fig = dplt.plot_spike_raster(spike_times, spike_waves, target_clusters)
+        fig, ax = dplt.plot_spike_raster(spike_times, spike_waves, target_clusters)
+        ax.set_xlabel('Time (s)')
+        for x in vlines.values():
+            ax.axvline(x, color='black', linewidth=2)
+
         fig.show()
 
     def plot_clusters_ISI(self, target_clusters):
@@ -1233,7 +1242,7 @@ class SpikeSorter(object):
             isi, v1, v2 = get_ISI_and_violations(cluster['spike_times'],
                                                  cluster['fs'],
                                                  cluster['spike_map'])
-            fig, ax = dplt.plot_ISIs(isi)
+            fig, ax = dplt.plot_ISIs(isi, total_spikes=len(cluster['spike_times']))
             title= ax.get_title()
             title = 'Index: %i\n%s' % (i, title)
             ax.set_title(title)

@@ -417,9 +417,9 @@ class experiment(data_object):
 
     def sort_spikes(self, electrode, shell=False):
         rec_dirs = list(self.rec_labels.values())
-        # for rd in rec_dirs:
-        #     dat = load_dataset(rd)
-        #     dat.cleanup_clustering()
+        for rd in rec_dirs:
+            dat = load_dataset(rd)
+            dat.cleanup_clustering()
 
         sorter = blech_clustering.SpikeSorter(rec_dirs, electrode, shell=shell)
         if not shell:

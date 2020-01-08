@@ -14,9 +14,11 @@ def print_dict(dic,tabs=0):
         out = str(dic)
         for i in range(tabs):
             out = '    '+out
+
         return out
+
     out = ''
-    spacing = str(max([len(x) for x in dic.keys()])+4)
+    spacing = str(max([len(str(x)) for x in dic.keys()])+4)
     for k,v in dic.items():
         if isinstance(v,pd.DataFrame):
             v_str = '\n'+print_dataframe(v,tabs+1)+'\n'
@@ -37,8 +39,10 @@ def print_dict(dic,tabs=0):
             v_str = v
         fmt = "{:<"+spacing+"}{}"
         out = out + fmt.format(k,v_str) + '\n'
+
     for i in range(tabs):
         out = '    '+out.replace('\n','\n    ')
+
     return out
 
 

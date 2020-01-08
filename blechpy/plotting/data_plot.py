@@ -451,7 +451,7 @@ def plot_waveforms(waveforms, title=None, save_file=None):
         return fig, ax
 
 
-def plot_ISIs(ISIs, save_file=None):
+def plot_ISIs(ISIs, total_spikes=None, save_file=None):
     '''Plots a cluster with isi and violation info for viewing
 
     Parameters
@@ -466,7 +466,9 @@ def plot_ISIs(ISIs, save_file=None):
         if save_file is provided figured is saved and close and None, None is
         returned
     '''
-    total_spikes = len(ISIs)+1
+    if total_spikes is None:
+        total_spikes = len(ISIs)+1
+
     viol_1ms = np.sum(ISIs < 1.0)
     viol_2ms = np.sum(ISIs < 2.0)
     fig, ax = plt.subplots(figsize=(15,10))
@@ -510,7 +512,7 @@ def plot_spike_raster(spike_times, waveforms,
     if cluster_ids is None:
         cluster_ids = list(range(len(spike_times)))
 
-    fig = plt.figure(figsize=(15,10))
+    fig, ax = plt.subplots(figsize=(15,10))
 
     all_waves = np.vstack(waveforms)
     pca = PCA(n_components=1)
@@ -518,17 +520,20 @@ def plot_spike_raster(spike_times, waveforms,
     colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
     for i, c in enumerate(zip(cluster_ids, spike_times, waveforms)):
         pcs = pca.transform(c[2])
-        plt.scatter(c[1], pcs[:, 0], s=5,
-                    color=colors[i], label=str(c[0]))
+        ax.scatter(c[1], pcs[:, 0], s=5,
+                   color=colors[i], label=str(c[0]))
 
-    plt.legend(loc='best')
+    ax.legend(loc='best')
+    ax.set_title('Spike Raster')
+    ax.set_ylabel('PC1')
+    ax.set_xlabel('Time')
 
     if save_file:
         fig.savefig(save_file)
         plt.close(fig)
         return None
     else:
-        return fig
+        return fig, ax
 
 
 def plot_waveforms_pca(waveforms, cluster_ids=None, save_file=None):

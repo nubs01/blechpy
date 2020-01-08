@@ -262,6 +262,7 @@ class dict_fill_pane(ttk.Frame):
                 output[k] = v.get()
             else:
                 output[k] = convert_str_to_type(v.get(), t)
+
         return deepcopy(output)
 
 
@@ -624,43 +625,48 @@ def get_files(prompt='', root=None, filetypes=None, multi=False, shell=False):
 class fill_dict_popup(object):
     def __init__(self, data, master=None, prompt=None):
         if master:
-            top = self.top = tk.Toplevel(master)
+            root = self.root = tk.Toplevel(master)
         else:
-            top = self.top = tk.Tk()
+            root = self.root = tk.Tk()
 
-        top.style = ttk.Style()
-        top.style.theme_use('clam')
+        root.style = ttk.Style()
+        root.style.theme_use('clam')
         self.data = data
 
         if prompt:
-            prompt_label = ttk.Label(top, text=prompt)
+            prompt_label = ttk.Label(root, text=prompt)
             prompt_label.pack(side='top', fill='x', expand='True')
-            ttk.Separator(top, orient='horizontal').pack(side='top', fill='x',
+            ttk.Separator(root, orient='horizontal').pack(side='top', fill='x',
                                                          expand=True, pady=10)
 
         type_dict = make_type_dict(data)
-        dict_pane = dict_fill_pane(top, data, type_dict)
+        dict_pane = dict_fill_pane(root, data, type_dict)
         dict_pane.pack(side='top', fill='both', expand=True)
         self.dict_pane = dict_pane
-        line = ttk.Frame(top)
+        line = ttk.Frame(root)
         submit = ttk.Button(line, text='Submit', command=self.submit)
         cancel = ttk.Button(line, text='Cancel', command=self.cancel)
         submit.pack(side='left')
         cancel.pack(side='right')
         line.pack(side='bottom', anchor='e', pady=5)
-        center(top)
+        center(root)
+
+        self.output = deepcopy(data)
+        self.cancelled = False
+
         if master is None:
-            top.mainloop()
+            root.mainloop()
 
     def submit(self):
         output = self.dict_pane.get_values()
         for k,v in output.items():
-            self.data[k] = v
+            self.output[k] = v
 
-        self.top.destroy()
+        self.root.destroy()
 
     def cancel(self):
-        self.top.destroy()
+        self.cancelled = True
+        self.root.destroy()
 
 
 def new_fill_dict(data, prompt=None, shell=False, gui_root=None):

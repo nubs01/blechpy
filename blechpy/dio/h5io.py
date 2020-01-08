@@ -3,6 +3,7 @@ import re
 import os
 import time
 import sys
+import shutil
 import subprocess
 import pandas as pd
 import numpy as np
@@ -1144,7 +1145,7 @@ def delete_unit(file_dir, unit_num):
 
     print('\n----------\nDeleting unit %i from dataset\n----------\n'
           % unit_num)
-    h5_file = h5io.get_h5_filename(file_dir)
+    h5_file = get_h5_filename(file_dir)
     unit_names = get_unit_names(file_dir)
     unit_numbers = [parse_unit_number(i) for i in unit_names]
     if unit_num not in unit_numbers:
@@ -1154,15 +1155,15 @@ def delete_unit(file_dir, unit_num):
     metrics_dir = os.path.join(file_dir, 'sorted_unit_metrics')
     plot_dir = os.path.join(file_dir, 'unit_waveforms_plots')
 
-    # Remove metrics
-    if os.path.exists(os.path.join(metrics_dir, unit_name)):
-        shutil.rmtree(os.path.join(metrics_dir, unit_name))
-
     unit_name = 'unit%03d' % unit_num
     change_units = [x for x in unit_numbers if x > unit_num]
     new_units = [x-1 for x in change_units]
     new_names = ['unit%03d' % x for x in new_units]
     old_names = ['unit%03d' % x for x in change_units]
+
+    # Remove metrics
+    if os.path.exists(os.path.join(metrics_dir, unit_name)):
+        shutil.rmtree(os.path.join(metrics_dir, unit_name))
 
     # remove unit from hdf5 store
     with tables.open_file(h5_file, 'r+') as hf5:
@@ -1193,6 +1194,6 @@ def delete_unit(file_dir, unit_num):
                 new_file = os.path.join(plot_dir, x.replace(pre[0][0], pre[0][1]))
                 os.rename(old_file, new_file)
 
-    compress_and_repack(h5_file)
+    # compress_and_repack(h5_file)
     print('Finished deleting unit\n----------')
     return True

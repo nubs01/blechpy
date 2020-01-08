@@ -148,8 +148,11 @@ class SpikeSorterGUI(ttk.Frame):
         popup = userIO.fill_dict_popup(params, master=self.root,
                                        prompt='Input parameters for splitting')
         self.disable_all()
-        self.root.wait_window(popup.top)
+        self.root.wait_window(popup.root)
         self.enable_all()
+        params = popup.output
+        if popup.cancelled or params['n_clusters'] == int:
+            return
 
         new_clusts = self.sorter.split_cluster(chosen, params['n_iterations'],
                                                params['n_restarts'],
@@ -181,8 +184,11 @@ class SpikeSorterGUI(ttk.Frame):
 
         popup  = userIO.fill_dict_popup(cell_types, master=self.root)
         self.disable_all()
-        self.root.wait_window(popup.top)
+        self.root.wait_window(popup.root)
         self.enable_all()
+        cell_types = popup.output
+        if popup.cancelled:
+            return
 
         single = [cell_types[i]['single_unit'] for i in sorted(cell_types.keys())]
         pyramidal = [cell_types[i]['pyramidal'] for i in sorted(cell_types.keys())]
@@ -307,6 +313,7 @@ class WaveformPane(ttk.Frame):
         self.parent = parent
         self._fig_rows = []
         self._all_figs = []
+        self._fig_canvases = []
         self.initUI()
 
     def initUI(self):
@@ -326,19 +333,23 @@ class WaveformPane(ttk.Frame):
             for f in self._all_figs:
                 plt.close(f)
 
+        if len(self._fig_canvases) > 0:
+            for canvas in self._fig_canvases:
+                canvas.get_tk_widget().destroy()
+
         self._fig_rows = []
         self._all_figs = []
+        self._fig_canvases = []
 
         if self._wave_dict is None:
             return
 
         row = None
-        figs = []
         for k, v in self._wave_dict.items():
             wave = v[0]
             wave_std = v[1]
             fig = make_waveform_plot(wave, wave_std, index=k)
-            figs.append(fig)
+            self._all_figs.append(fig)
 
             if row is None:
                 row = ttk.Frame(self.scrollpane.viewport)
@@ -353,10 +364,10 @@ class WaveformPane(ttk.Frame):
             canvas = FigureCanvasTkAgg(fig, row)
             canvas.draw()
             canvas.get_tk_widget().pack(side=side)
+            self._fig_canvases.append(canvas)
             if delFlag:
                 row = None
 
-        self._all_figs = figs
         self.scrollpane.bind_children_to_mouse()
 
 
