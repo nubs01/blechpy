@@ -246,6 +246,28 @@ class dataset(data_object):
         self.CAR_electrodes = group_electrodes
         self.electrode_mapping = em.copy()
 
+    @Logger('Re-labelling CAR group areas')
+    def set_electrode_areas(self, areas):
+        '''sets the electrode area for each CAR group.
+
+        Parameters
+        ----------
+        areas : list of str
+            number of elements must match number of CAR groups
+
+        Throws
+        ------
+        ValueError
+        '''
+        em = self.electrode_mapping.copy()
+        if len(em['CAR_group'].unique()) != len(areas):
+            raise ValueError('Number of items in areas must match number of CAR groups')
+
+        em['areas'] = em['CAR_group'].apply(lambda x: areas[int(x)])
+        self.electrode_mapping = em.copy()
+        dio.h5io.write_electrode_map_to_h5(self.h5_file, self.electrode_mapping)
+        self.save()
+
     def _setup_digital_mapping(self, dig_type, dig_in_names=None, shell=False):
         '''sets up dig_in_mapping dataframe  and queries user to fill in columns
 
@@ -522,7 +544,7 @@ class dataset(data_object):
         wt.write_params_to_json('spike_array_params', rec_dir, spike_array_params)
         wt.write_params_to_json('psth_params', rec_dir, psth_params)
         wt.write_params_to_json('pal_id_params', rec_dir, pal_id_params)
-        wt.write_params_to_json('CAR_params', rec_dir, CAR_params)
+        wt.wr ite_params_to_json('CAR_params', rec_dir, CAR_params)
 
     @Logger('Extracting Data')
     def extract_data(self, filename=None, shell=False):
