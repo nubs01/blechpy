@@ -1,3 +1,8 @@
+v1.1.15 (2020-01-15)
+--------------------
+- Fix handling of multiple matches for held units. Now chooses units with lowest J3s to match.
+- Some other minor things
+
 v1.1.14 (2019-11-23)
 --------------------
 - Make blech clust use less than all cores, or user specified number of cores
