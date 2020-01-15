@@ -61,7 +61,7 @@ def calc_J3(wf_day1, wf_day2):
     return J3
 
 
-def get_intra_J3(rec_dirs):
+def get_intra_J3(rec_dirs, raw_waves=False):
     print('\n----------\nComputing Intra J3s\n----------\n')
     # Go through each recording directory and compute intra_J3 array
     intra_J3 = []
@@ -71,8 +71,11 @@ def get_intra_J3(rec_dirs):
 
         for un in unit_names:
             print('    Computing for %s...' % un)
-            # waves, descrip, fs = h5io.get_unit_waveforms(rd, un)
-            waves, descrip, fs = h5io.get_raw_unit_waveforms(rd, un)
+            if raw_waves:
+                waves, descrip, fs = h5io.get_raw_unit_waveforms(rd, un)
+            else:
+                waves, descrip, fs = h5io.get_unit_waveforms(rd, un)
+
             if descrip['single_unit'] == 1:
                 pca = PCA(n_components=3)
                 pca.fit(waves)
@@ -88,7 +91,7 @@ def get_intra_J3(rec_dirs):
     return intra_J3
 
 
-def find_held_units(rec_dirs, percent_criterion=95, rec_names=None):
+def find_held_units(rec_dirs, percent_criterion=95, rec_names=None, raw_waves=False):
     # TODO: if any rec is 'one file per signal type' create tmp_raw.hdf5 and
     # delete after detection is finished 
 
@@ -117,23 +120,31 @@ def find_held_units(rec_dirs, percent_criterion=95, rec_names=None):
         h5_file1 = h5io.get_h5_filename(rd1)
         h5_file2 = h5io.get_h5_filename(rd2)
         print('Comparing %s vs %s' % (rec1, rec2))
+        found_cells = []
 
         unit_names1 = h5io.get_unit_names(rd1)
         unit_names2 = h5io.get_unit_names(rd2)
 
         for unit1 in unit_names1:
-            # wf1, descrip1, fs1 = h5io.get_unit_waveforms(rd1, unit1)
-            wf1, descrip1, fs1 = h5io.get_raw_unit_waveforms(rd1, unit1)
+            if raw_waves:
+                wf1, descrip1, fs1 = h5io.get_raw_unit_waveforms(rd1, unit1)
+            else:
+                wf1, descrip1, fs1 = h5io.get_unit_waveforms(rd1, unit1)
+
             electrode = descrip1['electrode_number']
             single_unit = bool(descrip1['single_unit'])
             unit_type = h5io.read_unit_description(descrip1)
 
             if descrip1['single_unit'] == 1:
                 for unit2 in unit_names2:
-                    # wf2, descrip2, fs2 = h5io.get_unit_waveforms(rd2, unit2, required_descrip=descrip1)
-                    wf2, descrip2, fs2 = \
-                            h5io.get_raw_unit_waveforms(rd2, unit2,
-                                                        required_descrip=descrip1)
+                    if raw_waves:
+                        wf2, descrip2, fs2 = \
+                                h5io.get_raw_unit_waveforms(rd2, unit2,
+                                                            required_descrip=descrip1)
+                    else:
+                        wf2, descrip2, fs2 = h5io.get_unit_waveforms(rd2, unit2,
+                                                                     required_descrip=descrip1)
+
                     if descrip1 == descrip2 and wf2 is not None:
 
                         print('Comparing %s %s vs %s %s' %
@@ -162,44 +173,116 @@ def find_held_units(rec_dirs, percent_criterion=95, rec_names=None):
                                   % (rec1, unit1, rec2, unit2))
                             userIO.tell_user('Detected held unit:\n    %s %s and %s %s'
                                              % (rec1, unit1, rec2, unit2), shell=True)
-                            # Add unit to proper spot in Dataframe
-                            if held_df.empty:
-                                held_df = \
-                                    held_df.append({'unit': 'A',
-                                                    'single_unit': single_unit,
-                                                    'unit_type': unit_type,
-                                                    rec1: unit1,
-                                                    rec2: unit2,
-                                                    'J3': [J3]},
-                                                   ignore_index=True)
-                                continue
+                            found_cells.append((h5io.parse_unit_number(unit1),
+                                                h5io.parse_unit_number(unit2),
+                                                J3, single_unit, unit_type))
 
-                            idx1 = np.where(held_df[rec1] == unit1)[0]
-                            idx2 = np.where(held_df[rec2] == unit2)[0]
+        found_cells = np.array(found_cells)
+        userIO.tell_user('\n-----\n%s vs %s\n-----' % (rec1, rec2), shell=True)
+        userIO.tell_user(str(found_cells)+'\n', shell=True)
+        userIO.tell_user('Resolving duplicates...', shell=True)
+        found_cells = resolve_duplicate_matches(found_cells)
+        userIO.tell_user('Results:\n%s\n' % str(found_cells), shell=True)
+        for i, row in enumerate(found_cells):
+            if i == 0:
+                uL = 'A'
+            else:
+                uL = held_df['unit'].iloc[-1]
+                uL = pt.get_next_letter(uL)
 
-                            if idx1.size == 0 and idx2.size == 0:
-                                uL = held_df['unit'].iloc[-1]
-                                uL = pt.get_next_letter(uL)
-                                tmp = {'unit': uL,
-                                       'single_unit': single_unit,
-                                       'unit_type': unit_type,
-                                       rec1: unit1,
-                                       rec2: unit2,
-                                       'J3': [J3]}
+            unit1 = 'unit%03d' % int(row[0])
+            unit2 = 'unit%03d' % int(row[1])
+            j3 = row[2]
+            idx1 = np.where(held_df[rec1] == unit1)[0]
+            idx2 = np.where(held_df[rec2] == unit2)[0]
+            if row[3] == 'True':
+                single_unit = True
+            else:
+                single_unit = False
 
-                                held_df = held_df.append(
-                                    tmp,
-                                    ignore_index=True)
-                            elif idx1.size != 0 and idx2.size != 0:
-                                continue
-                            elif idx1.size != 0:
-                                held_df[rec2].iloc[idx1[0]] = unit2
-                                held_df['J3'].iloc[idx1[0]].append(J3)
-                            else:
-                                held_df[rec1].iloc[idx2[0]] = unit1
-                                held_df['J3'].iloc[idx2[0]].append(J3)
+            if idx1.size == 0 and idx2.size == 0:
+                tmp = {'unit': uL,
+                       'single_unit': single_unit,
+                       'unit_type': row[4],
+                       rec1: unit1,
+                       rec2: unit2,
+                       'J3': [float(j3)]}
+                held_df = held_df.append(tmp, ignore_index=True)
+            elif idx1.size != 0 and idx2.size != 0:
+                userIO.tell_user('WTF...', shell=True)
+                continue
+            elif idx1.size != 0:
+                held_df[rec2].iloc[idx1[0]] = unit2
+                held_df['J3'].iloc[idx1[0]].append(j3)
+            else:
+                held_df[rec1].iloc[idx2[0]] = unit1
+                held_df['J3'].iloc[idx2[0]].append(j3)
 
     return held_df, intra_J3, inter_J3
+
+def resolve_duplicate_matches(found_cells):
+    unique_units = np.unique(found_cells[:,0])
+    new_found = []
+    for unit in unique_units:
+        idx = np.where(found_cells[:,0] == unit)[0]
+        if len(idx) == 1:
+            new_found.append(found_cells[idx,:])
+            continue
+
+        min_j3 = np.argmin(found_cells[idx,2])
+        new_found.append(found_cells[idx[min_j3],:])
+
+    found = np.vstack(new_found)
+    go_back = []
+    new_found = []
+    for unit in np.unique(found[:,1]):
+        idx = np.where(found[:,1] == unit)[0]
+        if len(idx) == 1:
+            new_found.append(found[idx,:])
+            continue
+
+        min_j3 = np.argmin(found[idx,2])
+        i = idx[min_j3]
+        idx = np.delete(idx, min_j3)
+        new_found.append(found[i, :])
+        go_back.append(found[idx, :])
+
+    for row in go_back:
+        idx = np.where((found_cells[:,0] == row[0][0]) & (found_cells[:,1] != row[0][1]))[0]
+        if len(idx) == 1:
+            new_found.append(found_cells[idx,:])
+            continue
+        elif len(idx) == 0:
+            continue
+
+        min_j3 = np.argmin(found_cells[idx, 2])
+        new_found.append(found_cells[idx[min_j3],:])
+
+    out = np.vstack(new_found)
+    uni = True
+    for unit in np.unique(out[:,0]):
+        idx = np.where(out[:,0] == unit)[0]
+        if len(idx) > 1:
+            uni = False
+            break
+
+    for unit in np.unique(out[:,1]):
+        idx = np.where(out[:,1] == unit)[0]
+        if len(idx) > 1:
+            uni = False
+            break
+
+    # Sort
+    a = [int(x) for x in out[:,0]]
+    idx = np.argsort(a)
+    out = out[idx,:]
+
+    if uni:
+        return out
+    else:
+        print('Duplicates still found. Re-running')
+        print(out)
+        return resolve_duplicate_matches(out)
 
 ### Delete after here
 

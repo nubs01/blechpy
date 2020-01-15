@@ -12,8 +12,7 @@ from blechpy.utils.decorators import Logger
 
 
 class experiment(data_object):
-
-    def __init__(self, exp_dir=None, exp_name=None, shell=False):
+    def __init__(self, exp_dir=None, exp_name=None, shell=False, order_dict=None):
         '''Setup for analysis across recording sessions
 
         Parameters
@@ -34,7 +33,7 @@ class experiment(data_object):
         fd = [os.path.join(exp_dir, x) for x in os.listdir(exp_dir)]
         file_dirs = [x for x in fd if (os.path.isdir(x) and
                                        dio.h5io.get_h5_filename(x) is not None)]
-        if file_dirs == []:
+        if len(file_dirs) == 0:
             q = userIO.ask_user('No recording directories with h5 files found '
                                'in experiment directory\nContinue creating'
                                'empty experiment?', shell=shell)
@@ -42,7 +41,7 @@ class experiment(data_object):
                 return
 
         self.recording_dirs = file_dirs
-        self._order_dirs(shell)
+        self._order_dirs(shell=shell, order_dict=order_dict)
 
         rec_names = [os.path.basename(x) for x in self.recording_dirs]
         el_map = None
@@ -90,36 +89,38 @@ class experiment(data_object):
 
         return '\n'.join(out)
 
-    def _order_dirs(self, shell=None):
+    def _order_dirs(self, shell=False, order_dict=None):
         '''set order of redcording directories
         '''
         if 'SSH_CONNECTION' in os.environ:
             shell = True
-        elif shell is None:
-            shell = False
 
         if self.recording_dirs == []:
             return
 
-        self.recording_dirs = [x[:-1] if x.endswith('/') else x
-                               for x in self.recording_dirs]
-        top_dirs = {os.path.basename(x): os.path.dirname(x)
-                    for x in self.recording_dirs}
-        file_dirs = list(top_dirs.keys())
-        order_dict = dict.fromkeys(file_dirs, 0)
-        tmp = userIO.dictIO(order_dict, shell=shell)
-        order_dict = userIO.fill_dict(order_dict,
-                                      ('Set order of recordings (1-%i)\n'
-                                       'Leave blank to delete directory'
-                                       ' from list') % len(file_dirs),
-                                      shell)
         if order_dict is None:
-            return
+            self.recording_dirs = [x[:-1] if x.endswith(os.sep) else x
+                                   for x in self.recording_dirs]
+            top_dirs = {os.path.basename(x): os.path.dirname(x)
+                        for x in self.recording_dirs}
+            file_dirs = list(top_dirs.keys())
+            order_dict = dict.fromkeys(file_dirs, 0)
+            tmp = userIO.dictIO(order_dict, shell=shell)
+            order_dict = userIO.fill_dict(order_dict,
+                                          ('Set order of recordings (1-%i)\n'
+                                           'Leave blank to delete directory'
+                                           ' from list') % len(file_dirs),
+                                          shell)
+            if order_dict is None:
+                return
 
-        file_dirs = [k for k, v in order_dict.items()
-                     if v is not None and v != 0]
-        file_dirs = sorted(file_dirs, key=order_dict.get)
-        file_dirs = [os.path.join(top_dirs.get(x), x) for x in file_dirs]
+            file_dirs = [k for k, v in order_dict.items()
+                         if v is not None and v != 0]
+            file_dirs = sorted(file_dirs, key=order_dict.get)
+            file_dirs = [os.path.join(top_dirs.get(x), x) for x in file_dirs]
+        else:
+            file_dirs = sorted(self.recording_dirs, key=order_dict.get)
+
         self.recording_dirs = file_dirs
 
     def _setup_taste_map(self):
@@ -233,7 +234,7 @@ class experiment(data_object):
         self.save()
 
     @Logger('Detecting held units')
-    def detect_held_units(self, percent_criterion=95, shell=False):
+    def detect_held_units(self, percent_criterion=95, raw_waves=False, shell=False):
         '''Determine which units are held across recording sessions
         Grabs single units from each recording and compares consecutive
         recordings to determine if units were held
@@ -267,7 +268,9 @@ class experiment(data_object):
         print('Saving output to : %s' % save_dir)
 
         held_df, intra_J3, inter_J3 = hua.find_held_units(rec_dirs,
-                                                                 percent_criterion)
+                                                          percent_criterion,
+                                                          raw_waves=raw_waves)
+
         rl_dict = {os.path.basename(v) : k for k, v in self.rec_labels.items()}
         held_df = held_df.rename(columns=rl_dict)
 
@@ -282,7 +285,7 @@ class experiment(data_object):
         # Write dataframe of held units to text file
         df_file = os.path.join(save_dir, 'held_units_table.txt')
         json_file = os.path.join(save_dir, 'held_units.json')
-        held_df.to_json(json_file, orient='records')
+        held_df.to_json(json_file, orient='records', lines=True)
 
         # Print table of held unti to text file, separate tables by pairs of recordings
         rec_pairs = [(rec_names[i], rec_names[i+1]) for i in range(len(rec_names) - 1)]
@@ -303,6 +306,7 @@ class experiment(data_object):
 
         # Plot intra and inter J3
         dplt.plot_J3s(intra_J3, inter_J3, save_dir, percent_criterion)
+        self.save()
 
     def _assign_area(self, row):
         data_dir = self.root_dir
