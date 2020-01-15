@@ -1160,6 +1160,8 @@ def delete_unit(file_dir, unit_num):
     new_units = [x-1 for x in change_units]
     new_names = ['unit%03d' % x for x in new_units]
     old_names = ['unit%03d' % x for x in change_units]
+    old_prefix = ['Unit%i' % x for x in change_units]
+    new_prefix = ['Unit%i' %x for x in new_units]
 
     # Remove metrics
     if os.path.exists(os.path.join(metrics_dir, unit_name)):
@@ -1182,17 +1184,18 @@ def delete_unit(file_dir, unit_num):
 
     # delete and rename plot files
     if os.path.exists(plot_dir):
-        plot_files = os.listdir(plot_dir)
+        swap_files = [('Unit%i.png' % x, 'Unit%i.png' % y)
+                      for x, y in zip(change_units, new_units)]
+        swap_files2 = [('Unit%i_mean_sd.png' % x, 'Unit%i_mean_sd.png' % y)
+                       for x, y in zip(change_units, new_units)]
+        swap_files.extend(swap_files2)
+        del_plots = ['Unit%i.png' % unit_num, 'Unit%i_mean_sd.png' % unit_num]
         print('Correcting names of plots and metrics...')
-        for x in plot_files:
-            if x.startswith('Unit%i' % unit_num):
-                os.remove(os.path.join(plot_dir, x))
-            elif any([x.startswith(y) for y in old_prefix]):
-                pre = [b for a, b in zip(old_prefix, new_prefix)
-                       if x.startswith(a)]
-                old_file = os.path.join(plot_dir, x)
-                new_file = os.path.join(plot_dir, x.replace(pre[0][0], pre[0][1]))
-                os.rename(old_file, new_file)
+        for x in del_plots:
+            os.remove(os.path.join(plot_dir, x))
+
+        for x in swap_files:
+            os.path.rename(os.path.join(plot_dir, x[0]), os.path.join(plot_dir, x[1]))
 
     # compress_and_repack(h5_file)
     print('Finished deleting unit\n----------')
