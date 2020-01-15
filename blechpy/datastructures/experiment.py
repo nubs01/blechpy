@@ -236,7 +236,7 @@ class experiment(data_object):
         self.save()
 
     @Logger('Detecting held units')
-    def detect_held_units(self, percent_criterion=95, shell=False):
+    def detect_held_units(self, percent_criterion=95, raw_waves=False, shell=False):
         '''Determine which units are held across recording sessions
         Grabs single units from each recording and compares consecutive
         recordings to determine if units were held
@@ -270,7 +270,9 @@ class experiment(data_object):
         print('Saving output to : %s' % save_dir)
 
         held_df, intra_J3, inter_J3 = hua.find_held_units(rec_dirs,
-                                                                 percent_criterion)
+                                                          percent_criterion,
+                                                          raw_waves=raw_waves)
+
         rl_dict = {os.path.basename(v) : k for k, v in self.rec_labels.items()}
         held_df = held_df.rename(columns=rl_dict)
 
@@ -285,7 +287,7 @@ class experiment(data_object):
         # Write dataframe of held units to text file
         df_file = os.path.join(save_dir, 'held_units_table.txt')
         json_file = os.path.join(save_dir, 'held_units.json')
-        held_df.to_json(json_file, orient='records')
+        held_df.to_json(json_file, orient='records', lines=True)
 
         # Print table of held unti to text file, separate tables by pairs of recordings
         rec_pairs = [(rec_names[i], rec_names[i+1]) for i in range(len(rec_names) - 1)]
@@ -306,6 +308,7 @@ class experiment(data_object):
 
         # Plot intra and inter J3
         dplt.plot_J3s(intra_J3, inter_J3, save_dir, percent_criterion)
+        self.save()
 
     def _assign_area(self, row):
         data_dir = self.root_dir
