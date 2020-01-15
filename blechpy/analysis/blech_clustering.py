@@ -1213,7 +1213,7 @@ class SpikeSorter(object):
         for c in clusters:
             # Adjust spike times by offset so recordings are not overlapping
             sm = c['spike_map']
-            st = c['spike_times'].copy()
+            st = c['spike_times'].copy().astype('float64')
             for i in np.unique(sm):
                 idx = np.where(sm==i)[0]
                 st[idx] += c['offsets'][i]

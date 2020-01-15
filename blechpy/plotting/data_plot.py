@@ -480,6 +480,7 @@ def plot_ISIs(ISIs, total_spikes=None, save_file=None):
                                                         viol_2ms, total_spikes,
                                                         100*viol_1ms/total_spikes,
                                                         viol_1ms, total_spikes))
+    ax.autoscale(axis='y', tight=False)
     ax.set_title(title_str)
     ax.set_xlabel('ISIs (ms)')
     if save_file is not None:
@@ -488,6 +489,7 @@ def plot_ISIs(ISIs, total_spikes=None, save_file=None):
         return None, None
     else:
         return fig, ax
+
 
 def plot_spike_raster(spike_times, waveforms,
                       cluster_ids=None, save_file=None):
@@ -562,7 +564,7 @@ def plot_waveforms_pca(waveforms, cluster_ids=None, save_file=None):
     all_waves = np.vstack(waveforms)
     pca.fit(all_waves)
 
-    colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+    colors = [plt.cm.jet(x) for x in np.linspace(0,1,len(waveforms))]
     for i, c in enumerate(zip(cluster_ids, waveforms)):
         pcs = pca.transform(c[1])
 

@@ -286,6 +286,7 @@ class CheckBar(ttk.Frame):
 
 
 def make_waveform_plot(wave, wave_std, index=None):
+    minima = min(wave)
     fig, ax = plt.subplots(figsize=(3, 2))
     ax.xaxis.set_tick_params(bottom=False, top=False, labelbottom=False)
     ax.yaxis.set_tick_params(bottom=False, top=False, labelbottom=False)
@@ -296,11 +297,13 @@ def make_waveform_plot(wave, wave_std, index=None):
                     alpha=0.4)
     ax.plot(X, wave, linewidth=3)
     ax.autoscale(axis='x', tight=True)
+    xlim = ax.get_xlim()
+    ylim = ax.get_ylim()
+    ax.text(xlim[1]-200, ylim[0] + 0.05*abs(ylim[0]), 'Amp: %0.1f' % minima,
+            fontsize=10)
 
     if index is not None:
-        xlim = ax.get_xlim()
-        ylim = ax.get_ylim()
-        ax.text(xlim[0] + 0.5, ylim[0] + 0.05*abs(ylim[0]), str(index),
+        ax.text(xlim[0] + 10, ylim[0] + 0.05*abs(ylim[0]), str(index),
                 fontweight='bold', fontsize=14)
 
     return fig

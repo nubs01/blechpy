@@ -544,7 +544,7 @@ class dataset(data_object):
         wt.write_params_to_json('spike_array_params', rec_dir, spike_array_params)
         wt.write_params_to_json('psth_params', rec_dir, psth_params)
         wt.write_params_to_json('pal_id_params', rec_dir, pal_id_params)
-        wt.wr ite_params_to_json('CAR_params', rec_dir, CAR_params)
+        wt.write_params_to_json('CAR_params', rec_dir, CAR_params)
 
     @Logger('Extracting Data')
     def extract_data(self, filename=None, shell=False):
@@ -958,7 +958,7 @@ class dataset(data_object):
             print('No unit deleted')
             return
         else:
-            tmp = h5io.delete_unit(self.root_dir, unit_num)
+            tmp = dio.h5io.delete_unit(self.root_dir, unit_num)
             if tmp is False:
                 userIO.tell_user('Unit %i not found in dataset. No unit deleted'
                                  % unit_num, shell=shell)
@@ -1024,6 +1024,26 @@ class dataset(data_object):
         pal_plt.plot_palatability_identity([self.root_dir], shell=shell)
         self.process_status['palatability_plot'] = True
         self.save()
+
+    @Logger('Removing low-spiking units')
+    def cleanup_lowSpiking_units(self, min_spikes=100):
+        unit_table = self.get_unit_table()
+        remove = []
+        spike_count = []
+        for unit in unit_table['unit_num']:
+            waves, descrip, fs = dio.h5io.get_unit_waveforms(self.root_dir, unit)
+            if waves.shape[0] < min_spikes:
+                spike_count.append(waves.shape[0])
+                remove.append(unit)
+
+        for unit, count in zip(reversed(remove), reversed(spike_count)):
+            print('Removing unit %i. Only %i spikes.' % (unit, count))
+            userIO.tell_user('Removing unit %i. Only %i spikes.'
+                             % (unit, count), shell=True)
+            self.delete_unit(unit, confirm=True, shell=True)
+
+        userIO.tell_user('Removed %i units for having less than %i spikes.'
+                         % (len(remove), min_spikes), shell=True)
 
     def get_unit_table(self):
         '''Returns a pandas dataframe with sorted unit information
