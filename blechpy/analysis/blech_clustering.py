@@ -11,7 +11,7 @@ from scipy.stats import sem
 from sklearn.mixture import GaussianMixture
 from blechpy.utils import write_tools as wt, print_tools as pt, math_tools as mt, userIO
 from blechpy.dio import h5io
-from blechpy.analysis import clustering as clust
+from blechpy.analysis import clustering
 from blechpy.plotting import data_plot as dplt
 import datetime as dt
 
@@ -56,8 +56,14 @@ def detect_spikes(filt_el, spike_snapshot = [0.5, 1.0], fs = 30000.0):
     if len(waves) == 0:
         return None, None
 
-    waves_dj, times_dj = clust.dejitter(np.array(waves), np.array(times), spike_snapshot, fs)
+    waves_dj, times_dj = clustering.dejitter(np.array(waves), np.array(times), spike_snapshot, fs)
     return waves_dj, times_dj
+
+
+def implement_pca(scaled_slices):
+    pca = PCA()
+    pca_slices = pca.fit_transform(scaled_slices)
+    return pca_slices, pca.explained_variance_ratio_
 
 
 def compute_waveform_metrics(waves, n_pc=3):
@@ -89,7 +95,7 @@ def compute_waveform_metrics(waves, n_pc=3):
 
     # Scale waveforms to energy before running PCA
     scaled_waves = scale_waveforms(waves, energy=data[:,1])
-    pc_waves, _ = clust.implement_pca(scaled_waves)
+    pc_waves, _ = implement_pca(scaled_waves)
     data = np.hstack((data, pc_waves[:,:n_pc]))
     data_columns = ['amplitude', 'energy', 'spike_slope']
     data_columns.extend(['PC%i' % i for i in range(n_pc)])
@@ -391,7 +397,7 @@ class SpikeDetection(object):
                 raise KeyError('Neither referenced nor raw data found for electrode %i in %s' % (electrode, file_dir))
 
         # Filter electrode trace
-        filt_el = clust.get_filtered_electrode(ref_el, freq=params['bandpass'],
+        filt_el = clustering.get_filtered_electrode(ref_el, freq=params['bandpass'],
                                                sampling_rate = fs)
         del ref_el
         # Get recording cutoff
@@ -451,7 +457,7 @@ class SpikeDetection(object):
         # get pca of scaled waveforms
         if not status['pca_waveforms']:
             scaled_waves = scale_waveforms(waves, energy=energy)
-            pca_waves, explained_variance_ratio = clust.implement_pca(scaled_waves)
+            pca_waves, explained_variance_ratio = implement_pca(scaled_waves)
 
             # Plot explained variance
             fn = os.path.join(self._plot_dir, 'pca_variance.png')

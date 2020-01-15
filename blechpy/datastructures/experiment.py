@@ -8,7 +8,7 @@ from itertools import combinations
 from blechpy import dio
 from blechpy.datastructures.objects import data_object, load_dataset
 from blechpy.utils import userIO, print_tools as pt, write_tools as wt, spike_sorting_GUI as ssg
-from blechpy.analysis import held_unit_analysis as hua, blech_clustering
+from blechpy.analysis import held_unit_analysis as hua, blech_clustering as bclust
 from blechpy.plotting import data_plot as dplt
 from blechpy.utils.decorators import Logger
 
@@ -401,7 +401,7 @@ class experiment(data_object):
 
         # Run clustering
         pool = multiprocessing.Pool(n_cores)
-        clust_objs = [blech_clustering.BlechClust(rec_dirs, x, params=clustering_params) for x in electrodes]
+        clust_objs = [bclust.BlechClust(rec_dirs, x, params=clustering_params) for x in electrodes]
         for x in clust_objs:
             pool.apply_async(x.run, callback=update_pbar)
 
@@ -434,7 +434,7 @@ class experiment(data_object):
 
             dat.process_status['sort_units'] = True
 
-        sorter = blech_clustering.SpikeSorter(rec_dirs, electrode, shell=shell)
+        sorter = bclust.SpikeSorter(rec_dirs, electrode, shell=shell)
         if not shell:
            root = ssg.launch_sorter_GUI(sorter)
         else:
