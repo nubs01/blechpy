@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import tables
 import os
+import umap
 from blechpy import dio
 from blechpy.analysis import spike_analysis as sas
 from scipy.stats import sem
@@ -623,6 +624,7 @@ def plot_waveforms_umap(waveforms, cluster_ids=None, save_file=None,
     reducer = umap.UMAP(n_neighbors=n_neighbors, min_dist=min_dist)
     mapper = reducer.fit(np.vstack(waveforms))
     colors = [plt.cm.rainbow(x) for x in np.linspace(0, 1, len(waveforms))]
+    fig, ax = plt.subplots(figsize=(15,10))
     for x, y, z in zip(waveforms, cluster_ids, colors):
         u = mapper.transform(x)
         ax.scatter(u[:, 0],  u[:, 1], s=3, color=z, marker='o', label=y)

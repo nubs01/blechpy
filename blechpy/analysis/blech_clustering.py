@@ -3,12 +3,14 @@ import shutil
 import numpy as np
 import pandas as pd
 import itertools as it
+import umap
 from copy import deepcopy
 from scipy.spatial.distance import mahalanobis
 from scipy import linalg
 from scipy.signal import find_peaks
 from scipy.stats import sem
 from sklearn.mixture import GaussianMixture
+from sklearn.decomposition import PCA
 from blechpy.utils import write_tools as wt, print_tools as pt, math_tools as mt, userIO
 from blechpy.dio import h5io
 from blechpy.analysis import clustering
@@ -71,7 +73,6 @@ def implement_umap(waves, n_pc=3, n_neighbors=20, min_dist=0.1):
                         n_neighbors=n_neighbors,
                         min_dist=min_dist)
     return reducer.fit_transform(waves)
-
 
 
 def compute_waveform_metrics(waves, n_pc=3, umap=False):
@@ -579,7 +580,7 @@ class SpikeDetection(object):
         out.append(pt.print_dict(self._status))
         out.append('-------------------\n')
         out.append('Parameters:')
-        out.append(pt.print_dict(self.parms))
+        out.append(pt.print_dict(self.params))
         out.append('-------------------\n')
         out.append('Data files:')
         out.append(pt.print_dict(self._files))
