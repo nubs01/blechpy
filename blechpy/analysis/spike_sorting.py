@@ -215,8 +215,8 @@ def calc_units_similarity(h5_file, fs, similarity_cutoff=50,
         for pair in itertools.product(units, repeat=2):
             u1 = pair[0]
             u2 = pair[1]
-            u1_idx = parse_unit_number(u1._v_name)
-            u2_idx = parse_unit_number(u2._v_name)
+            u1_idx = h5io.parse_unit_number(u1._v_name)
+            u2_idx = h5io.parse_unit_number(u2._v_name)
             print('Computing similarity between Unit %i and Unit %i' %
                   (u1_idx, u2_idx))
             n_spikes = len(u1.times[:])
