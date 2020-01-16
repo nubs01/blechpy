@@ -1062,8 +1062,25 @@ class dataset(data_object):
                              self.data_name, self.sampling_rate)
         circ.start_the_show()
 
-    def extract_and_cluster(self, shell=False):
-        pass
+    def pre_process_for_clustering(self, shell=False, dead_channels=None):
+        status = self.process_status
+        if not status['initialize parameters']:
+            self.initParams(shell=shell)
+
+        if not status['extract_data']:
+            self.extract_data(shell=True)
+
+        if not status['create_trial_list']:
+            self.create_trial_list()
+
+        if not status['mark_dead_channels'] and dead_channels != False:
+            self.mark_dead_channels(dead_channels=dead_channels, shell=shell)
+
+        if not status['common_average_reference']:
+            self.common_average_reference()
+
+        if not status['spike_detection']:
+            self.detect_spikes()
 
     def extract_and_circus_cluster(self, dead_channels=None, shell=True):
         print('Extracting Data...')

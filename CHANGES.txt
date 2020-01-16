@@ -1,3 +1,7 @@
+v2.0.2 (2020-1-16)
+-------------------
+- Add pre_process_for_clustering to dataset, to run all steps prior to clustering
+
 v2.0.1 (2020-1-16)
 -------------------
 - Fix typo in dataset.py
