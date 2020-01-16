@@ -594,6 +594,51 @@ def plot_waveforms_pca(waveforms, cluster_ids=None, save_file=None):
         return fig
 
 
+def plot_waveforms_umap(waveforms, cluster_ids=None, save_file=None,
+                       n_neighbors=20, min_dist=0.1):
+    '''Plot UMAP view of clusters from spike_sorting
+
+    Parameters
+    ----------
+    waveforms : list of np.array
+        list of np.arrays containing waveforms for each cluster
+    cluster_ids : list
+        names or numbers with which to label each cluster plotted
+    save_file : str (optional)
+        path to save figure to, if provided, figure is saved and closed and
+        this returns None
+    n_neighbors : int (optional)
+        parameters for UMAP, default = 20, lower preferences local structure
+        and higher preferences global structure
+    min_dist : float [0,1] (optional)
+        minimum distance between points in 2D represenation. (default = 0.1)
+
+    Returns
+    -------
+    matplotlib.pyplot.figure, matplotlib.pyplot.Axes
+    '''
+    if cluster_ids is None:
+        cluster_ids = list(range(len(waveforms)))
+
+    reducer = umap.UMAP(n_neighbors=n_neighbors, min_dist=min_dist)
+    mapper = reducer.fit(np.vstack(waveforms))
+    colors = [plt.cm.rainbow(x) for x in np.linspace(0, 1, len(waveforms))]
+    for x, y, z in zip(waveforms, cluster_ids, colors):
+        u = mapper.transform(x)
+        ax.scatter(u[:, 0],  u[:, 1], s=3, color=z, marker='o', label=y)
+
+    ax.legend()
+    ax.set_title('Waveforms UMAP\nmin_dist=%f, n_neighbors=%i'
+                 % (min_dist, n_neighbors))
+
+    if save_file:
+        fig.savefig(save_file)
+        fig.close()
+        return None
+    else:
+        return fig
+
+
 def plot_recording_cutoff(filt_el, fs, cutoff, out_file=None):
     fig, ax = plt.subplots(figsize=(15,10))
     test_el = np.reshape(filt_el[:int(fs)*int(len(filt_el)/fs)], (-1, int(fs)))

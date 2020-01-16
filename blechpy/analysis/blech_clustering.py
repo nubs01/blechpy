@@ -66,7 +66,15 @@ def implement_pca(scaled_slices):
     return pca_slices, pca.explained_variance_ratio_
 
 
-def compute_waveform_metrics(waves, n_pc=3):
+def implement_umap(waves, n_pc=3, n_neighbors=20, min_dist=0.1):
+    reducer = umap.UMAP(n_components=n_pc,
+                        n_neighbors=n_neighbors,
+                        min_dist=min_dist)
+    return reducer.fit_transform(waves)
+
+
+
+def compute_waveform_metrics(waves, n_pc=3, umap=False):
     '''Make clustering data array with columns:
          - amplitudes, energy, slope, pc1, pc2, pc3, etc
     Parameters
@@ -94,8 +102,12 @@ def compute_waveform_metrics(waves, n_pc=3):
         data[i,2] = (wave[minima]-wave[maxima])/(minima-maxima)
 
     # Scale waveforms to energy before running PCA
-    scaled_waves = scale_waveforms(waves, energy=data[:,1])
-    pc_waves, _ = implement_pca(scaled_waves)
+    if umap:
+        pc_waves = implment_umap(waves, n_pc=n_pc)
+    else:
+        scaled_waves = scale_waveforms(waves, energy=data[:,1])
+        pc_waves, _ = implement_pca(scaled_waves)
+
     data = np.hstack((data, pc_waves[:,:n_pc]))
     data_columns = ['amplitude', 'energy', 'spike_slope']
     data_columns.extend(['PC%i' % i for i in range(n_pc)])
@@ -1044,7 +1056,8 @@ class SpikeSorter(object):
         self._last_saved = None
         self._previous = None
 
-    def split_cluster(self, target_clust, n_iter, n_restart, thresh, n_clust, store_split=False):
+    def split_cluster(self, target_clust, n_iter, n_restart, thresh, n_clust,
+                      store_split=False, umap=False):
         '''splits the target active cluster using a GMM
         '''
         if target_clust >= len(self._active):
@@ -1053,7 +1066,7 @@ class SpikeSorter(object):
         cluster = self._active.pop(target_clust)
         GMM = ClusterGMM(n_iter, n_restart, thresh)
         waves = cluster['spike_waveforms']
-        data, data_columns = compute_waveform_metrics(waves)
+        data, data_columns = compute_waveform_metrics(waves, umap=umap)
         model, predictions, bic = GMM.fit(data, n_clust)
         new_clusts = []
         for i in np.unique(predictions):
@@ -1206,6 +1219,14 @@ class SpikeSorter(object):
 
         waves = [self._active[i]['spike_waveforms'] for i in target_clusters]
         fig = dplt.plot_waveforms_pca(waves, cluster_ids=target_clusters)
+        fig.show()
+
+    def plot_clusters_umap(self, target_clusters):
+        if len(target_clusters) == 0:
+            return
+
+        waves = [self._active[i]['spike_waveforms'] for i in target_clusters]
+        fig = dplt.plot_waveforms_umap(waves, cluster_ids=target_clusters)
         fig.show()
 
     def plot_clusters_raster(self, target_clusters):

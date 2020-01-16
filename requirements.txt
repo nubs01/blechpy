@@ -12,4 +12,5 @@ mistune>=0.8.1
 ipython>=5.0.0
 jupyter-core>=4.4.0
 entrypoints>=0.2.2
-umap>=0.1.1
+umap-learn>=0.3.10
+holoviews>=1.12.7

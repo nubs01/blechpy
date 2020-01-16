@@ -80,18 +80,23 @@ class SpikeSorterGUI(ttk.Frame):
         # Buttons
         merge = ttk.Button(buttons, text='Merge', command=self.merge_clusters)
         split = ttk.Button(buttons, text='Split', command=self.split_clusters)
+        splitUMAP = ttk.Button(buttons, text='UMAP Split (Slow)',
+                               command=self.umap_split_clusters)
         save = ttk.Button(buttons, text='Save Cells', command=self.save)
         viewWaves = ttk.Button(buttons, text='View Waves', command=self.view_waves)
         viewPCA = ttk.Button(buttons, text='View PCA', command=self.view_pca)
+        viewUMAP = ttk.Button(buttons, text='View UMAP', command=self.view_umap)
         viewRaster = ttk.Button(buttons, text='View Raster', command=self.view_raster)
         viewISI = ttk.Button(buttons, text='View ISI', command=self.view_ISI)
         discard = ttk.Button(buttons, text='Discard Clusters', command=self.discard_clusters)
         undoSave = ttk.Button(buttons, text='Undo Save', command=self.undo_save)
         merge.pack(side='top', fill='x', pady=5)
         split.pack(side='top', fill='x', pady=5)
+        splitUMAP.pack(side='top', fill='x', pady=5)
         save.pack(side='top', fill='x', pady=5)
         viewWaves.pack(side='top', fill='x', pady=5)
         viewPCA.pack(side='top', fill='x', pady=5)
+        viewUMAP.pack(side='top', fill='x', pady=5)
         viewRaster.pack(side='top', fill='x', pady=5)
         viewISI.pack(side='top', fill='x', pady=5)
         discard.pack(side='top', fill='x', pady=5)
@@ -132,7 +137,10 @@ class SpikeSorterGUI(ttk.Frame):
         self.sorter.merge_clusters(chosen)
         self.update()
 
-    def split_clusters(self, *args):
+    def umap_split_clusters(self, *args):
+        self.split_clusters(umap=True)
+
+    def split_clusters(self, *args, umap=False):
         chosen = self._check_bar.get_selected()
         if len(chosen) != 1:
             return
@@ -158,7 +166,8 @@ class SpikeSorterGUI(ttk.Frame):
                                                params['n_restarts'],
                                                params['thresh'],
                                                params['n_clusters'],
-                                               store_split=True)
+                                               store_split=True,
+                                               umap=umap)
 
         choices = ['%i' % i for i in range(len(new_clusts))]
         popup = tkw.ListSelectPopup(choices, self.root,
@@ -209,6 +218,13 @@ class SpikeSorterGUI(ttk.Frame):
             return
 
         self.sorter.plot_clusters_pca(chosen)
+
+    def view_umap(self, *args):
+        chosen = self._check_bar.get_selected()
+        if len(chosen) == 0:
+            return
+
+        self.sorter.plot_clusters_umap(chosen)
 
     def view_ISI(self, *args):
         chosen = self._check_bar.get_selected()
