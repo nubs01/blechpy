@@ -436,7 +436,8 @@ class experiment(data_object):
 
         sorter = bclust.SpikeSorter(rec_dirs, electrode, shell=shell)
         if not shell:
-           root = ssg.launch_sorter_GUI(sorter)
+           root, sorter_GUI = ssg.launch_sorter_GUI(sorter)
+           return root, sorter_GUI
         else:
             print('No shell UI yet')
             return

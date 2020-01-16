@@ -224,7 +224,9 @@ class SpikeSorterGUI(ttk.Frame):
         if len(chosen) == 0:
             return
 
+        self.disable_all()
         self.sorter.plot_clusters_umap(chosen)
+        self.enable_all()
 
     def view_ISI(self, *args):
         chosen = self._check_bar.get_selected()
@@ -523,5 +525,5 @@ class DummySorter(object):
 def launch_sorter_GUI(sorter):
     root = tk.Tk()
     sorter_GUI = SpikeSorterGUI(root, sorter)
-    return root
+    return root, sorter_GUI
 
