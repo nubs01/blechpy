@@ -1,3 +1,7 @@
+v2.0.3 (2020-1-16)
+-------------------
+- Fix implment_umap typo in blech_clustering
+
 v2.0.2 (2020-1-16)
 -------------------
 - Add pre_process_for_clustering to dataset, to run all steps prior to clustering

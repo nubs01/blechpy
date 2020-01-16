@@ -104,7 +104,7 @@ def compute_waveform_metrics(waves, n_pc=3, umap=False):
 
     # Scale waveforms to energy before running PCA
     if umap:
-        pc_waves = implment_umap(waves, n_pc=n_pc)
+        pc_waves = implement_umap(waves, n_pc=n_pc)
     else:
         scaled_waves = scale_waveforms(waves, energy=data[:,1])
         pc_waves, _ = implement_pca(scaled_waves)
