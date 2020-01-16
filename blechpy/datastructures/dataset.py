@@ -818,7 +818,7 @@ class dataset(data_object):
             set to True in order to skip popup confirmation of parameters when
             running
         '''
-        if self.process_status['spike_sorting'] == False:
+        if self.process_status['spike_detection'] == False:
             raise FileNotFoundError('Must run spike detection before clustering.')
 
         if data_quality:
@@ -888,8 +888,8 @@ class dataset(data_object):
 
             electrode = int(electrode)
 
-        if not self.process_status['spike_detection']:
-            raise ValueError('Must run spike detection first.')
+        if not self.process_status['spike_clustering']:
+            raise ValueError('Must run spike clustering first.')
 
         if not self.process_status['cleanup_clustering']:
             self.cleanup_clustering()
