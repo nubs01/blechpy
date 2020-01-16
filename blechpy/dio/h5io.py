@@ -1195,7 +1195,7 @@ def delete_unit(file_dir, unit_num):
             os.remove(os.path.join(plot_dir, x))
 
         for x in swap_files:
-            os.path.rename(os.path.join(plot_dir, x[0]), os.path.join(plot_dir, x[1]))
+            os.rename(os.path.join(plot_dir, x[0]), os.path.join(plot_dir, x[1]))
 
     # compress_and_repack(h5_file)
     print('Finished deleting unit\n----------')

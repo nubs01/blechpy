@@ -2,6 +2,7 @@ v2.0.2 (2020-1-16)
 -------------------
 - Add pre_process_for_clustering to dataset, to run all steps prior to clustering
 - Fix error from re-factoring spike_sorting.py
+- Fix error in delete unit for renaming unit plots
 
 v2.0.1 (2020-1-16)
 -------------------
