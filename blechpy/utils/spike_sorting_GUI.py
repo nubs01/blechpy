@@ -84,6 +84,8 @@ class SpikeSorterGUI(ttk.Frame):
                                command=self.umap_split_clusters)
         save = ttk.Button(buttons, text='Save Cells', command=self.save)
         viewWaves = ttk.Button(buttons, text='View Waves', command=self.view_waves)
+        viewRecWaves = ttk.Button(buttons, text='View Waves by Rec',
+                                  command=self.view_waves_by_rec)
         viewPCA = ttk.Button(buttons, text='View PCA', command=self.view_pca)
         viewUMAP = ttk.Button(buttons, text='View UMAP', command=self.view_umap)
         viewRaster = ttk.Button(buttons, text='View Raster', command=self.view_raster)
@@ -95,6 +97,7 @@ class SpikeSorterGUI(ttk.Frame):
         splitUMAP.pack(side='top', fill='x', pady=5)
         save.pack(side='top', fill='x', pady=5)
         viewWaves.pack(side='top', fill='x', pady=5)
+        viewRecWaves.pack(side='top', fill='x', pady=5)
         viewPCA.pack(side='top', fill='x', pady=5)
         viewUMAP.pack(side='top', fill='x', pady=5)
         viewRaster.pack(side='top', fill='x', pady=5)
@@ -211,6 +214,13 @@ class SpikeSorterGUI(ttk.Frame):
             return
 
         self.sorter.plot_clusters_waveforms(chosen)
+
+    def view_waves_by_rec(self, *args):
+        chosen = self._check_bar.get_selected()
+        if len(chosen) != 1:
+            return
+
+        self.sorter.plot_cluster_waveforms_by_rec(chosen)
 
     def view_pca(self, *args):
         chosen = self._check_bar.get_selected()

@@ -1215,6 +1215,22 @@ class SpikeSorter(object):
             fig, ax = dplt.plot_waveforms(c['spike_waveforms'], title=title)
             fig.show()
 
+    def plot_cluster_waveforms_by_rec(self, target_cluster):
+        if len(target_cluster) != 1:
+            return
+
+        c = self._active[target_cluster]
+        sm = c['spike_map']
+        for i in np.unique(sm):
+            idx = np.where(sm==i)[0]
+            waves = c['spike_waveforms'][idx, :]
+            isi, v1, v2 = get_ISI_and_violations(waves, c['fs'][i])
+            title = ('Index : %i, Rec: %i\n1ms violations: %0.1f, 2ms violations: %0.1f'
+                     '\ntotal waveforms: %i'
+                     % (target_cluster, i, v1, v2, len(waves)))
+            fig, ax = dplt.plot_waveforms(waves, title=title)
+            fig.show()
+
     def plot_clusters_pca(self, target_clusters):
         if len(target_clusters) == 0:
             return
