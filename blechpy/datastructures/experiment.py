@@ -336,7 +336,8 @@ class experiment(data_object):
         return row
 
     @Logger('Running Spike Clustering')
-    def cluster_spikes(self, data_quality=None, n_cores=None, custom_params=None):
+    def cluster_spikes(self, data_quality=None, multi_process=True,
+                       n_cores=None, custom_params=None):
         '''Write clustering parameters to file and
         Run blech_process on each electrode using GNU parallel
 
@@ -376,8 +377,6 @@ class experiment(data_object):
         def update_pbar(ans):
             pbar.update()
 
-        if n_cores is None or n_cores > multiprocessing.cpu_count():
-            n_cores = multiprocessing.cpu_count() - 1
 
         # get clustering params
         rec_dirs = list(self.rec_labels.values())
@@ -400,13 +399,22 @@ class experiment(data_object):
             dat.save()
 
         # Run clustering
-        pool = multiprocessing.Pool(n_cores)
         clust_objs = [bclust.BlechClust(rec_dirs, x, params=clustering_params) for x in electrodes]
-        for x in clust_objs:
-            pool.apply_async(x.run, callback=update_pbar)
+        if multi_process:
+            if n_cores is None or n_cores > multiprocessing.cpu_count():
+                n_cores = multiprocessing.cpu_count() - 1
 
-        pool.close()
-        pool.join()
+            pool = multiprocessing.Pool(n_cores)
+            for x in clust_objs:
+                pool.apply_async(x.run, callback=update_pbar)
+
+            pool.close()
+            pool.join()
+        else:
+            for x in clust_objs:
+                res = x.run()
+                update_pbar(res)
+
         pbar.close()
 
         for rd in rec_dirs:

@@ -68,7 +68,7 @@ def implement_pca(scaled_slices):
     return pca_slices, pca.explained_variance_ratio_
 
 
-def implement_umap(waves, n_pc=3, n_neighbors=20, min_dist=0.1):
+def implement_umap(waves, n_pc=3, n_neighbors=10, min_dist=0.0):
     reducer = umap.UMAP(n_components=n_pc,
                         n_neighbors=n_neighbors,
                         min_dist=min_dist)
@@ -1065,6 +1065,7 @@ class SpikeSorter(object):
             raise ValueError('Invalid target. Only %i active clusters' % len(self._active))
 
         cluster = self._active.pop(target_clust)
+        self._split_starter = cluster
         GMM = ClusterGMM(n_iter, n_restart, thresh)
         waves = cluster['spike_waveforms']
         data, data_columns = compute_waveform_metrics(waves, umap=umap)
@@ -1105,10 +1106,10 @@ class SpikeSorter(object):
 
         if store_split:
             self._split_results = new_clusts
-            self._split_starter = cluster
             self._split_index = target_clust
             return new_clusts
         else:
+            self._split_starter = None
             selection_list = ['all'] + ['%i' % i for i in range(len(new_clusts))]
             prompt = 'Select split clusters to keep\nCancel to reset.'
             ans = userIO.select_from_list(prompt, selection_list,

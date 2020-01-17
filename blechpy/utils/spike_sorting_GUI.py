@@ -159,7 +159,7 @@ class SpikeSorterGUI(ttk.Frame):
         self.root.wait_window(popup.root)
         self.enable_all()
         params = popup.output
-        if popup.cancelled or params['n_clusters'] == int:
+        if popup.cancelled or params['n_clusters'] is None:
             return
 
         new_clusts = self.sorter.split_cluster(chosen, params['n_iterations'],

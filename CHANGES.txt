@@ -2,6 +2,7 @@ v2.0.3 (2020-1-16)
 -------------------
 - Fix implment_umap typo in blech_clustering
 - Lauching sort_spikes now returns handle to GUI for command-line manipulation
+- Can now run spike detection and clustering without multiprocessing
 
 v2.0.2 (2020-1-16)
 -------------------

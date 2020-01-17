@@ -719,7 +719,7 @@ class dataset(data_object):
         self.save()
 
     @Logger('Running Spike Detection')
-    def detect_spikes(self, data_quality=None, n_cores=None):
+    def detect_spikes(self, data_quality=None, multi_process=True, n_cores=None):
         '''Run spike detection on each electrode. Prepares for clustering with
         BlechClust. Works for both single recording clustering or
         multi-recording clustering
@@ -766,16 +766,24 @@ class dataset(data_object):
 
             pbar.update()
 
-        if n_cores is None or n_cores > multiprocessing.cpu_count():
-            n_cores = multiprocessing.cpu_count() - 1
+        spike_detectors = [clust.SpikeDetection(data_dir, x,
+                                                self.clustering_params)
+                           for x in electrodes]
+        if multi_process:
+            if n_cores is None or n_cores > multiprocessing.cpu_count():
+                n_cores = multiprocessing.cpu_count() - 1
 
-        pool = multiprocessing.Pool(n_cores)
-        spike_detectors = [clust.SpikeDetection(data_dir, x, self.clustering_params) for x in electrodes]
-        for sd in spike_detectors:
-            pool.apply_async(sd.run, callback=update_pbar)
+            pool = multiprocessing.Pool(n_cores)
+            for sd in spike_detectors:
+                pool.apply_async(sd.run, callback=update_pbar)
 
-        pool.close()
-        pool.join()
+            pool.close()
+            pool.join()
+        else:
+            for sd in spike_detectors:
+                res = sd.run()
+                update_pbar(res)
+
         pbar.close()
 
         print('Electrode    Result    Cutoff (s)')
@@ -804,7 +812,7 @@ class dataset(data_object):
         return results
 
     @Logger('Running Blech Clust')
-    def blech_clust_run(self, data_quality=None, n_cores=None):
+    def blech_clust_run(self, data_quality=None, multi_process=True, n_cores=None):
         '''Write clustering parameters to file and
         Run blech_process on each electrode using GNU parallel
 
@@ -846,18 +854,24 @@ class dataset(data_object):
         def update_pbar(ans):
             pbar.update()
 
-        if n_cores is None or n_cores > multiprocessing.cpu_count():
-            n_cores = multiprocessing.cpu_count() - 1
-
-        pool = multiprocessing.Pool(n_cores)
         clust_objs = [clust.BlechClust(self.root_dir,
                                        x, params=self.clustering_params)
                       for x in electrodes]
-        for x in clust_objs:
-            pool.apply_async(x.run, callback=update_pbar)
+        if multi_process:
+            if n_cores is None or n_cores > multiprocessing.cpu_count():
+                n_cores = multiprocessing.cpu_count() - 1
 
-        pool.close()
-        pool.join()
+            pool = multiprocessing.Pool(n_cores)
+            for x in clust_objs:
+                pool.apply_async(x.run, callback=update_pbar)
+
+            pool.close()
+            pool.join()
+        else:
+            for x in clust_objs:
+                res = x.run()
+                update_pbar(res)
+
         pbar.close()
 
         self.process_status['spike_clustering'] = True
