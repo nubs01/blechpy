@@ -1284,7 +1284,8 @@ class SpikeSorter(object):
         cluster = self._active[target_cluster]
         mean_wave = np.mean(cluster['spike_waveforms'], axis=0)
         std_wave = np.std(cluster['spike_waveforms'], axis=0)
-        return mean_wave, std_wave
+        n_waves = cluster['spike_waveforms'].shape[0]
+        return mean_wave, std_wave, n_waves
 
     def get_possible_solutions(self):
         results = self.clustering.results.dropna()

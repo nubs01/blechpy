@@ -303,7 +303,7 @@ class CheckBar(ttk.Frame):
         return out
 
 
-def make_waveform_plot(wave, wave_std, index=None):
+def make_waveform_plot(wave, wave_std, n_waves=None,index=None):
     minima = min(wave)
     fig, ax = plt.subplots(figsize=(3, 2))
     ax.xaxis.set_tick_params(bottom=False, top=False, labelbottom=False)
@@ -317,7 +317,11 @@ def make_waveform_plot(wave, wave_std, index=None):
     ax.autoscale(axis='x', tight=True)
     xlim = ax.get_xlim()
     ylim = ax.get_ylim()
-    ax.text(xlim[1]-200, ylim[0] + 0.05*abs(ylim[0]), 'Amp: %0.1f' % minima,
+    tmp_str = 'Amp: %0.1f' % minima
+    if n_waves:
+        tmp_str += '\nN Waves: %i' % n_waves
+
+    ax.text(xlim[1]-200, ylim[0] + 0.1*abs(ylim[0]), tmp_str,
             fontsize=10)
 
     if index is not None:
@@ -369,7 +373,8 @@ class WaveformPane(ttk.Frame):
         for k, v in self._wave_dict.items():
             wave = v[0]
             wave_std = v[1]
-            fig = make_waveform_plot(wave, wave_std, index=k)
+            n_waves = v[2]
+            fig = make_waveform_plot(wave, wave_std, n_waves=n_waves, index=k)
             self._all_figs.append(fig)
 
             if row is None:

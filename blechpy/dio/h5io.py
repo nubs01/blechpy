@@ -957,6 +957,79 @@ def get_unit_waveforms(file_dir, unit, required_descrip=None):
     return waveforms, descriptor, fs*10
 
 
+def get_unit_spike_times(file_dir, unit, required_descrip=None):
+    if isinstance(unit, int):
+        un = 'unit%03i' % unit
+    else:
+        un = unit
+        unit = parse_unit_number(un)
+
+    h5_file = get_h5_filename(file_dir)
+    clustering_params = params.load_params('clustering_params', file_dir)
+    fs = clustering_params['sampling_rate']
+    with tables.open_file(h5_file, 'r') as hf5:
+        times = hf5.root.sorted_units[un].times[:]
+        descriptor = hf5.root.unit_descriptor[unit]
+
+    if required_descrip is not None:
+        if descriptor != required_descrip:
+            return None, descriptor, fs
+
+    return times, descriptor, fs*10
+
+
+def get_unit_as_cluster(file_dirs, unit, rec_key=None):
+    if isinstance(unit, int):
+        un = 'unit%03i' % unit
+    else:
+        un = unit
+        unit = parse_unit_number(unit)
+
+    if isinstance(file_dirs, str):
+        file_dirs = [file_dirs]
+
+    if rec_key is None:
+        rec_key = {k:v for k,v in enumerate(file_dirs)}
+
+    waves = []
+    times = []
+    spike_map = []
+    fs = dict.fromkeys(rec_key.keys())
+    offsets = dict.fromkeys(rec_key.keys())
+    offset = 0
+    for k in sorted(rec_key.keys()):
+        v = rec_keys[k]
+        tmp_waves, descriptor, tmp_fs = get_unit_waveforms(v, unit)
+        tmp_times, _, _ = get_unit_spike_times(v, unit)
+        waves.append(tmp_waves)
+        times.append(tmp_times)
+        tmp_map = np.ones(tmp_times.shape)*k
+        spike_map.append(tmp_map)
+        fs[k] = tmp_fs
+        em = get_electrode_mapping(v)
+        el = descriptor['electrode_number']
+        offsets[k] = offset
+        offset += 3*tmp_fs + em.query('Electrode==@el')['cutoff_time'].values[0]
+
+
+    spike_map = np.hstack(spike_map)
+    times = np.hstack(times)
+    waves = np.vstack(waves)
+    clusters = {'Cluster Name': un,
+                'solution_num' : 0,
+                'cluster_num': unit,
+                'cluster_id': unit,
+                'spike_waveforms': waves,
+                'spike_times': times,
+                'spike_map': spike_map,
+                'rec_key': rec_key,
+                'fs': fs,
+                'offsets': offsets,
+                'manipulations': ''}
+
+    return clusters
+
+
 def  write_electrode_map_to_h5(h5_file, electrode_map):
     '''Writes electrode mapping DataFrame to table in hdf5 store
     '''
