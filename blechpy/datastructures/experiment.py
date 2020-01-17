@@ -404,7 +404,7 @@ class experiment(data_object):
             if n_cores is None or n_cores > multiprocessing.cpu_count():
                 n_cores = multiprocessing.cpu_count() - 1
 
-            pool = multiprocessing.Pool(n_cores)
+            pool = multiprocessing.get_context('spawn').Pool(n_cores)
             for x in clust_objs:
                 pool.apply_async(x.run, callback=update_pbar)
 
