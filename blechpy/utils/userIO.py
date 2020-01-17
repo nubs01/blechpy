@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import ttk
-from collections.abc import Mapping
+from collections import Mapping
 from copy import deepcopy
 from blechpy.utils import print_tools as pt
 import easygui as eg

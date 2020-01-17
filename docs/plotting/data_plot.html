@@ -24,11 +24,11 @@
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">import pylab as plt
-import pandas as pd
+<pre><code class="python">import pandas as pd
 import numpy as np
 import tables
 import os
+import umap
 from blechpy import dio
 from blechpy.analysis import spike_analysis as sas
 from scipy.stats import sem
@@ -37,6 +37,7 @@ from sklearn.decomposition import PCA
 from blechpy.plotting import blech_waveforms_datashader
 import matplotlib
 matplotlib.use(&#39;TkAgg&#39;)
+import pylab as plt
 
 plot_params = {&#39;xtick.labelsize&#39;: 14, &#39;ytick.labelsize&#39;: 14,
                &#39;axes.titlesize&#39;: 26, &#39;figure.titlesize&#39;: 28,
@@ -361,7 +362,7 @@ def plot_cluster_pca(clusters):
     -------
     matplotlib.pyplot.figure, matplotlib.pyplot.Axes
     &#39;&#39;&#39;
-    fig, axs = plt.subplots(2, 2, sharex=False, sharey=False)
+    fig, axs = plt.subplots(2, 2, sharex=False, sharey=False, figsize=(20,15))
 
     pca = PCA(n_components=3)
     pca.fit(np.concatenate(tuple(x[&#39;spike_waveforms&#39;] for x in clusters), axis=0))
@@ -420,7 +421,7 @@ def plot_cluster_raster(clusters):
     return fig
 
 
-def plot_cluster_waveforms(cluster, index=None):
+def plot_cluster_waveforms(cluster, index=None, save_file=None):
     &#39;&#39;&#39;Plots a cluster with isi and violation info for viewing
 
     Parameters
@@ -445,7 +446,324 @@ def plot_cluster_waveforms(cluster, index=None):
     ax.set_title(title_str, fontsize=12)
     plt.xticks(fontsize=10)
     plt.yticks(fontsize=10)
-    return fig, ax</code></pre>
+
+    if save_file is not None:
+        fig.savefig(save_file)
+        plt.close(fig)
+        return None, None
+    else:
+        return fig, ax
+
+
+def plot_waveforms(waveforms, title=None, save_file=None):
+    &#39;&#39;&#39;Plots a cluster with isi and violation info for viewing
+
+    Parameters
+    ----------
+    cluster : dict with cluster info
+
+    &#39;&#39;&#39;
+    fig, ax = blech_waveforms_datashader.waveforms_datashader(waveforms)
+    ax.set_xlabel(&#39;Samples&#39;, fontsize=12)
+    ax.set_ylabel(&#39;Voltage (microvolts)&#39;, fontsize=12)
+    ax.set_title(title, fontsize=12)
+    plt.xticks(fontsize=10)
+    plt.yticks(fontsize=10)
+
+    if save_file is not None:
+        fig.savefig(save_file)
+        plt.close(fig)
+        return None, None
+    else:
+        return fig, ax
+
+
+def plot_ISIs(ISIs, total_spikes=None, save_file=None):
+    &#39;&#39;&#39;Plots a cluster with isi and violation info for viewing
+
+    Parameters
+    ----------
+    ISIs : np.array, list of ISIs in ms
+    save_file : str (optional)
+        path to save figure to. Closes figure after save.
+
+    Returns
+    -------
+    pyplot.Figure, pyplot.Axes
+        if save_file is provided figured is saved and close and None, None is
+        returned
+    &#39;&#39;&#39;
+    if total_spikes is None:
+        total_spikes = len(ISIs)+1
+
+    viol_1ms = np.sum(ISIs &lt; 1.0)
+    viol_2ms = np.sum(ISIs &lt; 2.0)
+    fig, ax = plt.subplots(figsize=(15,10))
+    max_bin = max(np.max(ISIs), 11.0)
+    ax.hist(ISIs, bins = [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, max_bin])
+    ax.set_xlim((0.0, 10.0))
+    title_str = (&#39;2ms violations = %0.1f %% (%i/%i)\n&#39;
+                 &#39;1ms violations = %0.1f %% (%i/%i)&#39; % (100*viol_2ms/total_spikes,
+                                                        viol_2ms, total_spikes,
+                                                        100*viol_1ms/total_spikes,
+                                                        viol_1ms, total_spikes))
+    ax.autoscale(axis=&#39;y&#39;, tight=False)
+    ax.set_title(title_str)
+    ax.set_xlabel(&#39;ISIs (ms)&#39;)
+    if save_file is not None:
+        fig.savefig(save_file)
+        plt.close(fig)
+        return None, None
+    else:
+        return fig, ax
+
+
+def plot_spike_raster(spike_times, waveforms,
+                      cluster_ids=None, save_file=None):
+    &#39;&#39;&#39;Plot raster view of a cluster from blechpy.analysis.spike_sorting
+
+    Parameters
+    ----------
+    spike_times : list of np.array
+        spike_times for each cluster to be plotted
+    spike_waveforms: list of np.array
+        spike_waveforms for each cluster to be plotted
+    cluster_ids : list
+        names or numbers with which to label each cluster plotted
+    save_file : str (optional)
+        path to save figure to, if provided, figure is saved and closed and
+        this returns None
+
+    Returns
+    -------
+    matplotlib.pyplot.figure
+    &#39;&#39;&#39;
+    if cluster_ids is None:
+        cluster_ids = list(range(len(spike_times)))
+
+    fig, ax = plt.subplots(figsize=(15,10))
+
+    all_waves = np.vstack(waveforms)
+    pca = PCA(n_components=1)
+    pca.fit(all_waves)
+    colors = plt.rcParams[&#39;axes.prop_cycle&#39;].by_key()[&#39;color&#39;]
+    for i, c in enumerate(zip(cluster_ids, spike_times, waveforms)):
+        pcs = pca.transform(c[2])
+        ax.scatter(c[1], pcs[:, 0], s=5,
+                   color=colors[i], label=str(c[0]))
+
+    ax.legend(loc=&#39;best&#39;)
+    ax.set_title(&#39;Spike Raster&#39;)
+    ax.set_ylabel(&#39;PC1&#39;)
+    ax.set_xlabel(&#39;Time&#39;)
+
+    if save_file:
+        fig.savefig(save_file)
+        plt.close(fig)
+        return None
+    else:
+        return fig, ax
+
+
+def plot_waveforms_pca(waveforms, cluster_ids=None, save_file=None):
+    &#39;&#39;&#39;Plot PCA view of clusters from spike_sorting
+
+    Parameters
+    ----------
+    waveforms : list of np.array
+        list of np.arrays containing waveforms for each cluster
+    cluster_ids : list
+        names or numbers with which to label each cluster plotted
+    save_file : str (optional)
+        path to save figure to, if provided, figure is saved and closed and
+        this returns None
+
+    Returns
+    -------
+    matplotlib.pyplot.figure, matplotlib.pyplot.Axes
+    &#39;&#39;&#39;
+    if cluster_ids is None:
+        cluster_ids = list(range(len(waveforms)))
+
+    fig, axs = plt.subplots(2, 2, sharex=False, sharey=False, figsize=(20,15))
+
+    pca = PCA(n_components=3)
+    all_waves = np.vstack(waveforms)
+    pca.fit(all_waves)
+
+    colors = [plt.cm.jet(x) for x in np.linspace(0,1,len(waveforms))]
+    for i, c in enumerate(zip(cluster_ids, waveforms)):
+        pcs = pca.transform(c[1])
+
+        axs[0, 0].scatter(pcs[:, 0], pcs[:, 1], alpha=0.4, s=5,
+                          color=colors[i], label=str(c[0]))
+        axs[0, 1].scatter(pcs[:, 0], pcs[:, 2], alpha=0.4, s=5,
+                          color=colors[i], label=str(c[0]))
+        axs[1, 0].scatter(pcs[:, 1], pcs[:, 2], alpha=0.4, s=5,
+                          color=colors[i], label=str(c[0]))
+
+    handles, labels = axs[0, 0].get_legend_handles_labels()
+    axs[1, 1].set_axis_off()
+    axs[1, 1].legend(handles, labels, loc=&#39;center&#39;)
+
+    axs[0, 0].set_xlabel(&#39;PC1&#39;)
+    axs[0, 0].set_ylabel(&#39;PC2&#39;)
+    axs[0, 1].set_xlabel(&#39;PC1&#39;)
+    axs[0, 1].set_ylabel(&#39;PC3&#39;)
+    axs[1, 0].set_xlabel(&#39;PC2&#39;)
+    axs[1, 0].set_ylabel(&#39;PC3&#39;)
+
+    if save_file:
+        fig.savefig(save_file)
+        plt.close(fig)
+        return None
+    else:
+        return fig
+
+
+def plot_waveforms_umap(waveforms, cluster_ids=None, save_file=None,
+                       n_neighbors=20, min_dist=0.1):
+    &#39;&#39;&#39;Plot UMAP view of clusters from spike_sorting
+
+    Parameters
+    ----------
+    waveforms : list of np.array
+        list of np.arrays containing waveforms for each cluster
+    cluster_ids : list
+        names or numbers with which to label each cluster plotted
+    save_file : str (optional)
+        path to save figure to, if provided, figure is saved and closed and
+        this returns None
+    n_neighbors : int (optional)
+        parameters for UMAP, default = 20, lower preferences local structure
+        and higher preferences global structure
+    min_dist : float [0,1] (optional)
+        minimum distance between points in 2D represenation. (default = 0.1)
+
+    Returns
+    -------
+    matplotlib.pyplot.figure, matplotlib.pyplot.Axes
+    &#39;&#39;&#39;
+    if cluster_ids is None:
+        cluster_ids = list(range(len(waveforms)))
+
+    reducer = umap.UMAP(n_neighbors=n_neighbors, min_dist=min_dist)
+    mapper = reducer.fit(np.vstack(waveforms))
+    colors = [plt.cm.rainbow(x) for x in np.linspace(0, 1, len(waveforms))]
+    fig, ax = plt.subplots(figsize=(15,10))
+    for x, y, z in zip(waveforms, cluster_ids, colors):
+        u = mapper.transform(x)
+        ax.scatter(u[:, 0],  u[:, 1], s=3, color=z, marker=&#39;o&#39;, label=y)
+
+    ax.legend()
+    ax.set_title(&#39;Waveforms UMAP\nmin_dist=%f, n_neighbors=%i&#39;
+                 % (min_dist, n_neighbors))
+
+    if save_file:
+        fig.savefig(save_file)
+        fig.close()
+        return None
+    else:
+        return fig
+
+
+def plot_recording_cutoff(filt_el, fs, cutoff, out_file=None):
+    fig, ax = plt.subplots(figsize=(15,10))
+    test_el = np.reshape(filt_el[:int(fs)*int(len(filt_el)/fs)], (-1, int(fs)))
+    ax.plot(np.arange(test_el.shape[0]), np.mean(test_el, axis = 1))
+    ax.axvline(cutoff, color=&#39;black&#39;, linewidth=4.0)
+    ax.set_xlabel(&#39;Recording time (secs)&#39;, fontsize=18)
+    ax.set_ylabel(&#39;Average voltage recorded\nper sec (microvolts)&#39;, fontsize=18)
+    ax.set_title(&#39;Recording cutoff time\n(indicated by the black horizontal line)&#39;, fontsize=18)
+
+    if out_file is not None:
+        fig.savefig(out_file, bbox_inches=&#39;tight&#39;)
+        plt.close(fig)
+        return None, None
+
+    return fig, ax
+
+
+def plot_explained_pca_variance(explained_variance_ratio, out_file=None):
+    fig, ax = plt.subplots(figsize=(15,10))
+    x = np.arange(len(explained_variance_ratio))
+    ax.plot(x, explained_variance_ratio)
+    ax.set_title(&#39;Variance ratios explained by PCs&#39;,fontsize=26)
+    ax.set_xlabel(&#39;PC #&#39;,fontsize=24)
+    ax.set_ylabel(&#39;Explained variance ratio&#39;,fontsize=24)
+    if out_file is not None:
+        fig.savefig(out_file, bbox_inches=&#39;tight&#39;)
+        plt.close(fig)
+        return None, None
+
+    return fig, ax
+
+
+def plot_cluster_features(data, clusters, x_label=&#39;X&#39;, y_label=&#39;Y&#39;, save_file=None):
+    &#39;&#39;&#39;Plot scatter of feature1 vs feature2 for each cluster
+
+    Parameters
+    ----------
+    data : np.array
+        2-column data array of where columns are features and rows are points
+    clusters : np.array
+        1-d array corresponding to each row of data, labels each data point as
+        part of a cluster
+    x_label : str (optional), x-label of plot, default is X
+    y_label : str (optional), y-label of plot, default is Y
+    save_file : str (optional)
+        if given, figure will be saved and closed
+        otherwise, figure and axis handles will be returned
+
+    Returns
+    -------
+    pyplot.figure, pyplot.axes
+        if no save_file is given, otherwise returns None, None
+    &#39;&#39;&#39;
+    unique_clusters = np.unique(clusters)
+    unique_clusters = unique_clusters[unique_clusters &gt;= 0]
+    colors = matplotlib.cm.rainbow(np.linspace(0,1,len(unique_clusters)))
+    fig, ax = plt.subplots(figsize=(15,10))
+    for i, clust in enumerate(unique_clusters):
+        idx = np.where(clusters == clust)[0]
+        tmp = ax.scatter(data[idx, 0], data[idx, 1],
+                         color=colors[i], s=0.8)
+        tmp.set_label(&#39;Cluster %i&#39; % clust)
+
+    ax.set_xlabel(x_label)
+    ax.set_ylabel(y_label)
+    ax.legend(scatterpoints = 1, loc = &#39;best&#39;, ncol = 3, fontsize = 8, shadow=True)
+    ax.set_title(&#34;Feature plot for %i cluster solution&#34; % len(unique_clusters))
+
+    if save_file is not None:
+        fig.savefig(save_file)
+        plt.close(fig)
+        return None, None
+    else:
+        return fig, ax
+
+
+def plot_mahalanobis_to_cluster(distances, title=None, save_file=None):
+    unique_clusters = sorted(list(distances.keys()))
+    colors = matplotlib.cm.rainbow(np.linspace(0,1,len(unique_clusters)))
+    fig, ax = plt.subplots(figsize=(15,10))
+    for clust, dists in distances.items():
+        y, binEdges = np.histogram(dists)
+        bincenters = 0.5*(binEdges[1:] + binEdges[:-1])
+        ax.plot(bincenters, y, label = &#39;Dist from cluster %i&#39; % clust)
+
+    ax.set_xlabel(&#39;Mahalanobis distance&#39;)
+    ax.set_ylabel(&#39;Frequency&#39;)
+    ax.legend(loc = &#39;upper right&#39;, fontsize = 8)
+    if title:
+        ax.set_title(title)
+
+    if save_file is not None:
+        fig.savefig(save_file)
+        plt.close(fig)
+        return None, None
+    else:
+        return fig, ax</code></pre>
 </details>
 </section>
 <section>
@@ -519,6 +837,68 @@ def plot_cluster_waveforms(cluster, index=None):
     plt.close(&#39;all&#39;)</code></pre>
 </details>
 </dd>
+<dt id="blechpy.plotting.data_plot.plot_ISIs"><code class="name flex">
+<span>def <span class="ident">plot_ISIs</span></span>(<span>ISIs, total_spikes=None, save_file=None)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Plots a cluster with isi and violation info for viewing</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>ISIs</code></strong> :&ensp;<code>np.array</code>, <code>list</code> of <code>ISIs</code> <code>in</code> <code>ms</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>save_file</code></strong> :&ensp;<code>str</code> (optional)</dt>
+<dd>path to save figure to. Closes figure after save.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>pyplot.Figure</code>, <code>pyplot.Axes</code></dt>
+<dd>if save_file is provided figured is saved and close and None, None is
+returned</dd>
+</dl></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def plot_ISIs(ISIs, total_spikes=None, save_file=None):
+    &#39;&#39;&#39;Plots a cluster with isi and violation info for viewing
+
+    Parameters
+    ----------
+    ISIs : np.array, list of ISIs in ms
+    save_file : str (optional)
+        path to save figure to. Closes figure after save.
+
+    Returns
+    -------
+    pyplot.Figure, pyplot.Axes
+        if save_file is provided figured is saved and close and None, None is
+        returned
+    &#39;&#39;&#39;
+    if total_spikes is None:
+        total_spikes = len(ISIs)+1
+
+    viol_1ms = np.sum(ISIs &lt; 1.0)
+    viol_2ms = np.sum(ISIs &lt; 2.0)
+    fig, ax = plt.subplots(figsize=(15,10))
+    max_bin = max(np.max(ISIs), 11.0)
+    ax.hist(ISIs, bins = [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, max_bin])
+    ax.set_xlim((0.0, 10.0))
+    title_str = (&#39;2ms violations = %0.1f %% (%i/%i)\n&#39;
+                 &#39;1ms violations = %0.1f %% (%i/%i)&#39; % (100*viol_2ms/total_spikes,
+                                                        viol_2ms, total_spikes,
+                                                        100*viol_1ms/total_spikes,
+                                                        viol_1ms, total_spikes))
+    ax.autoscale(axis=&#39;y&#39;, tight=False)
+    ax.set_title(title_str)
+    ax.set_xlabel(&#39;ISIs (ms)&#39;)
+    if save_file is not None:
+        fig.savefig(save_file)
+        plt.close(fig)
+        return None, None
+    else:
+        return fig, ax</code></pre>
+</details>
+</dd>
 <dt id="blechpy.plotting.data_plot.plot_J3s"><code class="name flex">
 <span>def <span class="ident">plot_J3s</span></span>(<span>intra_J3, inter_J3, save_dir, percent_criterion)</span>
 </code></dt>
@@ -542,6 +922,79 @@ def plot_cluster_waveforms(cluster, index=None):
     fig.savefig(os.path.join(save_dir, &#39;J3_distribution.png&#39;),
                 bbox_inches=&#39;tight&#39;)
     plt.close(&#39;all&#39;)</code></pre>
+</details>
+</dd>
+<dt id="blechpy.plotting.data_plot.plot_cluster_features"><code class="name flex">
+<span>def <span class="ident">plot_cluster_features</span></span>(<span>data, clusters, x_label='X', y_label='Y', save_file=None)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Plot scatter of feature1 vs feature2 for each cluster</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>data</code></strong> :&ensp;<code>np.array</code></dt>
+<dd>2-column data array of where columns are features and rows are points</dd>
+<dt><strong><code>clusters</code></strong> :&ensp;<code>np.array</code></dt>
+<dd>1-d array corresponding to each row of data, labels each data point as
+part of a cluster</dd>
+<dt><strong><code>x_label</code></strong> :&ensp;<code>str</code> (optional), <code>x</code>-<code>label</code> of <code>plot</code>, default <code>is</code> <code>X</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>y_label</code></strong> :&ensp;<code>str</code> (optional), <code>y</code>-<code>label</code> of <code>plot</code>, default <code>is</code> <code>Y</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>save_file</code></strong> :&ensp;<code>str</code> (optional)</dt>
+<dd>if given, figure will be saved and closed
+otherwise, figure and axis handles will be returned</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>pyplot.figure</code>, <code>pyplot.axes</code></dt>
+<dd>if no save_file is given, otherwise returns None, None</dd>
+</dl></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def plot_cluster_features(data, clusters, x_label=&#39;X&#39;, y_label=&#39;Y&#39;, save_file=None):
+    &#39;&#39;&#39;Plot scatter of feature1 vs feature2 for each cluster
+
+    Parameters
+    ----------
+    data : np.array
+        2-column data array of where columns are features and rows are points
+    clusters : np.array
+        1-d array corresponding to each row of data, labels each data point as
+        part of a cluster
+    x_label : str (optional), x-label of plot, default is X
+    y_label : str (optional), y-label of plot, default is Y
+    save_file : str (optional)
+        if given, figure will be saved and closed
+        otherwise, figure and axis handles will be returned
+
+    Returns
+    -------
+    pyplot.figure, pyplot.axes
+        if no save_file is given, otherwise returns None, None
+    &#39;&#39;&#39;
+    unique_clusters = np.unique(clusters)
+    unique_clusters = unique_clusters[unique_clusters &gt;= 0]
+    colors = matplotlib.cm.rainbow(np.linspace(0,1,len(unique_clusters)))
+    fig, ax = plt.subplots(figsize=(15,10))
+    for i, clust in enumerate(unique_clusters):
+        idx = np.where(clusters == clust)[0]
+        tmp = ax.scatter(data[idx, 0], data[idx, 1],
+                         color=colors[i], s=0.8)
+        tmp.set_label(&#39;Cluster %i&#39; % clust)
+
+    ax.set_xlabel(x_label)
+    ax.set_ylabel(y_label)
+    ax.legend(scatterpoints = 1, loc = &#39;best&#39;, ncol = 3, fontsize = 8, shadow=True)
+    ax.set_title(&#34;Feature plot for %i cluster solution&#34; % len(unique_clusters))
+
+    if save_file is not None:
+        fig.savefig(save_file)
+        plt.close(fig)
+        return None, None
+    else:
+        return fig, ax</code></pre>
 </details>
 </dd>
 <dt id="blechpy.plotting.data_plot.plot_cluster_pca"><code class="name flex">
@@ -577,7 +1030,7 @@ blechpy.analysis.spike_sorting</dd>
     -------
     matplotlib.pyplot.figure, matplotlib.pyplot.Axes
     &#39;&#39;&#39;
-    fig, axs = plt.subplots(2, 2, sharex=False, sharey=False)
+    fig, axs = plt.subplots(2, 2, sharex=False, sharey=False, figsize=(20,15))
 
     pca = PCA(n_components=3)
     pca.fit(np.concatenate(tuple(x[&#39;spike_waveforms&#39;] for x in clusters), axis=0))
@@ -657,7 +1110,7 @@ blechpy.analysis.spike_sorting</dd>
 </details>
 </dd>
 <dt id="blechpy.plotting.data_plot.plot_cluster_waveforms"><code class="name flex">
-<span>def <span class="ident">plot_cluster_waveforms</span></span>(<span>cluster, index=None)</span>
+<span>def <span class="ident">plot_cluster_waveforms</span></span>(<span>cluster, index=None, save_file=None)</span>
 </code></dt>
 <dd>
 <section class="desc"><p>Plots a cluster with isi and violation info for viewing</p>
@@ -670,7 +1123,7 @@ blechpy.analysis.spike_sorting</dd>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def plot_cluster_waveforms(cluster, index=None):
+<pre><code class="python">def plot_cluster_waveforms(cluster, index=None, save_file=None):
     &#39;&#39;&#39;Plots a cluster with isi and violation info for viewing
 
     Parameters
@@ -695,6 +1148,36 @@ blechpy.analysis.spike_sorting</dd>
     ax.set_title(title_str, fontsize=12)
     plt.xticks(fontsize=10)
     plt.yticks(fontsize=10)
+
+    if save_file is not None:
+        fig.savefig(save_file)
+        plt.close(fig)
+        return None, None
+    else:
+        return fig, ax</code></pre>
+</details>
+</dd>
+<dt id="blechpy.plotting.data_plot.plot_explained_pca_variance"><code class="name flex">
+<span>def <span class="ident">plot_explained_pca_variance</span></span>(<span>explained_variance_ratio, out_file=None)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def plot_explained_pca_variance(explained_variance_ratio, out_file=None):
+    fig, ax = plt.subplots(figsize=(15,10))
+    x = np.arange(len(explained_variance_ratio))
+    ax.plot(x, explained_variance_ratio)
+    ax.set_title(&#39;Variance ratios explained by PCs&#39;,fontsize=26)
+    ax.set_xlabel(&#39;PC #&#39;,fontsize=24)
+    ax.set_ylabel(&#39;Explained variance ratio&#39;,fontsize=24)
+    if out_file is not None:
+        fig.savefig(out_file, bbox_inches=&#39;tight&#39;)
+        plt.close(fig)
+        return None, None
+
     return fig, ax</code></pre>
 </details>
 </dd>
@@ -838,6 +1321,38 @@ if not given, rec_names are assumed to be the basenames of rec_dirs</dd>
         plt.close(&#39;all&#39;)</code></pre>
 </details>
 </dd>
+<dt id="blechpy.plotting.data_plot.plot_mahalanobis_to_cluster"><code class="name flex">
+<span>def <span class="ident">plot_mahalanobis_to_cluster</span></span>(<span>distances, title=None, save_file=None)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def plot_mahalanobis_to_cluster(distances, title=None, save_file=None):
+    unique_clusters = sorted(list(distances.keys()))
+    colors = matplotlib.cm.rainbow(np.linspace(0,1,len(unique_clusters)))
+    fig, ax = plt.subplots(figsize=(15,10))
+    for clust, dists in distances.items():
+        y, binEdges = np.histogram(dists)
+        bincenters = 0.5*(binEdges[1:] + binEdges[:-1])
+        ax.plot(bincenters, y, label = &#39;Dist from cluster %i&#39; % clust)
+
+    ax.set_xlabel(&#39;Mahalanobis distance&#39;)
+    ax.set_ylabel(&#39;Frequency&#39;)
+    ax.legend(loc = &#39;upper right&#39;, fontsize = 8)
+    if title:
+        ax.set_title(title)
+
+    if save_file is not None:
+        fig.savefig(save_file)
+        plt.close(fig)
+        return None, None
+    else:
+        return fig, ax</code></pre>
+</details>
+</dd>
 <dt id="blechpy.plotting.data_plot.plot_overlay_psth"><code class="name flex">
 <span>def <span class="ident">plot_overlay_psth</span></span>(<span>rec_dir, unit, din_map, plot_window=[-1500, 2500], bin_size=250, bin_step=25, dig_ins=None, smoothing_width=3, save_file=None)</span>
 </code></dt>
@@ -921,6 +1436,105 @@ if not given, rec_names are assumed to be the basenames of rec_dirs</dd>
     ax.axvline(0, color=&#39;red&#39;, linestyle=&#39;--&#39;)
     fig.savefig(save_file)
     plt.close(&#39;all&#39;)</code></pre>
+</details>
+</dd>
+<dt id="blechpy.plotting.data_plot.plot_recording_cutoff"><code class="name flex">
+<span>def <span class="ident">plot_recording_cutoff</span></span>(<span>filt_el, fs, cutoff, out_file=None)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def plot_recording_cutoff(filt_el, fs, cutoff, out_file=None):
+    fig, ax = plt.subplots(figsize=(15,10))
+    test_el = np.reshape(filt_el[:int(fs)*int(len(filt_el)/fs)], (-1, int(fs)))
+    ax.plot(np.arange(test_el.shape[0]), np.mean(test_el, axis = 1))
+    ax.axvline(cutoff, color=&#39;black&#39;, linewidth=4.0)
+    ax.set_xlabel(&#39;Recording time (secs)&#39;, fontsize=18)
+    ax.set_ylabel(&#39;Average voltage recorded\nper sec (microvolts)&#39;, fontsize=18)
+    ax.set_title(&#39;Recording cutoff time\n(indicated by the black horizontal line)&#39;, fontsize=18)
+
+    if out_file is not None:
+        fig.savefig(out_file, bbox_inches=&#39;tight&#39;)
+        plt.close(fig)
+        return None, None
+
+    return fig, ax</code></pre>
+</details>
+</dd>
+<dt id="blechpy.plotting.data_plot.plot_spike_raster"><code class="name flex">
+<span>def <span class="ident">plot_spike_raster</span></span>(<span>spike_times, waveforms, cluster_ids=None, save_file=None)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Plot raster view of a cluster from blechpy.analysis.spike_sorting</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>spike_times</code></strong> :&ensp;<code>list</code> of <code>np.array</code></dt>
+<dd>spike_times for each cluster to be plotted</dd>
+<dt><strong><code>spike_waveforms</code></strong> :&ensp;<code>list</code> of <code>np.array</code></dt>
+<dd>spike_waveforms for each cluster to be plotted</dd>
+<dt><strong><code>cluster_ids</code></strong> :&ensp;<code>list</code></dt>
+<dd>names or numbers with which to label each cluster plotted</dd>
+<dt><strong><code>save_file</code></strong> :&ensp;<code>str</code> (optional)</dt>
+<dd>path to save figure to, if provided, figure is saved and closed and
+this returns None</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>matplotlib.pyplot.figure</code></dt>
+<dd>&nbsp;</dd>
+</dl></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def plot_spike_raster(spike_times, waveforms,
+                      cluster_ids=None, save_file=None):
+    &#39;&#39;&#39;Plot raster view of a cluster from blechpy.analysis.spike_sorting
+
+    Parameters
+    ----------
+    spike_times : list of np.array
+        spike_times for each cluster to be plotted
+    spike_waveforms: list of np.array
+        spike_waveforms for each cluster to be plotted
+    cluster_ids : list
+        names or numbers with which to label each cluster plotted
+    save_file : str (optional)
+        path to save figure to, if provided, figure is saved and closed and
+        this returns None
+
+    Returns
+    -------
+    matplotlib.pyplot.figure
+    &#39;&#39;&#39;
+    if cluster_ids is None:
+        cluster_ids = list(range(len(spike_times)))
+
+    fig, ax = plt.subplots(figsize=(15,10))
+
+    all_waves = np.vstack(waveforms)
+    pca = PCA(n_components=1)
+    pca.fit(all_waves)
+    colors = plt.rcParams[&#39;axes.prop_cycle&#39;].by_key()[&#39;color&#39;]
+    for i, c in enumerate(zip(cluster_ids, spike_times, waveforms)):
+        pcs = pca.transform(c[2])
+        ax.scatter(c[1], pcs[:, 0], s=5,
+                   color=colors[i], label=str(c[0]))
+
+    ax.legend(loc=&#39;best&#39;)
+    ax.set_title(&#39;Spike Raster&#39;)
+    ax.set_ylabel(&#39;PC1&#39;)
+    ax.set_xlabel(&#39;Time&#39;)
+
+    if save_file:
+        fig.savefig(save_file)
+        plt.close(fig)
+        return None
+    else:
+        return fig, ax</code></pre>
 </details>
 </dd>
 <dt id="blechpy.plotting.data_plot.plot_traces_and_outliers"><code class="name flex">
@@ -1007,6 +1621,198 @@ to help identify dead channels (max(abs(trace)) * std(trace))</p>
     return fig, ax</code></pre>
 </details>
 </dd>
+<dt id="blechpy.plotting.data_plot.plot_waveforms"><code class="name flex">
+<span>def <span class="ident">plot_waveforms</span></span>(<span>waveforms, title=None, save_file=None)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Plots a cluster with isi and violation info for viewing</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>cluster</code></strong> :&ensp;<code>dict</code> <code>with</code> <code>cluster</code> <code>info</code></dt>
+<dd>&nbsp;</dd>
+</dl></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def plot_waveforms(waveforms, title=None, save_file=None):
+    &#39;&#39;&#39;Plots a cluster with isi and violation info for viewing
+
+    Parameters
+    ----------
+    cluster : dict with cluster info
+
+    &#39;&#39;&#39;
+    fig, ax = blech_waveforms_datashader.waveforms_datashader(waveforms)
+    ax.set_xlabel(&#39;Samples&#39;, fontsize=12)
+    ax.set_ylabel(&#39;Voltage (microvolts)&#39;, fontsize=12)
+    ax.set_title(title, fontsize=12)
+    plt.xticks(fontsize=10)
+    plt.yticks(fontsize=10)
+
+    if save_file is not None:
+        fig.savefig(save_file)
+        plt.close(fig)
+        return None, None
+    else:
+        return fig, ax</code></pre>
+</details>
+</dd>
+<dt id="blechpy.plotting.data_plot.plot_waveforms_pca"><code class="name flex">
+<span>def <span class="ident">plot_waveforms_pca</span></span>(<span>waveforms, cluster_ids=None, save_file=None)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Plot PCA view of clusters from spike_sorting</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>waveforms</code></strong> :&ensp;<code>list</code> of <code>np.array</code></dt>
+<dd>list of np.arrays containing waveforms for each cluster</dd>
+<dt><strong><code>cluster_ids</code></strong> :&ensp;<code>list</code></dt>
+<dd>names or numbers with which to label each cluster plotted</dd>
+<dt><strong><code>save_file</code></strong> :&ensp;<code>str</code> (optional)</dt>
+<dd>path to save figure to, if provided, figure is saved and closed and
+this returns None</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>matplotlib.pyplot.figure</code>, <code>matplotlib.pyplot.Axes</code></dt>
+<dd>&nbsp;</dd>
+</dl></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def plot_waveforms_pca(waveforms, cluster_ids=None, save_file=None):
+    &#39;&#39;&#39;Plot PCA view of clusters from spike_sorting
+
+    Parameters
+    ----------
+    waveforms : list of np.array
+        list of np.arrays containing waveforms for each cluster
+    cluster_ids : list
+        names or numbers with which to label each cluster plotted
+    save_file : str (optional)
+        path to save figure to, if provided, figure is saved and closed and
+        this returns None
+
+    Returns
+    -------
+    matplotlib.pyplot.figure, matplotlib.pyplot.Axes
+    &#39;&#39;&#39;
+    if cluster_ids is None:
+        cluster_ids = list(range(len(waveforms)))
+
+    fig, axs = plt.subplots(2, 2, sharex=False, sharey=False, figsize=(20,15))
+
+    pca = PCA(n_components=3)
+    all_waves = np.vstack(waveforms)
+    pca.fit(all_waves)
+
+    colors = [plt.cm.jet(x) for x in np.linspace(0,1,len(waveforms))]
+    for i, c in enumerate(zip(cluster_ids, waveforms)):
+        pcs = pca.transform(c[1])
+
+        axs[0, 0].scatter(pcs[:, 0], pcs[:, 1], alpha=0.4, s=5,
+                          color=colors[i], label=str(c[0]))
+        axs[0, 1].scatter(pcs[:, 0], pcs[:, 2], alpha=0.4, s=5,
+                          color=colors[i], label=str(c[0]))
+        axs[1, 0].scatter(pcs[:, 1], pcs[:, 2], alpha=0.4, s=5,
+                          color=colors[i], label=str(c[0]))
+
+    handles, labels = axs[0, 0].get_legend_handles_labels()
+    axs[1, 1].set_axis_off()
+    axs[1, 1].legend(handles, labels, loc=&#39;center&#39;)
+
+    axs[0, 0].set_xlabel(&#39;PC1&#39;)
+    axs[0, 0].set_ylabel(&#39;PC2&#39;)
+    axs[0, 1].set_xlabel(&#39;PC1&#39;)
+    axs[0, 1].set_ylabel(&#39;PC3&#39;)
+    axs[1, 0].set_xlabel(&#39;PC2&#39;)
+    axs[1, 0].set_ylabel(&#39;PC3&#39;)
+
+    if save_file:
+        fig.savefig(save_file)
+        plt.close(fig)
+        return None
+    else:
+        return fig</code></pre>
+</details>
+</dd>
+<dt id="blechpy.plotting.data_plot.plot_waveforms_umap"><code class="name flex">
+<span>def <span class="ident">plot_waveforms_umap</span></span>(<span>waveforms, cluster_ids=None, save_file=None, n_neighbors=20, min_dist=0.1)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Plot UMAP view of clusters from spike_sorting</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>waveforms</code></strong> :&ensp;<code>list</code> of <code>np.array</code></dt>
+<dd>list of np.arrays containing waveforms for each cluster</dd>
+<dt><strong><code>cluster_ids</code></strong> :&ensp;<code>list</code></dt>
+<dd>names or numbers with which to label each cluster plotted</dd>
+<dt><strong><code>save_file</code></strong> :&ensp;<code>str</code> (optional)</dt>
+<dd>path to save figure to, if provided, figure is saved and closed and
+this returns None</dd>
+<dt><strong><code>n_neighbors</code></strong> :&ensp;<code>int</code> (optional)</dt>
+<dd>parameters for UMAP, default = 20, lower preferences local structure
+and higher preferences global structure</dd>
+<dt><strong><code>min_dist</code></strong> :&ensp;<code>float</code> [<code>0</code>,<code>1</code>] (optional)</dt>
+<dd>minimum distance between points in 2D represenation. (default = 0.1)</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>matplotlib.pyplot.figure</code>, <code>matplotlib.pyplot.Axes</code></dt>
+<dd>&nbsp;</dd>
+</dl></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def plot_waveforms_umap(waveforms, cluster_ids=None, save_file=None,
+                       n_neighbors=20, min_dist=0.1):
+    &#39;&#39;&#39;Plot UMAP view of clusters from spike_sorting
+
+    Parameters
+    ----------
+    waveforms : list of np.array
+        list of np.arrays containing waveforms for each cluster
+    cluster_ids : list
+        names or numbers with which to label each cluster plotted
+    save_file : str (optional)
+        path to save figure to, if provided, figure is saved and closed and
+        this returns None
+    n_neighbors : int (optional)
+        parameters for UMAP, default = 20, lower preferences local structure
+        and higher preferences global structure
+    min_dist : float [0,1] (optional)
+        minimum distance between points in 2D represenation. (default = 0.1)
+
+    Returns
+    -------
+    matplotlib.pyplot.figure, matplotlib.pyplot.Axes
+    &#39;&#39;&#39;
+    if cluster_ids is None:
+        cluster_ids = list(range(len(waveforms)))
+
+    reducer = umap.UMAP(n_neighbors=n_neighbors, min_dist=min_dist)
+    mapper = reducer.fit(np.vstack(waveforms))
+    colors = [plt.cm.rainbow(x) for x in np.linspace(0, 1, len(waveforms))]
+    fig, ax = plt.subplots(figsize=(15,10))
+    for x, y, z in zip(waveforms, cluster_ids, colors):
+        u = mapper.transform(x)
+        ax.scatter(u[:, 0],  u[:, 1], s=3, color=z, marker=&#39;o&#39;, label=y)
+
+    ax.legend()
+    ax.set_title(&#39;Waveforms UMAP\nmin_dist=%f, n_neighbors=%i&#39;
+                 % (min_dist, n_neighbors))
+
+    if save_file:
+        fig.savefig(save_file)
+        fig.close()
+        return None
+    else:
+        return fig</code></pre>
+</details>
+</dd>
 </dl>
 </section>
 <section>
@@ -1026,13 +1832,22 @@ to help identify dead channels (max(abs(trace)) * std(trace))</p>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
 <li><code><a title="blechpy.plotting.data_plot.make_unit_plots" href="#blechpy.plotting.data_plot.make_unit_plots">make_unit_plots</a></code></li>
+<li><code><a title="blechpy.plotting.data_plot.plot_ISIs" href="#blechpy.plotting.data_plot.plot_ISIs">plot_ISIs</a></code></li>
 <li><code><a title="blechpy.plotting.data_plot.plot_J3s" href="#blechpy.plotting.data_plot.plot_J3s">plot_J3s</a></code></li>
+<li><code><a title="blechpy.plotting.data_plot.plot_cluster_features" href="#blechpy.plotting.data_plot.plot_cluster_features">plot_cluster_features</a></code></li>
 <li><code><a title="blechpy.plotting.data_plot.plot_cluster_pca" href="#blechpy.plotting.data_plot.plot_cluster_pca">plot_cluster_pca</a></code></li>
 <li><code><a title="blechpy.plotting.data_plot.plot_cluster_raster" href="#blechpy.plotting.data_plot.plot_cluster_raster">plot_cluster_raster</a></code></li>
 <li><code><a title="blechpy.plotting.data_plot.plot_cluster_waveforms" href="#blechpy.plotting.data_plot.plot_cluster_waveforms">plot_cluster_waveforms</a></code></li>
+<li><code><a title="blechpy.plotting.data_plot.plot_explained_pca_variance" href="#blechpy.plotting.data_plot.plot_explained_pca_variance">plot_explained_pca_variance</a></code></li>
 <li><code><a title="blechpy.plotting.data_plot.plot_held_units" href="#blechpy.plotting.data_plot.plot_held_units">plot_held_units</a></code></li>
+<li><code><a title="blechpy.plotting.data_plot.plot_mahalanobis_to_cluster" href="#blechpy.plotting.data_plot.plot_mahalanobis_to_cluster">plot_mahalanobis_to_cluster</a></code></li>
 <li><code><a title="blechpy.plotting.data_plot.plot_overlay_psth" href="#blechpy.plotting.data_plot.plot_overlay_psth">plot_overlay_psth</a></code></li>
+<li><code><a title="blechpy.plotting.data_plot.plot_recording_cutoff" href="#blechpy.plotting.data_plot.plot_recording_cutoff">plot_recording_cutoff</a></code></li>
+<li><code><a title="blechpy.plotting.data_plot.plot_spike_raster" href="#blechpy.plotting.data_plot.plot_spike_raster">plot_spike_raster</a></code></li>
 <li><code><a title="blechpy.plotting.data_plot.plot_traces_and_outliers" href="#blechpy.plotting.data_plot.plot_traces_and_outliers">plot_traces_and_outliers</a></code></li>
+<li><code><a title="blechpy.plotting.data_plot.plot_waveforms" href="#blechpy.plotting.data_plot.plot_waveforms">plot_waveforms</a></code></li>
+<li><code><a title="blechpy.plotting.data_plot.plot_waveforms_pca" href="#blechpy.plotting.data_plot.plot_waveforms_pca">plot_waveforms_pca</a></code></li>
+<li><code><a title="blechpy.plotting.data_plot.plot_waveforms_umap" href="#blechpy.plotting.data_plot.plot_waveforms_umap">plot_waveforms_umap</a></code></li>
 </ul>
 </li>
 </ul>

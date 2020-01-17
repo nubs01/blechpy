@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
 <meta name="generator" content="pdoc 0.7.1" />
-<title>blechpy.utils API documentation</title>
+<title>blechpy.utils.math_tools API documentation</title>
 <meta name="description" content="" />
 <link href='https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.0/normalize.min.css' rel='stylesheet'>
 <link href='https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/8.0.0/sanitize.min.css' rel='stylesheet'>
@@ -17,71 +17,91 @@
 <main>
 <article id="content">
 <header>
-<h1 class="title">Module <code>blechpy.utils</code></h1>
+<h1 class="title">Module <code>blechpy.utils.math_tools</code></h1>
 </header>
 <section id="section-intro">
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">from . import decorators
-from . import math_tools
-from . import particles
-from . import print_tools
-from . import write_tools
-from . import tk_widgets
-from . import spike_sorting_GUI
-from . import data_reset</code></pre>
+<pre><code class="python">import numpy as np
+
+def group_consecutives(arr):
+    &#39;&#39;&#39;Searches array for runs of consecutive numbers. Returns a list of lists
+    of consecutive numbers found.
+
+    Parameters
+    ----------
+    arr : list or np.array
+
+    Returns
+    -------
+    list of lists
+    &#39;&#39;&#39;
+    diff_arr = np.diff(arr)
+    change = np.where(diff_arr&gt;1)[0] + 1
+    out = []
+    prev = 0
+    for i in change:
+        out.append(arr[prev:i])
+        prev = i
+
+    out.append(arr[prev:])
+    return out</code></pre>
 </details>
 </section>
 <section>
-<h2 class="section-title" id="header-submodules">Sub-modules</h2>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
-<dt><code class="name"><a title="blechpy.utils.data_reset" href="data_reset.html">blechpy.utils.data_reset</a></code></dt>
+<dt id="blechpy.utils.math_tools.group_consecutives"><code class="name flex">
+<span>def <span class="ident">group_consecutives</span></span>(<span>arr)</span>
+</code></dt>
 <dd>
-<section class="desc"></section>
-</dd>
-<dt><code class="name"><a title="blechpy.utils.decorators" href="decorators.html">blechpy.utils.decorators</a></code></dt>
-<dd>
-<section class="desc"></section>
-</dd>
-<dt><code class="name"><a title="blechpy.utils.math_tools" href="math_tools.html">blechpy.utils.math_tools</a></code></dt>
-<dd>
-<section class="desc"></section>
-</dd>
-<dt><code class="name"><a title="blechpy.utils.memory_monitor" href="memory_monitor.html">blechpy.utils.memory_monitor</a></code></dt>
-<dd>
-<section class="desc"></section>
-</dd>
-<dt><code class="name"><a title="blechpy.utils.particles" href="particles.html">blechpy.utils.particles</a></code></dt>
-<dd>
-<section class="desc"></section>
-</dd>
-<dt><code class="name"><a title="blechpy.utils.print_tools" href="print_tools.html">blechpy.utils.print_tools</a></code></dt>
-<dd>
-<section class="desc"></section>
-</dd>
-<dt><code class="name"><a title="blechpy.utils.spike_sorting_GUI" href="spike_sorting_GUI.html">blechpy.utils.spike_sorting_GUI</a></code></dt>
-<dd>
-<section class="desc"></section>
-</dd>
-<dt><code class="name"><a title="blechpy.utils.tk_widgets" href="tk_widgets.html">blechpy.utils.tk_widgets</a></code></dt>
-<dd>
-<section class="desc"></section>
-</dd>
-<dt><code class="name"><a title="blechpy.utils.userIO" href="userIO.html">blechpy.utils.userIO</a></code></dt>
-<dd>
-<section class="desc"></section>
-</dd>
-<dt><code class="name"><a title="blechpy.utils.write_tools" href="write_tools.html">blechpy.utils.write_tools</a></code></dt>
-<dd>
-<section class="desc"></section>
+<section class="desc"><p>Searches array for runs of consecutive numbers. Returns a list of lists
+of consecutive numbers found.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>arr</code></strong> :&ensp;<code>list</code> or <code>np.array</code></dt>
+<dd>&nbsp;</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>list</code> of <code>lists</code></dt>
+<dd>&nbsp;</dd>
+</dl></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def group_consecutives(arr):
+    &#39;&#39;&#39;Searches array for runs of consecutive numbers. Returns a list of lists
+    of consecutive numbers found.
+
+    Parameters
+    ----------
+    arr : list or np.array
+
+    Returns
+    -------
+    list of lists
+    &#39;&#39;&#39;
+    diff_arr = np.diff(arr)
+    change = np.where(diff_arr&gt;1)[0] + 1
+    out = []
+    prev = 0
+    for i in change:
+        out.append(arr[prev:i])
+        prev = i
+
+    out.append(arr[prev:])
+    return out</code></pre>
+</details>
 </dd>
 </dl>
-</section>
-<section>
-</section>
-<section>
 </section>
 <section>
 </section>
@@ -94,21 +114,12 @@ from . import data_reset</code></pre>
 <ul id="index">
 <li><h3>Super-module</h3>
 <ul>
-<li><code><a title="blechpy" href="../index.html">blechpy</a></code></li>
+<li><code><a title="blechpy.utils" href="index.html">blechpy.utils</a></code></li>
 </ul>
 </li>
-<li><h3><a href="#header-submodules">Sub-modules</a></h3>
-<ul>
-<li><code><a title="blechpy.utils.data_reset" href="data_reset.html">blechpy.utils.data_reset</a></code></li>
-<li><code><a title="blechpy.utils.decorators" href="decorators.html">blechpy.utils.decorators</a></code></li>
-<li><code><a title="blechpy.utils.math_tools" href="math_tools.html">blechpy.utils.math_tools</a></code></li>
-<li><code><a title="blechpy.utils.memory_monitor" href="memory_monitor.html">blechpy.utils.memory_monitor</a></code></li>
-<li><code><a title="blechpy.utils.particles" href="particles.html">blechpy.utils.particles</a></code></li>
-<li><code><a title="blechpy.utils.print_tools" href="print_tools.html">blechpy.utils.print_tools</a></code></li>
-<li><code><a title="blechpy.utils.spike_sorting_GUI" href="spike_sorting_GUI.html">blechpy.utils.spike_sorting_GUI</a></code></li>
-<li><code><a title="blechpy.utils.tk_widgets" href="tk_widgets.html">blechpy.utils.tk_widgets</a></code></li>
-<li><code><a title="blechpy.utils.userIO" href="userIO.html">blechpy.utils.userIO</a></code></li>
-<li><code><a title="blechpy.utils.write_tools" href="write_tools.html">blechpy.utils.write_tools</a></code></li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="blechpy.utils.math_tools.group_consecutives" href="#blechpy.utils.math_tools.group_consecutives">group_consecutives</a></code></li>
 </ul>
 </li>
 </ul>

@@ -26,20 +26,21 @@
 </summary>
 <pre><code class="python">import os
 import shutil
+from tqdm import tqdm
+import multiprocessing
 import numpy as np
 import pandas as pd
 from itertools import combinations
 from blechpy import dio
 from blechpy.datastructures.objects import data_object, load_dataset
-from blechpy.utils import userIO, print_tools as pt
-from blechpy.analysis import held_unit_analysis as hua
+from blechpy.utils import userIO, print_tools as pt, write_tools as wt, spike_sorting_GUI as ssg
+from blechpy.analysis import held_unit_analysis as hua, blech_clustering as bclust
 from blechpy.plotting import data_plot as dplt
 from blechpy.utils.decorators import Logger
 
 
 class experiment(data_object):
-
-    def __init__(self, exp_dir=None, exp_name=None, shell=False):
+    def __init__(self, exp_dir=None, exp_name=None, shell=False, order_dict=None):
         &#39;&#39;&#39;Setup for analysis across recording sessions
 
         Parameters
@@ -60,7 +61,7 @@ class experiment(data_object):
         fd = [os.path.join(exp_dir, x) for x in os.listdir(exp_dir)]
         file_dirs = [x for x in fd if (os.path.isdir(x) and
                                        dio.h5io.get_h5_filename(x) is not None)]
-        if file_dirs == []:
+        if len(file_dirs) == 0:
             q = userIO.ask_user(&#39;No recording directories with h5 files found &#39;
                                &#39;in experiment directory\nContinue creating&#39;
                                &#39;empty experiment?&#39;, shell=shell)
@@ -68,7 +69,7 @@ class experiment(data_object):
                 return
 
         self.recording_dirs = file_dirs
-        self._order_dirs(shell)
+        self._order_dirs(shell=shell, order_dict=order_dict)
 
         rec_names = [os.path.basename(x) for x in self.recording_dirs]
         el_map = None
@@ -116,36 +117,38 @@ class experiment(data_object):
 
         return &#39;\n&#39;.join(out)
 
-    def _order_dirs(self, shell=None):
+    def _order_dirs(self, shell=False, order_dict=None):
         &#39;&#39;&#39;set order of redcording directories
         &#39;&#39;&#39;
         if &#39;SSH_CONNECTION&#39; in os.environ:
             shell = True
-        elif shell is None:
-            shell = False
 
         if self.recording_dirs == []:
             return
 
-        self.recording_dirs = [x[:-1] if x.endswith(&#39;/&#39;) else x
-                               for x in self.recording_dirs]
-        top_dirs = {os.path.basename(x): os.path.dirname(x)
-                    for x in self.recording_dirs}
-        file_dirs = list(top_dirs.keys())
-        order_dict = dict.fromkeys(file_dirs, 0)
-        tmp = userIO.dictIO(order_dict, shell=shell)
-        order_dict = userIO.fill_dict(order_dict,
-                                      (&#39;Set order of recordings (1-%i)\n&#39;
-                                       &#39;Leave blank to delete directory&#39;
-                                       &#39; from list&#39;) % len(file_dirs),
-                                      shell)
         if order_dict is None:
-            return
+            self.recording_dirs = [x[:-1] if x.endswith(os.sep) else x
+                                   for x in self.recording_dirs]
+            top_dirs = {os.path.basename(x): os.path.dirname(x)
+                        for x in self.recording_dirs}
+            file_dirs = list(top_dirs.keys())
+            order_dict = dict.fromkeys(file_dirs, 0)
+            tmp = userIO.dictIO(order_dict, shell=shell)
+            order_dict = userIO.fill_dict(order_dict,
+                                          (&#39;Set order of recordings (1-%i)\n&#39;
+                                           &#39;Leave blank to delete directory&#39;
+                                           &#39; from list&#39;) % len(file_dirs),
+                                          shell)
+            if order_dict is None:
+                return
 
-        file_dirs = [k for k, v in order_dict.items()
-                     if v is not None and v != 0]
-        file_dirs = sorted(file_dirs, key=order_dict.get)
-        file_dirs = [os.path.join(top_dirs.get(x), x) for x in file_dirs]
+            file_dirs = [k for k, v in order_dict.items()
+                         if v is not None and v != 0]
+            file_dirs = sorted(file_dirs, key=order_dict.get)
+            file_dirs = [os.path.join(top_dirs.get(x), x) for x in file_dirs]
+        else:
+            file_dirs = sorted(self.recording_dirs, key=order_dict.get)
+
         self.recording_dirs = file_dirs
 
     def _setup_taste_map(self):
@@ -259,7 +262,7 @@ class experiment(data_object):
         self.save()
 
     @Logger(&#39;Detecting held units&#39;)
-    def detect_held_units(self, percent_criterion=95, shell=False):
+    def detect_held_units(self, percent_criterion=95, raw_waves=False, shell=False):
         &#39;&#39;&#39;Determine which units are held across recording sessions
         Grabs single units from each recording and compares consecutive
         recordings to determine if units were held
@@ -293,7 +296,9 @@ class experiment(data_object):
         print(&#39;Saving output to : %s&#39; % save_dir)
 
         held_df, intra_J3, inter_J3 = hua.find_held_units(rec_dirs,
-                                                                 percent_criterion)
+                                                          percent_criterion,
+                                                          raw_waves=raw_waves)
+
         rl_dict = {os.path.basename(v) : k for k, v in self.rec_labels.items()}
         held_df = held_df.rename(columns=rl_dict)
 
@@ -308,7 +313,7 @@ class experiment(data_object):
         # Write dataframe of held units to text file
         df_file = os.path.join(save_dir, &#39;held_units_table.txt&#39;)
         json_file = os.path.join(save_dir, &#39;held_units.json&#39;)
-        held_df.to_json(json_file, orient=&#39;records&#39;)
+        held_df.to_json(json_file, orient=&#39;records&#39;, lines=True)
 
         # Print table of held unti to text file, separate tables by pairs of recordings
         rec_pairs = [(rec_names[i], rec_names[i+1]) for i in range(len(rec_names) - 1)]
@@ -329,6 +334,7 @@ class experiment(data_object):
 
         # Plot intra and inter J3
         dplt.plot_J3s(intra_J3, inter_J3, save_dir, percent_criterion)
+        self.save()
 
     def _assign_area(self, row):
         data_dir = self.root_dir
@@ -353,7 +359,122 @@ class experiment(data_object):
 
         row[&#39;electrode&#39;] = electrode
         row[&#39;area&#39;] = area
-        return row</code></pre>
+        return row
+
+    @Logger(&#39;Running Spike Clustering&#39;)
+    def cluster_spikes(self, data_quality=None, multi_process=True,
+                       n_cores=None, custom_params=None):
+        &#39;&#39;&#39;Write clustering parameters to file and
+        Run blech_process on each electrode using GNU parallel
+
+        Parameters
+        ----------
+        data_quality : {&#39;clean&#39;, &#39;noisy&#39;, None (default)}
+            set if you want to change the data quality parameters for cutoff
+            and spike detection before running clustering. These parameters are
+            automatically set as &#34;clean&#34; during initial parameter setup
+        accept_params : bool, False (default)
+            set to True in order to skip popup confirmation of parameters when
+            running
+        &#39;&#39;&#39;
+        clustering_params = None
+        if custom_params:
+            clustering_params = custom_params
+        elif data_quality:
+            tmp = dio.params.load_params(&#39;clustering_params&#39;, self.root_dir,
+                                         default_keyword=data_quality)
+            if tmp:
+                clustering_params = tmp
+            else:
+                raise ValueError(&#39;%s is not a valid data_quality preset. Must &#39;
+                                 &#39;be &#34;clean&#34; or &#34;noisy&#34; or None.&#39;)
+
+
+        # Get electrodes, throw out &#39;dead&#39; electrodes
+        em = self.electrode_mapping
+        if &#39;dead&#39; in em.columns:
+            electrodes = em.Electrode[em[&#39;dead&#39;] == False].tolist()
+        else:
+            electrodes = em.Electrode.tolist()
+
+
+        # Setup progress bar
+        pbar = tqdm(total = len(electrodes))
+        def update_pbar(ans):
+            pbar.update()
+
+
+        # get clustering params
+        rec_dirs = list(self.rec_labels.values())
+        if clustering_params is None:
+            dat =  load_dataset(rec_dirs[0])
+            clustering_params = dat.clustering_params.copy()
+
+        print(&#39;\nRunning Blech Clust\n-------------------&#39;)
+        print(&#39;Parameters\n%s&#39; % pt.print_dict(clustering_params))
+
+        # Write clustering params to recording directories &amp; check for spike detection
+        spike_detect = True
+        for rd in rec_dirs:
+            dat = load_dataset(rd)
+            if dat.process_status[&#39;spike_detection&#39;] == False:
+                raise FileNotFoundError(&#39;Spike detection has not been run on %s&#39; % rd)
+
+            dat.clustering_params = clustering_params
+            wt.write_params_to_json(&#39;clustering_params&#39;, rd, clustering_params)
+            dat.save()
+
+        # Run clustering
+        clust_objs = [bclust.BlechClust(rec_dirs, x, params=clustering_params) for x in electrodes]
+        if multi_process:
+            if n_cores is None or n_cores &gt; multiprocessing.cpu_count():
+                n_cores = multiprocessing.cpu_count() - 1
+
+            pool = multiprocessing.Pool(n_cores)
+            for x in clust_objs:
+                pool.apply_async(x.run, callback=update_pbar)
+
+            pool.close()
+            pool.join()
+        else:
+            for x in clust_objs:
+                res = x.run()
+                update_pbar(res)
+
+        pbar.close()
+
+        for rd in rec_dirs:
+            dat = load_dataset(rd)
+            dat.process_status[&#39;spike_clustering&#39;] = True
+            dat.process_status[&#39;cleanup_clustering&#39;] = False
+            dat.save()
+
+        self.save()
+        print(&#39;Clustering Complete\n------------------&#39;)
+
+    def sort_spikes(self, electrode=None, shell=False):
+        if electrode is None:
+            electrode = userIO.get_user_input(&#39;Electrode #: &#39;, shell=shell)
+            if electrode is None or not electrode.isnumeric():
+                return
+
+            electrode = int(electrode)
+
+        rec_dirs = list(self.rec_labels.values())
+        for rd in rec_dirs:
+            dat = load_dataset(rd)
+            if not dat.process_status[&#39;cleanup_clustering&#39;]:
+                dat.cleanup_clustering()
+
+            dat.process_status[&#39;sort_units&#39;] = True
+
+        sorter = bclust.SpikeSorter(rec_dirs, electrode, shell=shell)
+        if not shell:
+           root, sorter_GUI = ssg.launch_sorter_GUI(sorter)
+           return root, sorter_GUI
+        else:
+            print(&#39;No shell UI yet&#39;)
+            return</code></pre>
 </details>
 </section>
 <section>
@@ -367,7 +488,7 @@ class experiment(data_object):
 <dl>
 <dt id="blechpy.datastructures.experiment.experiment"><code class="flex name class">
 <span>class <span class="ident">experiment</span></span>
-<span>(</span><span>exp_dir=None, exp_name=None, shell=False)</span>
+<span>(</span><span>exp_dir=None, exp_name=None, shell=False, order_dict=None)</span>
 </code></dt>
 <dd>
 <section class="desc"><p>Setup for analysis across recording sessions</p>
@@ -386,8 +507,7 @@ False (default) for GUI</dd>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class experiment(data_object):
-
-    def __init__(self, exp_dir=None, exp_name=None, shell=False):
+    def __init__(self, exp_dir=None, exp_name=None, shell=False, order_dict=None):
         &#39;&#39;&#39;Setup for analysis across recording sessions
 
         Parameters
@@ -408,7 +528,7 @@ False (default) for GUI</dd>
         fd = [os.path.join(exp_dir, x) for x in os.listdir(exp_dir)]
         file_dirs = [x for x in fd if (os.path.isdir(x) and
                                        dio.h5io.get_h5_filename(x) is not None)]
-        if file_dirs == []:
+        if len(file_dirs) == 0:
             q = userIO.ask_user(&#39;No recording directories with h5 files found &#39;
                                &#39;in experiment directory\nContinue creating&#39;
                                &#39;empty experiment?&#39;, shell=shell)
@@ -416,7 +536,7 @@ False (default) for GUI</dd>
                 return
 
         self.recording_dirs = file_dirs
-        self._order_dirs(shell)
+        self._order_dirs(shell=shell, order_dict=order_dict)
 
         rec_names = [os.path.basename(x) for x in self.recording_dirs]
         el_map = None
@@ -464,36 +584,38 @@ False (default) for GUI</dd>
 
         return &#39;\n&#39;.join(out)
 
-    def _order_dirs(self, shell=None):
+    def _order_dirs(self, shell=False, order_dict=None):
         &#39;&#39;&#39;set order of redcording directories
         &#39;&#39;&#39;
         if &#39;SSH_CONNECTION&#39; in os.environ:
             shell = True
-        elif shell is None:
-            shell = False
 
         if self.recording_dirs == []:
             return
 
-        self.recording_dirs = [x[:-1] if x.endswith(&#39;/&#39;) else x
-                               for x in self.recording_dirs]
-        top_dirs = {os.path.basename(x): os.path.dirname(x)
-                    for x in self.recording_dirs}
-        file_dirs = list(top_dirs.keys())
-        order_dict = dict.fromkeys(file_dirs, 0)
-        tmp = userIO.dictIO(order_dict, shell=shell)
-        order_dict = userIO.fill_dict(order_dict,
-                                      (&#39;Set order of recordings (1-%i)\n&#39;
-                                       &#39;Leave blank to delete directory&#39;
-                                       &#39; from list&#39;) % len(file_dirs),
-                                      shell)
         if order_dict is None:
-            return
+            self.recording_dirs = [x[:-1] if x.endswith(os.sep) else x
+                                   for x in self.recording_dirs]
+            top_dirs = {os.path.basename(x): os.path.dirname(x)
+                        for x in self.recording_dirs}
+            file_dirs = list(top_dirs.keys())
+            order_dict = dict.fromkeys(file_dirs, 0)
+            tmp = userIO.dictIO(order_dict, shell=shell)
+            order_dict = userIO.fill_dict(order_dict,
+                                          (&#39;Set order of recordings (1-%i)\n&#39;
+                                           &#39;Leave blank to delete directory&#39;
+                                           &#39; from list&#39;) % len(file_dirs),
+                                          shell)
+            if order_dict is None:
+                return
 
-        file_dirs = [k for k, v in order_dict.items()
-                     if v is not None and v != 0]
-        file_dirs = sorted(file_dirs, key=order_dict.get)
-        file_dirs = [os.path.join(top_dirs.get(x), x) for x in file_dirs]
+            file_dirs = [k for k, v in order_dict.items()
+                         if v is not None and v != 0]
+            file_dirs = sorted(file_dirs, key=order_dict.get)
+            file_dirs = [os.path.join(top_dirs.get(x), x) for x in file_dirs]
+        else:
+            file_dirs = sorted(self.recording_dirs, key=order_dict.get)
+
         self.recording_dirs = file_dirs
 
     def _setup_taste_map(self):
@@ -607,7 +729,7 @@ False (default) for GUI</dd>
         self.save()
 
     @Logger(&#39;Detecting held units&#39;)
-    def detect_held_units(self, percent_criterion=95, shell=False):
+    def detect_held_units(self, percent_criterion=95, raw_waves=False, shell=False):
         &#39;&#39;&#39;Determine which units are held across recording sessions
         Grabs single units from each recording and compares consecutive
         recordings to determine if units were held
@@ -641,7 +763,9 @@ False (default) for GUI</dd>
         print(&#39;Saving output to : %s&#39; % save_dir)
 
         held_df, intra_J3, inter_J3 = hua.find_held_units(rec_dirs,
-                                                                 percent_criterion)
+                                                          percent_criterion,
+                                                          raw_waves=raw_waves)
+
         rl_dict = {os.path.basename(v) : k for k, v in self.rec_labels.items()}
         held_df = held_df.rename(columns=rl_dict)
 
@@ -656,7 +780,7 @@ False (default) for GUI</dd>
         # Write dataframe of held units to text file
         df_file = os.path.join(save_dir, &#39;held_units_table.txt&#39;)
         json_file = os.path.join(save_dir, &#39;held_units.json&#39;)
-        held_df.to_json(json_file, orient=&#39;records&#39;)
+        held_df.to_json(json_file, orient=&#39;records&#39;, lines=True)
 
         # Print table of held unti to text file, separate tables by pairs of recordings
         rec_pairs = [(rec_names[i], rec_names[i+1]) for i in range(len(rec_names) - 1)]
@@ -677,6 +801,7 @@ False (default) for GUI</dd>
 
         # Plot intra and inter J3
         dplt.plot_J3s(intra_J3, inter_J3, save_dir, percent_criterion)
+        self.save()
 
     def _assign_area(self, row):
         data_dir = self.root_dir
@@ -701,7 +826,122 @@ False (default) for GUI</dd>
 
         row[&#39;electrode&#39;] = electrode
         row[&#39;area&#39;] = area
-        return row</code></pre>
+        return row
+
+    @Logger(&#39;Running Spike Clustering&#39;)
+    def cluster_spikes(self, data_quality=None, multi_process=True,
+                       n_cores=None, custom_params=None):
+        &#39;&#39;&#39;Write clustering parameters to file and
+        Run blech_process on each electrode using GNU parallel
+
+        Parameters
+        ----------
+        data_quality : {&#39;clean&#39;, &#39;noisy&#39;, None (default)}
+            set if you want to change the data quality parameters for cutoff
+            and spike detection before running clustering. These parameters are
+            automatically set as &#34;clean&#34; during initial parameter setup
+        accept_params : bool, False (default)
+            set to True in order to skip popup confirmation of parameters when
+            running
+        &#39;&#39;&#39;
+        clustering_params = None
+        if custom_params:
+            clustering_params = custom_params
+        elif data_quality:
+            tmp = dio.params.load_params(&#39;clustering_params&#39;, self.root_dir,
+                                         default_keyword=data_quality)
+            if tmp:
+                clustering_params = tmp
+            else:
+                raise ValueError(&#39;%s is not a valid data_quality preset. Must &#39;
+                                 &#39;be &#34;clean&#34; or &#34;noisy&#34; or None.&#39;)
+
+
+        # Get electrodes, throw out &#39;dead&#39; electrodes
+        em = self.electrode_mapping
+        if &#39;dead&#39; in em.columns:
+            electrodes = em.Electrode[em[&#39;dead&#39;] == False].tolist()
+        else:
+            electrodes = em.Electrode.tolist()
+
+
+        # Setup progress bar
+        pbar = tqdm(total = len(electrodes))
+        def update_pbar(ans):
+            pbar.update()
+
+
+        # get clustering params
+        rec_dirs = list(self.rec_labels.values())
+        if clustering_params is None:
+            dat =  load_dataset(rec_dirs[0])
+            clustering_params = dat.clustering_params.copy()
+
+        print(&#39;\nRunning Blech Clust\n-------------------&#39;)
+        print(&#39;Parameters\n%s&#39; % pt.print_dict(clustering_params))
+
+        # Write clustering params to recording directories &amp; check for spike detection
+        spike_detect = True
+        for rd in rec_dirs:
+            dat = load_dataset(rd)
+            if dat.process_status[&#39;spike_detection&#39;] == False:
+                raise FileNotFoundError(&#39;Spike detection has not been run on %s&#39; % rd)
+
+            dat.clustering_params = clustering_params
+            wt.write_params_to_json(&#39;clustering_params&#39;, rd, clustering_params)
+            dat.save()
+
+        # Run clustering
+        clust_objs = [bclust.BlechClust(rec_dirs, x, params=clustering_params) for x in electrodes]
+        if multi_process:
+            if n_cores is None or n_cores &gt; multiprocessing.cpu_count():
+                n_cores = multiprocessing.cpu_count() - 1
+
+            pool = multiprocessing.Pool(n_cores)
+            for x in clust_objs:
+                pool.apply_async(x.run, callback=update_pbar)
+
+            pool.close()
+            pool.join()
+        else:
+            for x in clust_objs:
+                res = x.run()
+                update_pbar(res)
+
+        pbar.close()
+
+        for rd in rec_dirs:
+            dat = load_dataset(rd)
+            dat.process_status[&#39;spike_clustering&#39;] = True
+            dat.process_status[&#39;cleanup_clustering&#39;] = False
+            dat.save()
+
+        self.save()
+        print(&#39;Clustering Complete\n------------------&#39;)
+
+    def sort_spikes(self, electrode=None, shell=False):
+        if electrode is None:
+            electrode = userIO.get_user_input(&#39;Electrode #: &#39;, shell=shell)
+            if electrode is None or not electrode.isnumeric():
+                return
+
+            electrode = int(electrode)
+
+        rec_dirs = list(self.rec_labels.values())
+        for rd in rec_dirs:
+            dat = load_dataset(rd)
+            if not dat.process_status[&#39;cleanup_clustering&#39;]:
+                dat.cleanup_clustering()
+
+            dat.process_status[&#39;sort_units&#39;] = True
+
+        sorter = bclust.SpikeSorter(rec_dirs, electrode, shell=shell)
+        if not shell:
+           root, sorter_GUI = ssg.launch_sorter_GUI(sorter)
+           return root, sorter_GUI
+        else:
+            print(&#39;No shell UI yet&#39;)
+            return</code></pre>
 </details>
 <h3>Ancestors</h3>
 <ul class="hlist">
@@ -771,8 +1011,120 @@ If not passed then the preference set upon object creation is used</dd>
     self.save()</code></pre>
 </details>
 </dd>
+<dt id="blechpy.datastructures.experiment.experiment.cluster_spikes"><code class="name flex">
+<span>def <span class="ident">cluster_spikes</span></span>(<span>self, data_quality=None, multi_process=True, n_cores=None, custom_params=None)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Write clustering parameters to file and
+Run blech_process on each electrode using GNU parallel</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>data_quality</code></strong> :&ensp;{<code>'clean'</code>, <code>'noisy'</code>, <code>None</code> (default)}</dt>
+<dd>set if you want to change the data quality parameters for cutoff
+and spike detection before running clustering. These parameters are
+automatically set as "clean" during initial parameter setup</dd>
+<dt><strong><code>accept_params</code></strong> :&ensp;<code>bool</code>, <code>False</code> (default)</dt>
+<dd>set to True in order to skip popup confirmation of parameters when
+running</dd>
+</dl></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@Logger(&#39;Running Spike Clustering&#39;)
+def cluster_spikes(self, data_quality=None, multi_process=True,
+                   n_cores=None, custom_params=None):
+    &#39;&#39;&#39;Write clustering parameters to file and
+    Run blech_process on each electrode using GNU parallel
+
+    Parameters
+    ----------
+    data_quality : {&#39;clean&#39;, &#39;noisy&#39;, None (default)}
+        set if you want to change the data quality parameters for cutoff
+        and spike detection before running clustering. These parameters are
+        automatically set as &#34;clean&#34; during initial parameter setup
+    accept_params : bool, False (default)
+        set to True in order to skip popup confirmation of parameters when
+        running
+    &#39;&#39;&#39;
+    clustering_params = None
+    if custom_params:
+        clustering_params = custom_params
+    elif data_quality:
+        tmp = dio.params.load_params(&#39;clustering_params&#39;, self.root_dir,
+                                     default_keyword=data_quality)
+        if tmp:
+            clustering_params = tmp
+        else:
+            raise ValueError(&#39;%s is not a valid data_quality preset. Must &#39;
+                             &#39;be &#34;clean&#34; or &#34;noisy&#34; or None.&#39;)
+
+
+    # Get electrodes, throw out &#39;dead&#39; electrodes
+    em = self.electrode_mapping
+    if &#39;dead&#39; in em.columns:
+        electrodes = em.Electrode[em[&#39;dead&#39;] == False].tolist()
+    else:
+        electrodes = em.Electrode.tolist()
+
+
+    # Setup progress bar
+    pbar = tqdm(total = len(electrodes))
+    def update_pbar(ans):
+        pbar.update()
+
+
+    # get clustering params
+    rec_dirs = list(self.rec_labels.values())
+    if clustering_params is None:
+        dat =  load_dataset(rec_dirs[0])
+        clustering_params = dat.clustering_params.copy()
+
+    print(&#39;\nRunning Blech Clust\n-------------------&#39;)
+    print(&#39;Parameters\n%s&#39; % pt.print_dict(clustering_params))
+
+    # Write clustering params to recording directories &amp; check for spike detection
+    spike_detect = True
+    for rd in rec_dirs:
+        dat = load_dataset(rd)
+        if dat.process_status[&#39;spike_detection&#39;] == False:
+            raise FileNotFoundError(&#39;Spike detection has not been run on %s&#39; % rd)
+
+        dat.clustering_params = clustering_params
+        wt.write_params_to_json(&#39;clustering_params&#39;, rd, clustering_params)
+        dat.save()
+
+    # Run clustering
+    clust_objs = [bclust.BlechClust(rec_dirs, x, params=clustering_params) for x in electrodes]
+    if multi_process:
+        if n_cores is None or n_cores &gt; multiprocessing.cpu_count():
+            n_cores = multiprocessing.cpu_count() - 1
+
+        pool = multiprocessing.Pool(n_cores)
+        for x in clust_objs:
+            pool.apply_async(x.run, callback=update_pbar)
+
+        pool.close()
+        pool.join()
+    else:
+        for x in clust_objs:
+            res = x.run()
+            update_pbar(res)
+
+    pbar.close()
+
+    for rd in rec_dirs:
+        dat = load_dataset(rd)
+        dat.process_status[&#39;spike_clustering&#39;] = True
+        dat.process_status[&#39;cleanup_clustering&#39;] = False
+        dat.save()
+
+    self.save()
+    print(&#39;Clustering Complete\n------------------&#39;)</code></pre>
+</details>
+</dd>
 <dt id="blechpy.datastructures.experiment.experiment.detect_held_units"><code class="name flex">
-<span>def <span class="ident">detect_held_units</span></span>(<span>self, percent_criterion=95, shell=False)</span>
+<span>def <span class="ident">detect_held_units</span></span>(<span>self, percent_criterion=95, raw_waves=False, shell=False)</span>
 </code></dt>
 <dd>
 <section class="desc"><p>Determine which units are held across recording sessions
@@ -793,7 +1145,7 @@ False (default) for GUI</dd>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@Logger(&#39;Detecting held units&#39;)
-def detect_held_units(self, percent_criterion=95, shell=False):
+def detect_held_units(self, percent_criterion=95, raw_waves=False, shell=False):
     &#39;&#39;&#39;Determine which units are held across recording sessions
     Grabs single units from each recording and compares consecutive
     recordings to determine if units were held
@@ -827,7 +1179,9 @@ def detect_held_units(self, percent_criterion=95, shell=False):
     print(&#39;Saving output to : %s&#39; % save_dir)
 
     held_df, intra_J3, inter_J3 = hua.find_held_units(rec_dirs,
-                                                             percent_criterion)
+                                                      percent_criterion,
+                                                      raw_waves=raw_waves)
+
     rl_dict = {os.path.basename(v) : k for k, v in self.rec_labels.items()}
     held_df = held_df.rename(columns=rl_dict)
 
@@ -842,7 +1196,7 @@ def detect_held_units(self, percent_criterion=95, shell=False):
     # Write dataframe of held units to text file
     df_file = os.path.join(save_dir, &#39;held_units_table.txt&#39;)
     json_file = os.path.join(save_dir, &#39;held_units.json&#39;)
-    held_df.to_json(json_file, orient=&#39;records&#39;)
+    held_df.to_json(json_file, orient=&#39;records&#39;, lines=True)
 
     # Print table of held unti to text file, separate tables by pairs of recordings
     rec_pairs = [(rec_names[i], rec_names[i+1]) for i in range(len(rec_names) - 1)]
@@ -862,7 +1216,8 @@ def detect_held_units(self, percent_criterion=95, shell=False):
     dplt.plot_held_units(rec_dirs, held_df, save_dir, rec_names=rec_names)
 
     # Plot intra and inter J3
-    dplt.plot_J3s(intra_J3, inter_J3, save_dir, percent_criterion)</code></pre>
+    dplt.plot_J3s(intra_J3, inter_J3, save_dir, percent_criterion)
+    self.save()</code></pre>
 </details>
 </dd>
 <dt id="blechpy.datastructures.experiment.experiment.remove_recording"><code class="name flex">
@@ -927,6 +1282,40 @@ If not passed then the preference set upon object creation is used</dd>
     self.save()</code></pre>
 </details>
 </dd>
+<dt id="blechpy.datastructures.experiment.experiment.sort_spikes"><code class="name flex">
+<span>def <span class="ident">sort_spikes</span></span>(<span>self, electrode=None, shell=False)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def sort_spikes(self, electrode=None, shell=False):
+    if electrode is None:
+        electrode = userIO.get_user_input(&#39;Electrode #: &#39;, shell=shell)
+        if electrode is None or not electrode.isnumeric():
+            return
+
+        electrode = int(electrode)
+
+    rec_dirs = list(self.rec_labels.values())
+    for rd in rec_dirs:
+        dat = load_dataset(rd)
+        if not dat.process_status[&#39;cleanup_clustering&#39;]:
+            dat.cleanup_clustering()
+
+        dat.process_status[&#39;sort_units&#39;] = True
+
+    sorter = bclust.SpikeSorter(rec_dirs, electrode, shell=shell)
+    if not shell:
+       root, sorter_GUI = ssg.launch_sorter_GUI(sorter)
+       return root, sorter_GUI
+    else:
+        print(&#39;No shell UI yet&#39;)
+        return</code></pre>
+</details>
+</dd>
 </dl>
 </dd>
 </dl>
@@ -949,8 +1338,10 @@ If not passed then the preference set upon object creation is used</dd>
 <h4><code><a title="blechpy.datastructures.experiment.experiment" href="#blechpy.datastructures.experiment.experiment">experiment</a></code></h4>
 <ul class="">
 <li><code><a title="blechpy.datastructures.experiment.experiment.add_recording" href="#blechpy.datastructures.experiment.experiment.add_recording">add_recording</a></code></li>
+<li><code><a title="blechpy.datastructures.experiment.experiment.cluster_spikes" href="#blechpy.datastructures.experiment.experiment.cluster_spikes">cluster_spikes</a></code></li>
 <li><code><a title="blechpy.datastructures.experiment.experiment.detect_held_units" href="#blechpy.datastructures.experiment.experiment.detect_held_units">detect_held_units</a></code></li>
 <li><code><a title="blechpy.datastructures.experiment.experiment.remove_recording" href="#blechpy.datastructures.experiment.experiment.remove_recording">remove_recording</a></code></li>
+<li><code><a title="blechpy.datastructures.experiment.experiment.sort_spikes" href="#blechpy.datastructures.experiment.experiment.sort_spikes">sort_spikes</a></code></li>
 </ul>
 </li>
 </ul>
