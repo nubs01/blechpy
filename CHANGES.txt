@@ -1,3 +1,7 @@
+v2.0.7 (2020-1-21)
+-------------------
+- Actually fix views_waves_by_rec to show correct ISI violations
+
 v2.0.6 (2020-1-21)
 -------------------
 - Fix views_waves_by_rec to show correct ISI violations

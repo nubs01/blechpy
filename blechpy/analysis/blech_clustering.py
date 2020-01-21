@@ -1237,7 +1237,7 @@ class SpikeSorter(object):
         for i in np.unique(sm):
             idx = np.where(sm==i)[0]
             waves = c['spike_waveforms'][idx, :]
-            isi, v1, v2 = get_ISI_and_violations(c['spike_times'][idx,:], c['fs'][i])
+            isi, v1, v2 = get_ISI_and_violations(c['spike_times'][idx], c['fs'][i])
             title = ('Index : %i, Rec: %i\n1ms violations: %0.1f, 2ms violations: %0.1f'
                      '\ntotal waveforms: %i'
                      % (target_cluster, i, v1, v2, len(waves)))
