@@ -1,3 +1,12 @@
+v2.0.6 (2020-1-21)
+-------------------
+- Fix views_waves_by_rec to show correct ISI violations
+
+v2.0.5 (2020-1-21)
+-------------------
+- Fix error launching spike sorter gui from dataset
+- setup to run blech clust using UMAP instead of PCA is desired
+
 v2.0.4 (2020-1-17)
 -------------------
 - Change multiprocessing context to spawn to hopefully resolve freezing on many core machines
