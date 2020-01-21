@@ -68,7 +68,7 @@ def implement_pca(scaled_slices):
     return pca_slices, pca.explained_variance_ratio_
 
 
-def implement_umap(waves, n_pc=3, n_neighbors=10, min_dist=0.0):
+def implement_umap(waves, n_pc=3, n_neighbors=30, min_dist=0.0):
     reducer = umap.UMAP(n_components=n_pc,
                         n_neighbors=n_neighbors,
                         min_dist=min_dist)
@@ -298,6 +298,10 @@ def get_recording_cutoff(filt_el, sampling_rate, voltage_cutoff,
         # cutoff is still in seconds since 1 sec bins
 
     return recording_cutoff
+
+
+def UMAP_METRICS(waves, n_pc):
+    return compute_waveform_metrics(waves, n_pc, umap=True)
 
 
 class SpikeDetection(object):
@@ -589,7 +593,8 @@ class SpikeDetection(object):
 
 class BlechClust(object):
     def __init__(self, rec_dirs, electrode, out_dir=None, params=None,
-                 overwrite=False, no_write=False):
+                 overwrite=False, no_write=False, n_pc=3,
+                 data_transform=compute_waveform_metrics):
         '''Recording directories should be ordered to make spike sorting easier later on
         '''
         if isinstance(rec_dirs, str):
@@ -598,6 +603,8 @@ class BlechClust(object):
         rec_dirs = [x[:-1] if x.endswith(os.sep) else x for x in rec_dirs]
         self.rec_dirs = rec_dirs
         self.electrode = electrode
+        self._data_transform = data_transform
+        self._n_pc = n_pc
         if out_dir is None:
             if len(rec_dirs) > 1:
                 top = os.path.dirname(rec_dirs[0])
@@ -709,9 +716,12 @@ class BlechClust(object):
 
         return out
 
-    def run(self, n_pc=3, overwrite=False):
+    def run(self, n_pc=None, overwrite=False):
         if self.clustered and not overwrite:
             return True
+
+        if n_pc is None:
+            n_pc = self._n_pc
 
         GMM = ClusterGMM(self.params['max_iterations'],
                          self.params['num_restarts'], self.params['threshold'])
@@ -722,7 +732,7 @@ class BlechClust(object):
         # Save array to map spikes and predictions back to original recordings
         np.save(self._files['spike_map'], spike_map)
 
-        data, data_columns = compute_waveform_metrics(waveforms, n_pc)
+        data, data_columns = self._data_transform(waveforms, n_pc)
         amplitudes = get_waveform_amplitudes(waveforms)
 
         # Run GMM for each number of clusters from 2 to max_clusters
@@ -789,7 +799,8 @@ class BlechClust(object):
                              'Number of waveforms = %i' %
                              (c, violations_1ms, violations_2ms, len(idx)))
                 dplt.plot_waveforms(cluster_waves, title=title_str, save_file=wave_fn)
-                dplt.plot_ISIs(ISIs, total_spikes=len(idx), save_file=isi_fn)
+                if len(ISIs) > 0:
+                    dplt.plot_ISIs(ISIs, total_spikes=len(idx), save_file=isi_fn)
 
 
             clust_results.loc[n_clust] = [n_clust, True, bic, spikes_per_clust]
@@ -1216,8 +1227,10 @@ class SpikeSorter(object):
             fig.show()
 
     def plot_cluster_waveforms_by_rec(self, target_cluster):
-        if len(target_cluster) != 1:
+        if isinstance(target_cluster, list) and len(target_cluster) != 1:
             return
+        elif isinstance(target_cluster, list):
+            target_cluster = target_cluster[0]
 
         c = self._active[target_cluster]
         sm = c['spike_map']

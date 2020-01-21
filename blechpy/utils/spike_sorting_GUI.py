@@ -220,6 +220,9 @@ class SpikeSorterGUI(ttk.Frame):
         if len(chosen) != 1:
             return
 
+        if isinstance(chosen, list):
+            chosen = chosen[0]
+
         self.sorter.plot_cluster_waveforms_by_rec(chosen)
 
     def view_pca(self, *args):

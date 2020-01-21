@@ -30,7 +30,7 @@ class experiment(data_object):
         if 'SSH_CONNECTION' in os.environ:
             shell = True
 
-        super().__init__('experiment', exp_dir, exp_name)
+        super().__init__('experiment', exp_dir, exp_name, shell=shell)
 
         fd = [os.path.join(exp_dir, x) for x in os.listdir(exp_dir)]
         file_dirs = [x for x in fd if (os.path.isdir(x) and
@@ -337,7 +337,7 @@ class experiment(data_object):
 
     @Logger('Running Spike Clustering')
     def cluster_spikes(self, data_quality=None, multi_process=True,
-                       n_cores=None, custom_params=None):
+                       n_cores=None, custom_params=None, umap=False):
         '''Write clustering parameters to file and
         Run blech_process on each electrode using GNU parallel
 
@@ -396,10 +396,19 @@ class experiment(data_object):
 
             dat.clustering_params = clustering_params
             wt.write_params_to_json('clustering_params', rd, clustering_params)
-            dat.save()
+            # dat.save()
 
         # Run clustering
-        clust_objs = [bclust.BlechClust(rec_dirs, x, params=clustering_params) for x in electrodes]
+        if not umap:
+            clust_objs = [bclust.BlechClust(rec_dirs, x, params=clustering_params)
+                          for x in electrodes]
+        else:
+            clust_objs = [bclust.BlechClust(rec_dirs, x,
+                                            params=clustering_params,
+                                            data_transform=bclust.UMAP_METRICS,
+                                            n_pc=10)
+                          for x in electrodes]
+
         if multi_process:
             if n_cores is None or n_cores > multiprocessing.cpu_count():
                 n_cores = multiprocessing.cpu_count() - 1
@@ -421,9 +430,9 @@ class experiment(data_object):
             dat = load_dataset(rd)
             dat.process_status['spike_clustering'] = True
             dat.process_status['cleanup_clustering'] = False
-            dat.save()
+            # dat.save()
 
-        self.save()
+        # self.save()
         print('Clustering Complete\n------------------')
 
     def sort_spikes(self, electrode=None, shell=False):
