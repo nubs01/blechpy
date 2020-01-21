@@ -910,7 +910,7 @@ class dataset(data_object):
 
         sorter = clust.SpikeSorter(self.root_dir, electrode=electrode, shell=shell)
         if not shell:
-            root, sorting_GUI = ssg.SpikeSorterGUI(sorter)
+            root, sorting_GUI = ssg.launch_sorter_GUI(sorter)
             return root, sorting_GUI
         else:
             # TODO: Make shell UI
