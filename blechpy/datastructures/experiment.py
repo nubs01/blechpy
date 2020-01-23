@@ -406,7 +406,7 @@ class experiment(data_object):
             clust_objs = [bclust.BlechClust(rec_dirs, x,
                                             params=clustering_params,
                                             data_transform=bclust.UMAP_METRICS,
-                                            n_pc=10)
+                                            n_pc=5)
                           for x in electrodes]
 
         if multi_process:

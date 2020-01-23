@@ -596,7 +596,7 @@ def plot_waveforms_pca(waveforms, cluster_ids=None, save_file=None):
 
 
 def plot_waveforms_umap(waveforms, cluster_ids=None, save_file=None,
-                       n_neighbors=20, min_dist=0.1):
+                       n_neighbors=30, min_dist=0.0):
     '''Plot UMAP view of clusters from spike_sorting
 
     Parameters
