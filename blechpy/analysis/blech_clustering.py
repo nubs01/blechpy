@@ -967,6 +967,7 @@ class SpikeSorter(object):
         # Match recording directory ordering to clustering
         self.rec_dirs = clust.rec_dirs
         self.clustering = clust
+        self._current_solution = None
         self._active = None
         self._last_saved = None
         self._previous = None
@@ -974,14 +975,43 @@ class SpikeSorter(object):
         self._split_results = None
         self._split_starter = None
         self._split_index = None
+        self._last_umap_embedding = None
+        self._last_action = None
+        self._last_popped = None  # Dict of indices to clusters
+        self._last_added = None  # List of indices
+
+    def undo(self):
+        if self._last_action is None:
+            return
+
+        if self._last_action == 'save':
+            self.undo_last_save()
+            return
+
+        # Remove last added
+        for k in reversed(sorted(self._last_added)):
+            self._active.pop(k)
+
+        # Insert previous clusters
+        for k in sorted(self._last_popped.keys()):
+            self._active.insert(self._last_popped[k])
+
+        # reset
+        self._last_action = None
+        self._last_popped = None
+        self._last_added = None
 
     def set_active_clusters(self, solution_num):
+        self._current_solution = solution_num
         cluster_nums = list(range(solution_num))
         clusters = self.clustering.get_clusters(solution_num, cluster_nums)
         if len(clusters) == 0:
             raise ValueError('Solution or clusters not found')
 
         self._active = clusters
+        self._last_action = None
+        self._last_popped = None
+        self._last_added = None
 
     def save_clusters(self, target_clusters, single_unit, pyramidal, interneuron):
         '''Saves active clusters as cells, write them to the h5_files in the
@@ -1008,6 +1038,9 @@ class SpikeSorter(object):
             raise ValueError('Length of input lists must match number of '
                              'active clusters. Expected %i' % n_clusters)
 
+        self._last_action = 'save'
+        self._last_popped = {i: self._active[i] for i in target_clusters}
+        self._last_added = []
         clusters = [self._active[i] for i in target_clusters]
         rec_key = self.clustering._rec_key
         self._last_saved = dict.fromkeys(rec_key.keys(), None)
@@ -1052,7 +1085,6 @@ class SpikeSorter(object):
                          'directories.', shell=True)
         self._active = [self._active[i] for i in range(len(self._active))
                         if i not in target_clusters]
-        self._previous = clusters
 
     def undo_last_save(self):
         if self._last_saved is None:
@@ -1064,9 +1096,13 @@ class SpikeSorter(object):
             for unit in reversed(np.sort(last_saved[i])):
                 h5io.delete_unit(rec, unit)
 
-        self._active.extend(self._previous)
+        for k in sorted(self._last_popped.keys()):
+            self._active.insert(k, self._last_popped[k])
+
         self._last_saved = None
-        self._previous = None
+        self._last_popped = None
+        self._last_added = None
+        self._last_action = None
 
     def split_cluster(self, target_clust, n_iter, n_restart, thresh, n_clust,
                       store_split=False, umap=False):
@@ -1077,50 +1113,59 @@ class SpikeSorter(object):
 
         cluster = self._active.pop(target_clust)
         self._split_starter = cluster
-        GMM = ClusterGMM(n_iter, n_restart, thresh)
-        waves = cluster['spike_waveforms']
-        data, data_columns = compute_waveform_metrics(waves, umap=umap)
-        model, predictions, bic = GMM.fit(data, n_clust)
-        new_clusts = []
-        for i in np.unique(predictions):
-            idx = np.where(predictions == i)[0]
-            edit_str = (cluster['manipulations'] + 'Split %s into %i '
-                        'clusters. This is sub-cluster %i'
-                        % (cluster['manipulations'], n_clust, i))
-            tmp_clust = {'Cluster Name': cluster['Cluster Name'] + '-%i' % i,
-                         'solution_num': cluster['solution_num'],
-                         'cluster_num': cluster['cluster_num'],
-                         'cluster_id': cluster['cluster_id']*10+i,
-                         'spike_waveforms': waves[idx],
-                         'spike_times': cluster['spike_times'][idx],
-                         'spike_map': cluster['spike_map'][idx],
-                         'rec_key': cluster['rec_key'].copy(),
-                         'fs': cluster['fs'],
-                         'offsets': cluster['offsets'],
-                         'manipulations': edit_str}
-            new_clusts.append(tmp_clust)
+        self._split_index = target_clust
 
-        # Plot cluster and ask to choose which to keep
-        figs = []
-        for i, c in enumerate(new_clusts):
-            _, viol_1ms, viol_2ms = get_ISI_and_violations(c['spike_times'], c['fs'], c['spike_map'])
-            plot_title = ('Index: %i\n1ms violations: %i, 2ms violations: %i\n'
-                          'Total Waveforms: %i'
-                          % (i, viol_1ms, viol_2ms, len(c['spike_times'])))
-            tmp_fig, _ = dplt.plot_waveforms(c['spike_waveforms'], title=plot_title)
-            figs.append(tmp_fig)
-            tmp_fig.show()
+        try:
+            GMM = ClusterGMM(n_iter, n_restart, thresh)
+            waves = cluster['spike_waveforms']
+            data, data_columns = compute_waveform_metrics(waves, umap=umap)
+            model, predictions, bic = GMM.fit(data, n_clust)
+            new_clusts = []
+            for i in np.unique(predictions):
+                idx = np.where(predictions == i)[0]
+                edit_str = (cluster['manipulations'] + 'Split %s into %i '
+                            'clusters. This is sub-cluster %i'
+                            % (cluster['manipulations'], n_clust, i))
+                tmp_clust = {'Cluster Name': cluster['Cluster Name'] + '-%i' % i,
+                             'solution_num': cluster['solution_num'],
+                             'cluster_num': cluster['cluster_num'],
+                             'cluster_id': cluster['cluster_id']*10+i,
+                             'spike_waveforms': waves[idx],
+                             'spike_times': cluster['spike_times'][idx],
+                             'spike_map': cluster['spike_map'][idx],
+                             'rec_key': cluster['rec_key'].copy(),
+                             'fs': cluster['fs'],
+                             'offsets': cluster['offsets'],
+                             'manipulations': edit_str}
+                new_clusts.append(tmp_clust)
 
-        f2 = dplt.plot_waveforms_pca([c['spike_waveforms'] for c in new_clusts])
-        figs.append(f2)
-        f2.show()
+            # Plot cluster and ask to choose which to keep
+            figs = []
+            for i, c in enumerate(new_clusts):
+                _, viol_1ms, viol_2ms = get_ISI_and_violations(c['spike_times'], c['fs'], c['spike_map'])
+                plot_title = ('Index: %i\n1ms violations: %i, 2ms violations: %i\n'
+                              'Total Waveforms: %i'
+                              % (i, viol_1ms, viol_2ms, len(c['spike_times'])))
+                tmp_fig, _ = dplt.plot_waveforms(c['spike_waveforms'], title=plot_title)
+                figs.append(tmp_fig)
+                tmp_fig.show()
+
+            f2 = dplt.plot_waveforms_pca([c['spike_waveforms'] for c in new_clusts])
+            figs.append(f2)
+            f2.show()
+        except:
+            # So cluster isn't lost with error
+            self._active.insert(target_clust, cluster)
+            self._split_starter = None
+            self._split_index = None
+            raise
 
         if store_split:
             self._split_results = new_clusts
-            self._split_index = target_clust
             return new_clusts
         else:
             self._split_starter = None
+            self._split_index = None
             selection_list = ['all'] + ['%i' % i for i in range(len(new_clusts))]
             prompt = 'Select split clusters to keep\nCancel to reset.'
             ans = userIO.select_from_list(prompt, selection_list,
@@ -1130,6 +1175,10 @@ class SpikeSorter(object):
                 self._active.insert(target_clust, cluster)
             else:
                 keepers = [new_clusts[int(i)] for i in ans]
+                start_idx = len(self._active)
+                self._last_added = list(range(start_idx, start_idx+len(keepers)))
+                self._last_popped = {target_clust: cluster}
+                self._last_action = 'split'
                 self._active.extend(keepers)
 
             return True
@@ -1142,6 +1191,10 @@ class SpikeSorter(object):
             self._active.insert(self._split_index, self._split_starter)
         else:
             keepers = [self._split_results[i] for i in choices]
+            start_idx = len(self._active)
+            self._last_added = list(range(start_idx, start_idx+len(keepers)))
+            self._last_popped = {self._split_index: self._split_starter}
+            self._last_action = 'split'
             self._active.extend(keepers)
 
         self._split_index = None
@@ -1153,7 +1206,12 @@ class SpikeSorter(object):
             raise ValueError('Target cluster is out of range.')
 
         new_clust = []
+        self._last_popped = {}
+        self._last_action = 'merge'
+        self._last_added = []
         for c in target_clusters:
+            self._last_popped[c] = self._active[c]
+
             if len(new_clust) == 0:
                 new_clust = deepcopy(self._active[c])
                 continue
@@ -1207,9 +1265,19 @@ class SpikeSorter(object):
         self._active = [self._active[i] for i in range(len(self._active))
                         if i not in target_clusters]
 
+        self._last_added = [len(self._active)]
         self._active.append(new_clust)
 
     def discard_clusters(self, target_clusters):
+        if isinstance(target_clusters, int):
+            target_clusters = [target_clusters]
+
+        if len(target_clusters) == 0:
+            return
+
+        self._last_action = 'discard'
+        self._last_popped = {i: self._active[i] for i in target_clusters}
+        self._last_added = []
         self._active = [self._active[i] for i in range(len(self._active))
                         if i not in target_clusters]
 

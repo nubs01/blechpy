@@ -91,7 +91,7 @@ class SpikeSorterGUI(ttk.Frame):
         viewRaster = ttk.Button(buttons, text='View Raster', command=self.view_raster)
         viewISI = ttk.Button(buttons, text='View ISI', command=self.view_ISI)
         discard = ttk.Button(buttons, text='Discard Clusters', command=self.discard_clusters)
-        undoSave = ttk.Button(buttons, text='Undo Save', command=self.undo_save)
+        self._undo_button = ttk.Button(buttons, text='Undo', command=self.undo)
         merge.pack(side='top', fill='x', pady=5)
         split.pack(side='top', fill='x', pady=5)
         splitUMAP.pack(side='top', fill='x', pady=5)
@@ -103,7 +103,8 @@ class SpikeSorterGUI(ttk.Frame):
         viewRaster.pack(side='top', fill='x', pady=5)
         viewISI.pack(side='top', fill='x', pady=5)
         discard.pack(side='top', fill='x', pady=5)
-        undoSave.pack(side='top', fill='x', pady=5)
+        self._undo_button.pack(side='top', fill='x', pady=5)
+        self._undo_button.config(state='disabled')
 
         self._ui_frame = ui
 
@@ -114,6 +115,12 @@ class SpikeSorterGUI(ttk.Frame):
 
 
     def update(self):
+        if self.sorter._last_action is not None:
+            self._undo_button.config(text='Undo ' + self.sorter._last_action,
+                                     state='normal')
+        else:
+            self._undo_button.config(text='Undo', state='disabled')
+
         # Check active clusters
         clusters = list(range(len(self.sorter._active)))
 

@@ -520,7 +520,7 @@ def plot_spike_raster(spike_times, waveforms,
     all_waves = np.vstack(waveforms)
     pca = PCA(n_components=1)
     pca.fit(all_waves)
-    colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+    colors = [plt.cm.jet(x) for x in np.linspace(0,1,len(waveforms))]
     for i, c in enumerate(zip(cluster_ids, spike_times, waveforms)):
         pcs = pca.transform(c[2])
         ax.scatter(c[1], pcs[:, 0], s=5,
@@ -596,7 +596,7 @@ def plot_waveforms_pca(waveforms, cluster_ids=None, save_file=None):
 
 
 def plot_waveforms_umap(waveforms, cluster_ids=None, save_file=None,
-                       n_neighbors=30, min_dist=0.0):
+                        n_neighbors=30, min_dist=0.0, embedding=None):
     '''Plot UMAP view of clusters from spike_sorting
 
     Parameters
@@ -621,12 +621,14 @@ def plot_waveforms_umap(waveforms, cluster_ids=None, save_file=None,
     if cluster_ids is None:
         cluster_ids = list(range(len(waveforms)))
 
-    reducer = umap.UMAP(n_neighbors=n_neighbors, min_dist=min_dist)
-    mapper = reducer.fit(np.vstack(waveforms))
+    if embedding is None:
+        reducer = umap.UMAP(n_neighbors=n_neighbors, min_dist=min_dist, n_components=2)
+        embedding = reducer.fit(np.vstack(waveforms))
+
     colors = [plt.cm.rainbow(x) for x in np.linspace(0, 1, len(waveforms))]
     fig, ax = plt.subplots(figsize=(15,10))
     for x, y, z in zip(waveforms, cluster_ids, colors):
-        u = mapper.transform(x)
+        u = embedding.transform(x)
         ax.scatter(u[:, 0],  u[:, 1], s=3, color=z, marker='o', label=y)
 
     ax.legend()
