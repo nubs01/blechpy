@@ -134,6 +134,10 @@ class SpikeSorterGUI(ttk.Frame):
 
         self._wavepane.update(wave_dict)
 
+    def undo(self):
+        self.sorter.undo()
+        self.update()
+
     def change_solution(self, *args):
         solutions = self._solution_var.get()
         self.sorter.set_active_clusters(solutions)

@@ -994,7 +994,7 @@ class SpikeSorter(object):
 
         # Insert previous clusters
         for k in sorted(self._last_popped.keys()):
-            self._active.insert(self._last_popped[k])
+            self._active.insert(k, self._last_popped[k])
 
         # reset
         self._last_action = None
