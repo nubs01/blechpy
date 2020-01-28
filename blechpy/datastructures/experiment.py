@@ -30,7 +30,7 @@ class experiment(data_object):
         if 'SSH_CONNECTION' in os.environ:
             shell = True
 
-        super().__init__('experiment', exp_dir, exp_name, shell=shell)
+        super().__init__('experiment', root_dir=exp_dir, data_name=exp_name, shell=shell)
 
         fd = [os.path.join(exp_dir, x) for x in os.listdir(exp_dir)]
         file_dirs = [x for x in fd if (os.path.isdir(x) and

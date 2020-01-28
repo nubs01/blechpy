@@ -237,7 +237,7 @@ class circus_clust(object):
             plt.close('all')
 
             for clust in cluster_data:
-                fig, ax = dplt.plot_cluster_waveforms(clust)
+                fig, ax = dplt.plot_waveforms(clust['spike_waveforms'])
                 fn = os.path.join(plot_dir, 'E%i_Ch%i_C%s_waveforms.png'
                                   % (electrode_num, channel, clust['cluster_id']))
                 fig.savefig(fn)
@@ -272,7 +272,7 @@ class circus_clust(object):
                 ISI, violations1, violations2 = bclust.get_ISI_and_violations(spike_times, fs)
                 # TODO: Actually make cluster data matrix
                 data = None
-                cluster = {'Cluster Name': cluster_name,
+                cluster = {'Cluster_Name': cluster_name,
                            'electrode': electrode_num,
                            'solution': channel_num,
                            'cluster_id': str(c),

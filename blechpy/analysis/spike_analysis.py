@@ -174,7 +174,6 @@ def get_mean_difference(A, B, axis=0):
     return C, SEM
 
 
-
 def zscore_to_baseline(time, fr):
     '''takes a firing rate array and zscores each row using the mean and st.
     dev over all trials during times < 0
@@ -215,3 +214,36 @@ def remove_baseline(time, fr):
     baseline = np.mean(fr[:, idx])
     norm_fr = fr - baseline
     return norm_fr
+
+def spike_time_xcorr(X, Y, binsize=1, max_t=10):
+    '''Compute cross-correlation histogram for 2 sets of spike times
+
+    Parameters
+    ----------
+    X : np.array, 1-D array of spike times in ms
+    Y: np.array, 1;D array of spike times in ms
+    binsize: int (optional), size of bins to use in histogram in ms(defualt=1)
+    max_t: int (optional), max time bin for histogram in ms(default=10)
+
+    Returns
+    -------
+    np.array, np.array
+    counts, bin_centers
+    '''
+    bin_edges = np.arange(-max_t, max_t+1, binsize)
+    bin_centers = (bin_edges+binsize/2)[:-1]
+
+    counts = np.zeros(bin_centers.shape)
+    for t in Y:
+        rel_t = X - t
+        counts += np.histogram(rel_t, bins=bin_edges)[0]
+
+    return counts, bin_centers
+
+def spike_time_acorr(X, binsize=1, max_t=10):
+    return spike_time_xcorr(X, X, binsize=binsize, max_t=max_t)
+
+
+
+
+

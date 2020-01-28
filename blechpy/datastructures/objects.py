@@ -13,7 +13,7 @@ class data_object(object):
             if root_dir is None or not os.path.isdir(root_dir):
                 raise NotADirectoryError('Must provide a valid root directory for the %s' % data_type)
 
-        if root_dir.endswith('/'):
+        if root_dir.endswith(os.sep):
             root_dir = root_dir[:-1]
 
         if data_name is None:

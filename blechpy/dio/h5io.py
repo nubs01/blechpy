@@ -1015,7 +1015,7 @@ def get_unit_as_cluster(file_dirs, unit, rec_key=None):
     spike_map = np.hstack(spike_map)
     times = np.hstack(times)
     waves = np.vstack(waves)
-    clusters = {'Cluster Name': un,
+    clusters = {'Cluster_Name': un,
                 'solution_num' : 0,
                 'cluster_num': unit,
                 'cluster_id': unit,

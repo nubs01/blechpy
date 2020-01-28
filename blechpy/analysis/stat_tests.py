@@ -21,7 +21,10 @@ def check_taste_response(rec_dir, unit_name, din, win_size=1500):
     pre = 1000 * np.sum(spikes[:, pre_idx], axis=1) / win_size
     post = 1000 * np.sum(spikes[:, post_idx], axis=1) / win_size
     stat, pval = mannwhitneyu(pre, post, alternative='two-sided')
-    stats = {'u-stat': stat, 'p-val': pval, 'pre': (np.mean(pre), sem(pre)),
-             'post': (np.mean(post), sem(post))}
 
-    return stat, pval
+    delta = [y-x for x,y in zip(pre, post)]
+    mean_delta = (np.mean(delta), np.sem(delta))
+    stats = {'u-stat': stat, 'p-val': pval, 'pre': (np.mean(pre), sem(pre)),
+             'post': (np.mean(post), sem(post)), 'delta': mean_delta}
+
+    return pval, stats

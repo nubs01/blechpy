@@ -591,7 +591,7 @@ class SpikeDetection(object):
         return '\n'.join(out)
 
 
-class BlechClust(object):
+class BlechClust(object): 
     def __init__(self, rec_dirs, electrode, out_dir=None, params=None,
                  overwrite=False, no_write=False, n_pc=3,
                  data_transform=compute_waveform_metrics):
@@ -881,17 +881,17 @@ class BlechClust(object):
             if len(idx)==0:
                 continue
 
-            tmp_clust = {'Cluster Name': 'Cluster_%i' % c,
-                         'solution_num': solution_num,
-                         'cluster_num': c,
-                         'cluster_id': 1,
-                         'spike_waveforms': waveforms[idx],
-                         'spike_times': times[idx],
-                         'spike_map': spike_map[idx],
-                         'rec_key': self._rec_key.copy(),
-                         'fs': fs,
-                         'offsets': offsets,
-                         'manipulations': ''}
+            tmp_clust = SpikeCluster('Cluster_%i' % c,
+                                     solution_num,
+                                     c,
+                                     1,
+                                     waveforms[idx],
+                                     times[idx],
+                                     spike_map[idx],
+                                     self._rec_key.copy(),
+                                     fs.copy(),
+                                     offsets.copy(),
+                                     manipulations='')
             out.append(tmp_clust)
 
         return out
@@ -1123,20 +1123,20 @@ class SpikeSorter(object):
             new_clusts = []
             for i in np.unique(predictions):
                 idx = np.where(predictions == i)[0]
-                edit_str = (cluster['manipulations'] + 'Split %s into %i '
+                edit_str = (cluster['manipulations'] + '\nSplit %s into %i '
                             'clusters. This is sub-cluster %i'
-                            % (cluster['manipulations'], n_clust, i))
-                tmp_clust = {'Cluster Name': cluster['Cluster Name'] + '-%i' % i,
-                             'solution_num': cluster['solution_num'],
-                             'cluster_num': cluster['cluster_num'],
-                             'cluster_id': cluster['cluster_id']*10+i,
-                             'spike_waveforms': waves[idx],
-                             'spike_times': cluster['spike_times'][idx],
-                             'spike_map': cluster['spike_map'][idx],
-                             'rec_key': cluster['rec_key'].copy(),
-                             'fs': cluster['fs'],
-                             'offsets': cluster['offsets'],
-                             'manipulations': edit_str}
+                            % (cluster['Cluster_Name'], n_clust, i))
+                tmp_clust = SpikeCluster(cluster['Cluster_Name'] + '-%i' % i,
+                                         cluster['solution_num'],
+                                         cluster['cluster_num'],
+                                         cluster['cluster_id']*10+i,
+                                         waves[idx],
+                                         cluster['spike_times'][idx],
+                                         cluster['spike_map'][idx],
+                                         cluster['rec_key'].copy(),
+                                         cluster['fs'].copy(),
+                                         cluster['offsets'].copy(),
+                                         manipulations=edit_str)
                 new_clusts.append(tmp_clust)
 
             # Plot cluster and ask to choose which to keep
@@ -1259,8 +1259,8 @@ class SpikeSorter(object):
             new_clust['spike_map'] = spike_map
             new_clust['spike_times'] = times
             new_clust['spike_waveforms'] = waves
-            new_clust['manipulations'] += '\nMerged with %s.' % clust['Cluster Name']
-            new_clust['Cluster Name'] += '+' + clust['Cluster Name'].replace('Cluster_','')
+            new_clust['manipulations'] += '\nMerged with %s.' % clust['Cluster_Name']
+            new_clust['Cluster_Name'] += '+' + clust['Cluster_Name'].replace('Cluster_','')
 
         self._active = [self._active[i] for i in range(len(self._active))
                         if i not in target_clusters]
@@ -1338,16 +1338,8 @@ class SpikeSorter(object):
         vlines = {}
         for c in clusters:
             # Adjust spike times by offset so recordings are not overlapping
-            sm = c['spike_map']
-            st = c['spike_times'].copy().astype('float64')
-            for i in np.unique(sm):
-                idx = np.where(sm==i)[0]
-                st[idx] += c['offsets'][i]
-                st[idx] = st[idx]/c['fs'][i]  # convert to seconds
-                if vlines.get(i) is None and c['offsets'][i] != 0:
-                    vlines[i] = c['offsets'][i]/c['fs'][i]
-
-
+            st = c.get_spike_time_vector(units='s')
+            vlines = {i: c['offsets'][i] / c['fs'][i] for i in c['fs'].keys()}
             spike_times.append(st)
             spike_waves.append(c['spike_waveforms'])
 
@@ -1374,17 +1366,96 @@ class SpikeSorter(object):
             ax.set_title(title)
             fig.show()
 
+    def plot_cluster_acorr(self, target_cluster):
+        pass
+
+
     def get_mean_waveform(self, target_cluster):
         '''Returns mean waveform of target_cluster in active clusters. Also
         returns St. Dev. of waveforms
         '''
         cluster = self._active[target_cluster]
-        mean_wave = np.mean(cluster['spike_waveforms'], axis=0)
-        std_wave = np.std(cluster['spike_waveforms'], axis=0)
-        n_waves = cluster['spike_waveforms'].shape[0]
-        return mean_wave, std_wave, n_waves
+        return cluster.get_mean_waveform()
 
     def get_possible_solutions(self):
         results = self.clustering.results.dropna()
         converged = list(results[results['converged']].index)
         return converged
+
+
+class SpikeCluster(dict):
+    def __init__(self, name, solution, cluster, cluster_id, waves, times,
+                 spike_map, rec_key, fs={0: 30000}, offsets={0:0}, manipulations=''):
+        # Confirm spike_map, rec_key, fs and offsets are all in sync
+        rec_nums = np.unique(spike_map)
+        if (not all([x in rec_key.keys() for x in rec_nums]) or
+            not all([x in fs.keys() for x in rec_nums]) or
+            not all([x in offsets.keys() for x in rec_nums])):
+            raise ValueError('rec_key, fs and offsets must have entries for '
+                             'each unique element of spike_map')
+
+        # Confirm same number of waves, times and map entries
+        if waves.shape[0] != len(times) or len(times) != len(spike_map):
+            raise ValueError('Must have same number of waves, times and map entries')
+
+        super(SpikeCluster, self).__init__(Cluster_Name=name,
+                                           solution_num=solution,
+                                           cluster_num = cluster,
+                                           cluster_id=cluster_id,
+                                           spike_waveforms=waves,
+                                           spike_times=times,
+                                           spike_map=spike_map,
+                                           rec_key=rec_key,
+                                           fs=fs,
+                                           offsets=offsets,
+                                           manipulations=manipulations)
+
+    def get_spike_time_vector(self, units='samples'):
+        '''Return vector of all spike times with offsets added if multiple
+        recordings are present
+
+        Parameters
+        ----------
+        units : {'samples' (default), 'ms', 's'}, units for spike times returned
+
+        Returns
+        -------
+        numpy.ndarray
+        '''
+        if units.lower() == 'ms':
+            times = np.array([(a + self['offsets'][b]) / (self['fs'][b] / 1000)
+                              for a, b in
+                              zip(self['spike_times'].astype('float64'), self['spike_map'])])
+        elif units.lower() == 's':
+            times = np.array([(a + self['offsets'][b]) / self['fs'][b]
+                              for a, b in
+                              zip(self['spike_times'].astype('float64'), self['spike_map'])])
+        elif units.lower() == 'samples':
+            times = np.array([(a + self['offsets'][b]) for a, b in
+                              zip(self['spike_times'], self['spike_map'])])
+        else:
+            raise ValueError('units must be either samples or ms')
+
+        return times
+
+    def __eq__(self, other):
+        times1 = self.get_spike_time_vector(units='samples')
+        times2 = other.get_spike_time_vector(units='samples')
+        times1 = np.sort(times1)
+        times2= np.sort(times2)
+        return np.array_equal(times1, times2)
+
+    def get_mean_waveform(self):
+        '''Returns mean waveform of cluster. Also
+        returns St. Dev. of waveforms and number of waveforms
+
+        Returns
+        -------
+        np.ndarray, np.ndarray, int
+        mean waveform, st. dev of waveforms, number of waveforms 
+        '''
+        mean_wave = np.mean(self['spike_waveforms'], axis=0)
+        std_wave = np.std(self['spike_waveforms'], axis=0)
+        n_waves = self['spike_waveforms'].shape[0]
+        return mean_wave, std_wave, n_waves
+

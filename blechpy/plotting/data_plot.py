@@ -395,40 +395,6 @@ def plot_cluster_raster(clusters):
     return fig
 
 
-def plot_cluster_waveforms(cluster, index=None, save_file=None):
-    '''Plots a cluster with isi and violation info for viewing
-
-    Parameters
-    ----------
-    cluster : dict with cluster info
-
-    '''
-    fig, ax = blech_waveforms_datashader.waveforms_datashader(
-        cluster['spike_waveforms'])
-    ax.set_xlabel('Samples', fontsize=12)
-    ax.set_ylabel('Voltage (microvolts)', fontsize=12)
-    title_str = (('Cluster Name: %s\n2ms Violations=%0.1f%%, '
-                  '1ms Violations=%0.1f%%\nNumber of Waveforms'
-                  '=%i') %
-                 (cluster['Cluster Name'],
-                  cluster['2ms_violations'],
-                  cluster['1ms_violations'],
-                  cluster['spike_times'].shape[0]))
-    if index is not None:
-        title_str = 'Index: %i %s, ' % (index, title_str)
-
-    ax.set_title(title_str, fontsize=12)
-    plt.xticks(fontsize=10)
-    plt.yticks(fontsize=10)
-
-    if save_file is not None:
-        fig.savefig(save_file)
-        plt.close(fig)
-        return None, None
-    else:
-        return fig, ax
-
-
 def plot_waveforms(waveforms, title=None, save_file=None):
     '''Plots a cluster with isi and violation info for viewing
 
