@@ -184,7 +184,7 @@ def find_held_units(rec_dirs, percent_criterion=95, rec_names=None, raw_waves=Fa
         found_cells = resolve_duplicate_matches(found_cells)
         userIO.tell_user('Results:\n%s\n' % str(found_cells), shell=True)
         for i, row in enumerate(found_cells):
-            if i == 0:
+            if held_df.empty:
                 uL = 'A'
             else:
                 uL = held_df['unit'].iloc[-1]
@@ -213,10 +213,10 @@ def find_held_units(rec_dirs, percent_criterion=95, rec_names=None, raw_waves=Fa
                 continue
             elif idx1.size != 0:
                 held_df[rec2].iloc[idx1[0]] = unit2
-                held_df['J3'].iloc[idx1[0]].append(j3)
+                held_df['J3'].iloc[idx1[0]].append(float(j3))
             else:
                 held_df[rec1].iloc[idx2[0]] = unit1
-                held_df['J3'].iloc[idx2[0]].append(j3)
+                held_df['J3'].iloc[idx2[0]].append(float(j3))
 
     return held_df, intra_J3, inter_J3
 
