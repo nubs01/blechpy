@@ -458,6 +458,26 @@ def plot_ISIs(ISIs, total_spikes=None, save_file=None):
         return fig, ax
 
 
+def plot_correlogram(hist_counts, bin_centers, bin_edges, title=None, save_file=None):
+    fig, ax = plt.subplots(figsize=(10,6))
+    ax.hist(bin_centers, bins=bin_edges, weights=hist_counts, color='black')
+    ax.autoscale(axis='both', tight=True)
+    if title:
+        ax.set_title(title)
+    else:
+        ax.set_title('Correlogram')
+
+    ax.set_ylabel('Counts')
+    ax.set_xlabel('Lag')
+
+    if save_file:
+        fig.savefig(save_file)
+        fig.close()
+        return None, None
+    else:
+        return fig, ax
+
+
 def plot_spike_raster(spike_times, waveforms,
                       cluster_ids=None, save_file=None):
     '''Plot raster view of a cluster from blechpy.analysis.spike_sorting

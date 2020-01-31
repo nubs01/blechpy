@@ -13,7 +13,7 @@ from sklearn.mixture import GaussianMixture
 from sklearn.decomposition import PCA
 from blechpy.utils import write_tools as wt, print_tools as pt, math_tools as mt, userIO
 from blechpy.dio import h5io
-from blechpy.analysis import clustering
+from blechpy.analysis import clustering, spike_analysis as sas
 from blechpy.plotting import data_plot as dplt
 import datetime as dt
 
@@ -1354,7 +1354,6 @@ class SpikeSorter(object):
         if len(target_clusters) == 0:
             return
 
-        figs = []
         for i in target_clusters:
             cluster = self._active[i]
             isi, v1, v2 = get_ISI_and_violations(cluster['spike_times'],
@@ -1366,9 +1365,32 @@ class SpikeSorter(object):
             ax.set_title(title)
             fig.show()
 
-    def plot_cluster_acorr(self, target_cluster):
-        pass
+    def plot_clusters_acorr(self, target_clusters):
+        if len(target_clusters) == 0 or not all([x < len(self._active) for x in target_clusters]):
+            return
 
+        for i in target_clusters:
+            cluster = self._active[i]
+            acf, bin_centers, edges = sas.spike_time_acorr(cluster.get_spike_time_vector(units='ms'))
+            fig, ax = dplt.plot_correlogram(acf, bin_centers, edges)
+            title = 'Index: %i\nAutocorrelogram' % (i)
+            ax.set_title(title)
+            fig.show()
+
+    def plot_clusters_xcorr(self, target_clusters):
+        if len(target_clusters) == 0 or not all([x < len(self._active) for x in target_clusters]):
+            return
+
+        pairs = it.combinations(target_clusters, 2)
+        for x, y in pairs:
+            clust1 = self._active[x]
+            clust2 = self._active[y]
+            xcf, bin_centers, edges = sas.spike_time_xcorr(clust1.get_spike_time_vector(units='ms'),
+                                                    clust2.get_spike_time_vector(units='ms'))
+            fig, ax = dplt.plot_correlogram(xcf, bin_centers, edges)
+            title = 'Cross-correlogram\n%i vs %i' % (x, y)
+            ax.set_title(title)
+            fig.show()
 
     def get_mean_waveform(self, target_cluster):
         '''Returns mean waveform of target_cluster in active clusters. Also

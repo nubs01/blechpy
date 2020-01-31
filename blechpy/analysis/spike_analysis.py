@@ -234,14 +234,23 @@ def spike_time_xcorr(X, Y, binsize=1, max_t=10):
     bin_centers = (bin_edges+binsize/2)[:-1]
 
     counts = np.zeros(bin_centers.shape)
-    for t in Y:
-        rel_t = X - t
+    for spike in X:
+        rel_t = spike - Y
         counts += np.histogram(rel_t, bins=bin_edges)[0]
 
-    return counts, bin_centers
+    return counts, bin_centers, bin_edges
 
 def spike_time_acorr(X, binsize=1, max_t=10):
-    return spike_time_xcorr(X, X, binsize=binsize, max_t=max_t)
+    bin_edges = np.arange(-max_t, max_t+1, binsize)
+    bin_centers = (bin_edges+binsize/2)[:-1]
+
+    counts = np.zeros(bin_centers.shape)
+    for i, spike in enumerate(X):
+        Y = np.append(X[:i], X[i+1:-1])  # Exclude current spike
+        rel_t = spike - Y
+        counts += np.histogram(rel_t, bins=bin_edges)[0]
+
+    return counts, bin_centers, bin_edges
 
 
 

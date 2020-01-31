@@ -17,7 +17,7 @@ class SpikeSorterGUI(ttk.Frame):
         self.root = parent
         self.root.style = ttk.Style()
         self.root.style.theme_use('clam')
-        self.root.geometry('915x600')
+        self.root.geometry('915x800')
         self.pack(fill='both', expand=True)
         window_center(self.root)
 
@@ -90,6 +90,8 @@ class SpikeSorterGUI(ttk.Frame):
         viewUMAP = ttk.Button(buttons, text='View UMAP', command=self.view_umap)
         viewRaster = ttk.Button(buttons, text='View Raster', command=self.view_raster)
         viewISI = ttk.Button(buttons, text='View ISI', command=self.view_ISI)
+        viewXCORR = ttk.Button(buttons, text='View XCorr', command=self.view_xcorr)
+        viewACORR = ttk.Button(buttons, text='View AutoCorr', command=self.view_acorr)
         discard = ttk.Button(buttons, text='Discard Clusters', command=self.discard_clusters)
         self._undo_button = ttk.Button(buttons, text='Undo', command=self.undo)
         merge.pack(side='top', fill='x', pady=5)
@@ -102,6 +104,8 @@ class SpikeSorterGUI(ttk.Frame):
         viewUMAP.pack(side='top', fill='x', pady=5)
         viewRaster.pack(side='top', fill='x', pady=5)
         viewISI.pack(side='top', fill='x', pady=5)
+        viewACORR.pack(side='top', fill='x', pady=5)
+        viewXCORR.pack(side='top', fill='x', pady=5)
         discard.pack(side='top', fill='x', pady=5)
         self._undo_button.pack(side='top', fill='x', pady=5)
         self._undo_button.config(state='disabled')
@@ -265,6 +269,20 @@ class SpikeSorterGUI(ttk.Frame):
             return
 
         self.sorter.plot_clusters_raster(chosen)
+
+    def view_acorr(self, *args):
+        chosen = self._check_bar.get_selected()
+        if len(chosen) == 0:
+            return
+
+        self.sorter.plot_clusters_acorr(chosen)
+
+    def view_xcorr(self, *args):
+        chosen = self._check_bar.get_selected()
+        if len(chosen) == 0:
+            return
+
+        self.sorter.plot_clusters_xcorr(chosen)
 
     def discard_clusters(self, *args):
         chosen = self._check_bar.get_selected()

@@ -177,7 +177,7 @@ class experiment(data_object):
             raise FileNotFoundError('No .h5 file found in %s' % new_dir)
 
         if not any([x.endswith('dataset.p') for x in os.listdir(new_dir)]):
-            raise FileNotFoundEorr('*_dataset.p file not found in %s' % new_dir)
+            raise FileNotFoundError('*_dataset.p file not found in %s' % new_dir)
 
         if new_dir.endswith('/'):
             new_dir = new_dir[:-1]

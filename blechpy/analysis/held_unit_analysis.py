@@ -184,7 +184,7 @@ def find_held_units(rec_dirs, percent_criterion=95, rec_names=None, raw_waves=Fa
         found_cells = resolve_duplicate_matches(found_cells)
         userIO.tell_user('Results:\n%s\n' % str(found_cells), shell=True)
         for i, row in enumerate(found_cells):
-            if i == 0:
+            if held_df.empty:
                 uL = 'A'
             else:
                 uL = held_df['unit'].iloc[-1]
