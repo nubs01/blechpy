@@ -1,3 +1,8 @@
+v1.1.16 (2020-01-31)
+--------------------
+- Fix error is held unit lettering
+- Store J3 values as float not string
+
 v1.1.15 (2020-01-15)
 --------------------
 - Fix handling of multiple matches for held units. Now chooses units with lowest J3s to match.
