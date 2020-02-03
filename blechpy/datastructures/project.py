@@ -47,6 +47,7 @@ class project(data_object):
             wt.write_dict_to_json(params, self._files['params'])
         else:
             # TODO: Load defaults and allow user edit
+            pass
 
     def _file_check(self):
         '''Iterates though files and checks for their existence
