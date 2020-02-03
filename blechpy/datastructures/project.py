@@ -1,5 +1,8 @@
 import os
-from blechpy.datastructures.object import data_object
+import pandas as pd
+from blechpy.datastructures.objects import data_object, load_experiment
+from blechpy.utils.decorators import Logger
+from blechpy.utils import userIO
 
 class project(data_object):
 
@@ -10,8 +13,8 @@ class project(data_object):
 
 
         # Setup basics
-        self.super().__init__('project', data_name=proj_name,
-                              root_dir=proj_dir, shell=shell)
+        super().__init__('project', data_name=proj_name,
+                         root_dir=proj_dir, shell=shell)
 
         if exp_dirs is None:
             exp_dirs = userIO.get_filedirs('Select experiment directories',
@@ -27,7 +30,7 @@ class project(data_object):
 
         # Get experiment groups
         if exp_groups is None:
-            exp_groups = userIO.get_labels('Label experiment groups', exp_names)
+            exp_groups = userIO.get_labels(exp_names, 'Label Experiment Groups')
 
         self._exp_info = pd.DataFrame({'exp_name': exp_names,
                                        'exp_group': exp_groups,
@@ -48,6 +51,8 @@ class project(data_object):
         else:
             # TODO: Load defaults and allow user edit
             pass
+
+        self.save()
 
     def _file_check(self):
         '''Iterates though files and checks for their existence
