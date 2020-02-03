@@ -221,6 +221,9 @@ def find_held_units(rec_dirs, percent_criterion=95, rec_names=None, raw_waves=Fa
     return held_df, intra_J3, inter_J3
 
 def resolve_duplicate_matches(found_cells):
+    if len(found_cells) == 0:
+        return found_cells
+
     unique_units = np.unique(found_cells[:,0])
     new_found = []
     for unit in unique_units:

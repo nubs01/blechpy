@@ -3,7 +3,7 @@ from blechpy.datastructures.object import data_object
 
 class project(data_object):
 
-    def __init__(self, proj_name=None, proj_dir=None, exp_dirs=None,
+    def __init__(self, proj_dir=None, proj_name=None, exp_dirs=None,
                  exp_groups=None, params=None, shell=False):
         if 'SSH_CONNECTION' in os.environ:
             shell = True
