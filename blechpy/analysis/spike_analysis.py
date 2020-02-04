@@ -160,6 +160,10 @@ def get_mean_difference(A, B, axis=0):
     SEM : numpy.array, standard error of the mean differences, 1D array
     '''
     shape_ax = int(not axis)
+    if len(A.shape) == 1 and len(B.shape) == 1:
+        shape_ax = 0
+    elif len(A.shape) != len(B.shape):
+        raise ValueError('A and B must have same number of dimensions')
 
     m1 = np.mean(A, axis=axis)
     sd1 = np.std(A, axis=axis)
@@ -168,8 +172,11 @@ def get_mean_difference(A, B, axis=0):
     sd2 = np.std(B, axis=axis)
     n2 = B.shape[shape_ax]
     C = m2 - m1
-    SEM = np.sqrt((np.power(sd1, 2)/n1) + (np.power(sd2,2)/n2)) / \
-           np.sqrt(n1+n2)
+    # I don't know where I got this equation, using basic error propgation
+    # equation instead
+    # SEM = np.sqrt((np.power(sd1, 2)/n1) + (np.power(sd2,2)/n2)) / \
+    #        np.sqrt(n1+n2)
+    SEM = np.sqrt((np.power(sd1, 2)) + (np.power(sd2,2)))
 
     return C, SEM
 
