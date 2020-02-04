@@ -222,7 +222,7 @@ def remove_baseline(time, fr):
     norm_fr = fr - baseline
     return norm_fr
 
-def spike_time_xcorr(X, Y, binsize=1, max_t=10):
+def spike_time_xcorr(X, Y, binsize=1, max_t=20):
     '''Compute cross-correlation histogram for 2 sets of spike times
 
     Parameters
@@ -249,7 +249,7 @@ def spike_time_xcorr(X, Y, binsize=1, max_t=10):
     counts = counts / (len(X) * binsize)
     return counts, bin_centers, bin_edges
 
-def spike_time_acorr(X, binsize=1, max_t=50):
+def spike_time_acorr(X, binsize=1, max_t=20):
     bin_edges = np.arange(-max_t, max_t+1, binsize)
     bin_centers = (bin_edges+binsize/2)[:-1]
 
