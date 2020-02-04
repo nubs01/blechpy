@@ -467,7 +467,7 @@ def plot_correlogram(hist_counts, bin_centers, bin_edges, title=None, save_file=
     else:
         ax.set_title('Correlogram')
 
-    ax.set_ylabel('Counts')
+    ax.set_ylabel('spikes/s')
     ax.set_xlabel('Lag')
 
     if save_file:
