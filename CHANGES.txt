@@ -1,3 +1,8 @@
+v2.0.14 (2020-2-03)
+-------------------
+- Correction to how error is propogated when using spike_analysis.get_mean_difference
+- Correction to how spike time autocrrelation and xcorr are computed (from counts -> spike/s)
+
 v2.0.13 (2020-2-02)
 -------------------
 - Minor fix to project
