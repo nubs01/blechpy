@@ -4,6 +4,8 @@ import numpy as np
 import pandas as pd
 import itertools as it
 import umap
+import pywt
+from statsmodels.stats.diagnostic import lilliefors
 from copy import deepcopy
 from scipy.spatial.distance import mahalanobis
 from scipy import linalg
@@ -73,6 +75,18 @@ def implement_umap(waves, n_pc=3, n_neighbors=30, min_dist=0.0):
                         n_neighbors=n_neighbors,
                         min_dist=min_dist)
     return reducer.fit_transform(waves)
+
+
+def implement_wavelet_transform(waves, n_pc=10):
+    coeffs = pywt.wavedec(waves, 'haar', axis=1)
+    all_coeffs = np.column_stack(coeffs)
+    k_stats = np.zeros((all_coeffs.shape[1],))
+    p_vals = np.ones((all_coeffs.shape[1],))
+    for i, c in enumerate(all_coeffs.T):
+        k_stats[i], p_vals[i] = lilliefors(c, dist='norm')
+
+    idx = np.argsort(p_vals)
+    return all_coeffs[:, idx[:n_pc]]
 
 
 def compute_waveform_metrics(waves, n_pc=3, umap=False):

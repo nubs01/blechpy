@@ -3,10 +3,12 @@ import numpy as np
 import tables
 import os
 import umap
+import pywt
 from blechpy import dio
 from blechpy.analysis import spike_analysis as sas
 from scipy.stats import sem
 from scipy.ndimage.filters import gaussian_filter1d
+from statsmodels.stats.diagnostic import lilliefors
 from sklearn.decomposition import PCA
 from blechpy.plotting import blech_waveforms_datashader
 import matplotlib
@@ -627,6 +629,43 @@ def plot_waveforms_umap(waveforms, cluster_ids=None, save_file=None,
         return None
     else:
         return fig
+
+
+def plot_waveforms_wavelet_tranform(waveforms, cluster_ids=None,
+                                    save_file=None, n_pc=4):
+    all_waves = np.vstack(waveforms)
+    coeffs = pywt.wavedec(all_waves, 'haar', axis=1)
+    all_coeffs = np.column_stack(coeffs)
+    k_stats = np.zeros((all_coeffs.shape[1],))
+    p_vals = np.ones((all_coeffs.shape[1],))
+    for i, c in enumerate(all_coeffs.T):
+        k_stats[i], p_vals[i] = lilliefors(c, dist='norm')
+
+    idx = np.argsort(p_vals)
+    best_coeffs = all_coeffs[:, idx[:n_pc]]
+    data = []
+    for i, w in enumerate(waveforms):
+        tmp = best_coeffs[:w.shape[0]]
+        best_coeffs = best_coeffs[w.shape[0]:]
+        data.append(tmp)
+
+    if cluster_ids is None:
+        cluster_ids = list(range(len(waveforms)))
+
+    colors = [plt.cm.jet(x) for x in np.linspace(0,1,len(waveforms))]
+    pairs = list(it.combinations(range(n_pc), 2))
+    n_cols = 1
+    while np.power(n_cols, 2) < len(pairs):
+        n_cols++
+
+    n_rows = np.ceil(len(pairs)/n_cols)
+    fig, ax = plt.subplots(nrows=n_rows, ncols=n_cols,
+                           figsize=(5*n_cols, 5*n_rows))
+    ax = ax.reshape(len(pairs))
+    for i, p in enumerate(pairs):
+        for j, d in enumerate(data):
+            ax[i].scatter(d[:, p[0]], d[:, p[1]], color=colors[j], 
+
 
 
 def plot_recording_cutoff(filt_el, fs, cutoff, out_file=None):

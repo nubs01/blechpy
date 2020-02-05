@@ -174,9 +174,9 @@ def get_mean_difference(A, B, axis=0):
     C = m2 - m1
     # I don't know where I got this equation, using basic error propgation
     # equation instead
-    # SEM = np.sqrt((np.power(sd1, 2)/n1) + (np.power(sd2,2)/n2)) / \
-    #        np.sqrt(n1+n2)
-    SEM = np.sqrt((np.power(sd1, 2)) + (np.power(sd2,2)))
+    SEM = np.sqrt((np.power(sd1, 2)/n1) + (np.power(sd2,2)/n2)) / \
+            np.sqrt(n1+n2)
+    #SEM = np.sqrt((np.power(sd1, 2)) + (np.power(sd2,2)))
 
     return C, SEM
 
