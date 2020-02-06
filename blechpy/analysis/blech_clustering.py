@@ -1336,7 +1336,7 @@ class SpikeSorter(object):
 
         start_idx = len(self._active)
         self._last_added = list(range(start_idx, start_idx+len(keepers)))
-        self._last_popped = {target_clust: clust}
+        self._last_popped = {target_cluster: clust}
         self._last_action = 'split'
         self._active.extend(keepers)
 

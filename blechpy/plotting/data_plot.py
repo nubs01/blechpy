@@ -643,7 +643,10 @@ def plot_waveforms_wavelet_tranform(waveforms, cluster_ids=None,
         if len(np.unique(coef)) == 1:  # to avoid nans
             continue
 
-        k_stats[i], p_vals[i] = lilliefors(coef, dist='norm')
+        try:
+            k_stats[i], p_vals[i] = lilliefors(coef, dist='norm')
+        except ValueError:
+            continue
 
     # pick best coefficients as ones that are least normally distributed
     # that is lowest p-values from Lilliefors K-S test
