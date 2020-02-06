@@ -88,6 +88,7 @@ class SpikeSorterGUI(ttk.Frame):
                                   command=self.view_waves_by_rec)
         viewPCA = ttk.Button(buttons, text='View PCA', command=self.view_pca)
         viewUMAP = ttk.Button(buttons, text='View UMAP', command=self.view_umap)
+        viewWAVELET = ttk.Button(buttons, text='View Wavelets', command=self.view_wavelets)
         viewRaster = ttk.Button(buttons, text='View Raster', command=self.view_raster)
         viewISI = ttk.Button(buttons, text='View ISI', command=self.view_ISI)
         viewXCORR = ttk.Button(buttons, text='View XCorr', command=self.view_xcorr)
@@ -102,6 +103,7 @@ class SpikeSorterGUI(ttk.Frame):
         viewRecWaves.pack(side='top', fill='x', pady=5)
         viewPCA.pack(side='top', fill='x', pady=5)
         viewUMAP.pack(side='top', fill='x', pady=5)
+        viewWAVELET.pack(side='top', fill='x', pady=5)
         viewRaster.pack(side='top', fill='x', pady=5)
         viewISI.pack(side='top', fill='x', pady=5)
         viewACORR.pack(side='top', fill='x', pady=5)
@@ -254,6 +256,15 @@ class SpikeSorterGUI(ttk.Frame):
 
         self.disable_all()
         self.sorter.plot_clusters_umap(chosen)
+        self.enable_all()
+
+    def view_wavelets(self, *args):
+        chosen = self._check_bar.get_selected()
+        if len(chosen) == 0:
+            return
+
+        self.disable_all()
+        self.sorter.plot_clusters_wavelets(chosen)
         self.enable_all()
 
     def view_ISI(self, *args):

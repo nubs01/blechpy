@@ -4,6 +4,7 @@ import tables
 import os
 import umap
 import pywt
+import itertools as it
 from blechpy import dio
 from blechpy.analysis import spike_analysis as sas
 from scipy.stats import sem
@@ -638,9 +639,14 @@ def plot_waveforms_wavelet_tranform(waveforms, cluster_ids=None,
     all_coeffs = np.column_stack(coeffs)
     k_stats = np.zeros((all_coeffs.shape[1],))
     p_vals = np.ones((all_coeffs.shape[1],))
-    for i, c in enumerate(all_coeffs.T):
-        k_stats[i], p_vals[i] = lilliefors(c, dist='norm')
+    for i, coef in enumerate(all_coeffs.T):
+        if len(np.unique(coef)) == 1:  # to avoid nans
+            continue
 
+        k_stats[i], p_vals[i] = lilliefors(coef, dist='norm')
+
+    # pick best coefficients as ones that are least normally distributed
+    # that is lowest p-values from Lilliefors K-S test
     idx = np.argsort(p_vals)
     best_coeffs = all_coeffs[:, idx[:n_pc]]
     data = []
@@ -656,16 +662,35 @@ def plot_waveforms_wavelet_tranform(waveforms, cluster_ids=None,
     pairs = list(it.combinations(range(n_pc), 2))
     n_cols = 1
     while np.power(n_cols, 2) < len(pairs):
-        n_cols++
+        n_cols += 1
 
-    n_rows = np.ceil(len(pairs)/n_cols)
+    n_rows = int(np.ceil(len(pairs)/n_cols))
     fig, ax = plt.subplots(nrows=n_rows, ncols=n_cols,
-                           figsize=(5*n_cols, 5*n_rows))
-    ax = ax.reshape(len(pairs))
+                           figsize=(5*(n_cols+1), 5*n_rows))
+    ax = ax.reshape(ax.size)
     for i, p in enumerate(pairs):
-        for j, d in enumerate(data):
-            ax[i].scatter(d[:, p[0]], d[:, p[1]], color=colors[j], 
+        for x, y, z in zip(data, cluster_ids, colors):
+            ax[i].scatter(x[:, p[0]], x[:, p[1]], s=3, alpha=0.5,
+                          color=z, label=y, marker='o')
 
+        ax[i].set_xlabel('Coefficient %i' % p[0])
+        ax[i].set_ylabel('Coefficient %i' % p[1])
+
+    handles, labels = ax[0].get_legend_handles_labels()
+    if n_rows * n_cols > len(pairs):
+        ax[-1].set_axis_off()
+        ax[-1].legend(handles, labels, loc='center', shadow=True)
+    else:
+        idx = int(((n_cols * (n_rows-1)) -1) + np.ceil(n_cols/2))
+        ax[idx].legend(handles, labels, ncol=len(pairs), loc='upper center',
+                       bbox_to_anchor=(0.5, -0.05), shadow=True)
+
+    fig.suptitle('Wavelet transform coefficients')
+    if save_file:
+        fig.savefig(save_file)
+        return None, None
+    else:
+        return fig, ax.reshape((n_rows, n_cols))
 
 
 def plot_recording_cutoff(filt_el, fs, cutoff, out_file=None):

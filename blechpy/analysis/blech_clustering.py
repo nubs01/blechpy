@@ -1308,6 +1308,38 @@ class SpikeSorter(object):
             fig, ax = dplt.plot_waveforms(c['spike_waveforms'], title=title)
             fig.show()
 
+    def split_by_rec(self, target_cluster):
+        if isinstance(target_cluster, list) and len(target_cluster) != 1:
+            return
+        elif isinstance(target_cluster, list):
+            target_cluster = target_clsuter[0]
+
+        clust = self._active[target_cluster]
+        sm = clust['spike_map']
+        recs = np.unique(sm)
+        if len(sm) == 1:
+            return
+        else:
+            clust = self._active.pop(target_cluster)
+            st = clust['spike_times']
+            sw = clust['spike_waveforms']
+            keepers = []
+            for i in recs:
+                idx = np.where(sm == i)[0]
+                new_clust = deepcopy(clust)
+                new_clust['spike_times'] = st[idx]
+                new_clust['spike_waveforms'] = sw[idx, :]
+                new_clust['cluster_id'] = clust['cluster_id']*10 + i
+                new_clust['spike_map'] = sm[idx]
+                new_clust['manipulations'] = '\nSplit by recording'
+                keepers.append(new_clust)
+
+        start_idx = len(self._active)
+        self._last_added = list(range(start_idx, start_idx+len(keepers)))
+        self._last_popped = {target_clust: clust}
+        self._last_action = 'split'
+        self._active.extend(keepers)
+
     def plot_cluster_waveforms_by_rec(self, target_cluster):
         if isinstance(target_cluster, list) and len(target_cluster) != 1:
             return
@@ -1340,6 +1372,16 @@ class SpikeSorter(object):
 
         waves = [self._active[i]['spike_waveforms'] for i in target_clusters]
         fig = dplt.plot_waveforms_umap(waves, cluster_ids=target_clusters)
+        fig.show()
+
+    def plot_clusters_wavelets(self, target_clusters):
+        if len(target_clusters) == 0:
+            return
+
+        waves = [self._active[i]['spike_waveforms'] for i in target_clusters]
+        fig, ax = dplt.plot_waveforms_wavelet_tranform(waves,
+                                                       cluster_ids=target_clusters,
+                                                       n_pc=4)
         fig.show()
 
     def plot_clusters_raster(self, target_clusters):
