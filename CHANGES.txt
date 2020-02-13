@@ -2,6 +2,8 @@ v2.0.14 (2020-2-03)
 -------------------
 - Correction to how spike time autocrrelation and xcorr are computed (from counts -> spike/s)
 - Add wavelet transform view and split by rec to spike sorting
+- Add umap clustering option to dataset object
+- Unfinished module for Poisson HMM decoding of spike data
 
 v2.0.13 (2020-2-02)
 -------------------
