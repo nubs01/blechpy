@@ -1,10 +1,14 @@
 import math
 import numpy as np
 import itertools as it
+import pylab as plt
+import seaborn as sns
+import pandas as pd
+
 
 TEST_PARAMS = {'n_cells': 10, 'n_states': 4, 'state_seq_length': 5,
                'trial_time': 3.5, 'dt': 0.001, 'max_rate': 30, 'n_trials': 15,
-               'min_state_dur': 0.05, 'noise': 0.01, 'baseline_dur': .15}
+               'min_state_dur': 0.05, 'noise': 0.01, 'baseline_dur': 1}
 
 
 def poisson(rate, n, dt):
@@ -357,7 +361,8 @@ class TestData(object):
 
     def plot_state_raster(self, ax=None):
         fig, ax = plot_state_raster(self.spike_trains,
-                                    self.ground_truth['state_vectors'], ax=ax)
+                                    self.ground_truth['state_vectors'],
+                                    self.params['dt'], ax=ax)
         return fig, ax
 
 
@@ -523,21 +528,22 @@ class PoissonHMM(object):
     def plot_state_raster(self, ax=None):
         bestPaths, _ = self.get_best_path()
         data = self.data
-        fig, ax = plot_state_raster(data, bestPaths, ax)
+        fig, ax = plot_state_raster(data, bestPaths, self.dt, ax=ax)
         return fig, ax
 
     def plot_state_rates(self, ax=None):
         rates = self.emission
-        fig, ax = plot_state_rates(rates)
+        fig, ax = plot_state_rates(rates, ax=ax)
         return fig, ax
 
 
 
-def plot_state_raster(data, stateVec, ax=None):
+def plot_state_raster(data, stateVec, dt, ax=None):
     if len(data.shape) == 2:
         data = np.array([data])
 
     nTrials, nCells, nTimeSteps = data.shape
+    nStates = len(np.unique(stateVec))
 
     gradient = np.array([0 + i/(nCells+1) for i in range(nCells)])
     time = np.arange(0, nTimeSteps * dt * 1000, dt * 1000)
@@ -553,7 +559,7 @@ def plot_state_raster(data, stateVec, ax=None):
         for i, row in enumerate(spikes):
             idx = np.where(row == 1)[0]
             ax.scatter(time[idx], row[idx]*trial + gradient[i],
-                       c=[colors[x] for x in path[idx]], marker='|')
+                       c=[colors[int(x)] for x in path[idx]], marker='|')
 
     return fig, ax
 
@@ -567,9 +573,20 @@ def plot_state_rates(rates, ax=None):
     df = pd.DataFrame(rates, columns=['state %i' % i for i in range(nStates)])
     df['cell'] = ['cell %i' % i for i in df.index]
     df = pd.melt(df, 'cell', ['state %i' % i for i in range(nStates)], 'state', 'rate')
-    g = sns.catplot(x='state', y='rate', hue='cell', data=df, kind='bar',
-                    palette='muted', ax=ax)
-    g.despine(left=True)
-    g.set_ylabels('Firing Rate (Hz)')
+    sns.catplot(x='state', y='rate', hue='cell', data=df, kind='bar',
+                palette='muted', ax=ax)
 
+    return fig, ax
+
+def compare_hmm_to_truth(truth_dat, hmm):
+    fig, ax = plt.subplots(nrows=2, ncols=2, figsize=(15,10))
+    truth_dat.plot_state_raster(ax=ax[0,0])
+    truth_dat.plot_state_rates(ax=ax[1,0])
+    hmm.plot_state_raster(ax=ax[0,1])
+    hmm.plot_state_rates(ax=ax[1,1])
+    ax[0,0].set_title('Ground Truth States')
+    ax[0,1].set_title('HMM Best Decoded States')
+    ax[1,0].get_legend().remove()
+    ax[1,1].legend(loc='upper center', bbox_to_anchor=[-0.4, -0.6, 0.5, 0.5], ncol=5)
+    fig.show()
     return fig, ax
