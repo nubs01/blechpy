@@ -812,7 +812,7 @@ class dataset(data_object):
         return results
 
     @Logger('Running Blech Clust')
-    def blech_clust_run(self, data_quality=None, multi_process=True, n_cores=None):
+    def blech_clust_run(self, data_quality=None, multi_process=True, n_cores=None, umap=False):
         '''Write clustering parameters to file and
         Run blech_process on each electrode using GNU parallel
 
@@ -854,9 +854,16 @@ class dataset(data_object):
         def update_pbar(ans):
             pbar.update()
 
-        clust_objs = [clust.BlechClust(self.root_dir,
-                                       x, params=self.clustering_params)
-                      for x in electrodes]
+        if not umap:
+            clust_objs = [clust.BlechClust(self.root_dir, x, params=self.clustering_params)
+                          for x in electrodes]
+        else:
+            clust_objs = [clust.BlechClust(self.root_dir, x,
+                                           params=self.clustering_params,
+                                           data_transform=clust.UMAP_METRICS,
+                                           n_pc=5)
+                          for x in electrodes]
+
         if multi_process:
             if n_cores is None or n_cores > multiprocessing.cpu_count():
                 n_cores = multiprocessing.cpu_count() - 1
