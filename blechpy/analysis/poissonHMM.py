@@ -4,6 +4,7 @@ import itertools as it
 import pylab as plt
 import seaborn as sns
 import pandas as pd
+import multiprocessing as mp
 
 
 TEST_PARAMS = {'n_cells': 10, 'n_states': 4, 'state_seq_length': 5,
@@ -400,7 +401,8 @@ class PoissonHMM(object):
         self.data = None
         self.dt = None
 
-    def fit(self, spikes, dt, max_iter = 1000, convergence_thresh = 1e-4):
+    def fit(self, spikes, dt, max_iter = 1000, convergence_thresh = 1e-4,
+            parallel=False):
         if self.converged:
             return
 
@@ -409,14 +411,14 @@ class PoissonHMM(object):
         iterNum = 0
         while (not self.isConverged(convergence_thresh) and
                (iterNum < max_iter)):
-            self._step(spikes, dt)
+            self._step(spikes, dt, parallel=parallel)
 
             iterNum += 1
             print('Iter #%i complete.' % iterNum)
 
         self.converged = True
 
-    def _step(self, spikes, dt):
+    def _step(self, spikes, dt, parallel=False):
         if len(spikes.shape) == 2:
             spikes = np.array([spikes])
 
@@ -432,12 +434,31 @@ class PoissonHMM(object):
         # and then update
         gammas = np.zeros((nTrials, nStates, nTimeSteps))
         epsilons = np.zeros((nTrials, nStates, nStates, nTimeSteps-1))
-        for i, trial in enumerate(spikes):
-            alpha, norms = forward(trial, nStates, dt, PI, A, B)
-            beta = backward(trial, nStates, dt, A, B, norms)
-            tmp_gamma, tmp_epsilons = baum_welch(trial, nStates, dt, A, B, alpha, beta)
-            gammas[i, :, :] = tmp_gamma
-            epsilons[i, :, :, :] = tmp_epsilons
+        if parallel:
+            def update(ans):
+                idx = ans[0]
+                gammas[idx, :, :] = ans[1]
+                epsilons[idx, :, :, :] = ans[2]
+
+            def error(ans):
+                raise ValueError(ans)
+
+            n_cores = mp.cpu_count() - 1
+            pool = mp.get_context('spawn').Pool(n_cores)
+            for i, trial in enumerate(spikes):
+                pool.apply_async(wrap_baum_welch,
+                                 (i, trial, nStates, dt, PI, A, B),
+                                 callback=update, error_callback=error)
+
+            pool.close()
+            pool.join()
+        else:
+            for i, trial in enumerate(spikes):
+                alpha, norms = forward(trial, nStates, dt, PI, A, B)
+                beta = backward(trial, nStates, dt, A, B, norms)
+                tmp_gamma, tmp_epsilons = baum_welch(trial, nStates, dt, A, B, alpha, beta)
+                gammas[i, :, :] = tmp_gamma
+                epsilons[i, :, :, :] = tmp_epsilons
 
         # Store old parameters for convergence check
         oldPI = PI
@@ -590,3 +611,10 @@ def compare_hmm_to_truth(truth_dat, hmm):
     ax[1,1].legend(loc='upper center', bbox_to_anchor=[-0.4, -0.6, 0.5, 0.5], ncol=5)
     fig.show()
     return fig, ax
+
+
+def wrap_baum_welch(trial_id, trial_dat, nStates, dt, PI, A, B):
+    alpha, norms = forward(trial_dat, nStates, dt, PI, A, B)
+    beta = backward(trial_dat, nStates, dt, A, B, norms)
+    tmp_gamma, tmp_epsilons = baum_welch(trial_dat, nStates, dt, A, B, alpha, beta)
+    return trial_id, tmp_gamma, tmp_epsilons
