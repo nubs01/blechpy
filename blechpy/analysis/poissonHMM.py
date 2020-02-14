@@ -5,20 +5,36 @@ import pylab as plt
 import seaborn as sns
 import pandas as pd
 import multiprocessing as mp
+from numba import jit
 
 
 TEST_PARAMS = {'n_cells': 10, 'n_states': 4, 'state_seq_length': 5,
                'trial_time': 3.5, 'dt': 0.001, 'max_rate': 30, 'n_trials': 15,
                'min_state_dur': 0.05, 'noise': 0.01, 'baseline_dur': 1}
 
+FACTORIAL_LOOKUP = np.array([math.factorial(x) for x in range(20)])
 
+
+@jit(nopython=True)
+def fast_factorial(x):
+    if x < len(FACTORIAL_LOOKUP):
+        return FACTORIAL_LOOKUP[x]
+    else:
+        y = 1
+        for i in range(1,x+1):
+            y = y*i
+
+        return y
+
+@jit(nopython=True)
 def poisson(rate, n, dt):
     '''Gives probability of each neurons spike count assuming poisson spiking
     '''
-    tmp = np.power(rate*dt, n) / np.array([math.factorial(x) for x in n])
+    tmp = np.power(rate*dt, n) / np.array([fast_factorial(x) for x in n])
     tmp = tmp * np.exp(-rate*dt)
     return tmp
 
+@jit(nopython=True)
 def forward(spikes, nStates, dt, PI, A, B):
     '''Run forward algorithm to compute alpha = P(Xt = i| o1...ot, pi)
     Gives the probabilities of being in a specific state at each time point
@@ -54,22 +70,24 @@ def forward(spikes, nStates, dt, PI, A, B):
 
     # For each state, use the the initial state distribution and spike counts
     # to initalize alpha(:,1)
-    alpha = np.array([[PI[i] * np.prod(poisson(B[:,i], spikes[:,1], dt))
-                      for i in range(nStates)]])
-    norms = [np.sum(alpha)]
-    alpha = alpha/norms[0]
+    row = np.array([PI[i] * np.prod(poisson(B[:,i], spikes[:,0], dt))
+                    for i in range(nStates)])
+    alpha = np.zeros((nStates, nTimeSteps))
+    norms = [np.sum(row)]
+    alpha[:, 0] = row/norms[0]
     for t in range(1, nTimeSteps):
         tmp = np.array([np.prod(poisson(B[:, s], spikes[:, t], dt)) *
-                        np.sum(alpha[t-1, :] * A[:,s])
+                        np.sum(alpha[:, t-1] * A[:,s])
                         for s in range(nStates)])
-        norms.append(np.sum(tmp))
-        tmp = tmp / np.sum(tmp)
-        alpha = np.vstack((alpha, tmp))
+        tmp_norm = np.sum(tmp)
+        norms.append(tmp_norm)
+        tmp = tmp / tmp_norm
+        alpha[:, t] = tmp
 
-    alpha = alpha.T
     return alpha, norms
 
 
+@jit(nopython=True)
 def backward(spikes, nStates, dt, A, B, norms):
     ''' Runs the backward algorithm to compute beta = P(ot+1...oT | Xt=s)
     Computes the probability of observing all future observations given the
@@ -90,7 +108,9 @@ def backward(spikes, nStates, dt, A, B, norms):
     nTimeSteps = spikes.shape[1]
     beta = np.zeros((nStates, nTimeSteps))
     beta[:, -1] = 1  # Initialize final beta to 1 for all states
-    for t in reversed(range(nTimeSteps-1)):
+    tStep = list(range(nTimeSteps-1))
+    tStep.reverse()
+    for t in tStep:
         for s in range(nStates):
             beta[s,t] = np.sum((beta[:, t+1] * A[s,:]) *
                                np.prod(poisson(B[:, s], spikes[:, t+1], dt)))
@@ -99,6 +119,7 @@ def backward(spikes, nStates, dt, A, B, norms):
 
     return beta
 
+@jit(nopython=True)
 def baum_welch(spikes, nStates, dt, A, B, alpha, beta):
     nTimeSteps = spikes.shape[1]
     gamma = np.zeros((nStates, nTimeSteps))
@@ -107,10 +128,11 @@ def baum_welch(spikes, nStates, dt, A, B, alpha, beta):
         if t < nTimeSteps-1:
             gamma[:, t] = (alpha[:, t] * beta[:, t]) / np.sum(alpha[:,t] * beta[:,t])
             epsilonNumerator = np.zeros((nStates, nStates))
-            for si, sj in it.product(range(nStates), range(nStates)):
-                probs = np.prod(poisson(B[:,sj], spikes[:, t+1], dt))
-                epsilonNumerator[si, sj] = (alpha[si, t]*A[si, sj]*
-                                            beta[sj, t]*probs)
+            for si in range(nStates):
+                for sj in range(nStates):
+                    probs = np.prod(poisson(B[:,sj], spikes[:, t+1], dt))
+                    epsilonNumerator[si, sj] = (alpha[si, t]*A[si, sj]*
+                                                beta[sj, t]*probs)
 
             epsilons[:, :, t] = epsilonNumerator / np.sum(epsilonNumerator)
 
@@ -237,7 +259,9 @@ def poisson_viterbi(spikes, dt, PI, A, B):
     maxPathLogProb = T1[idx, -1]
     bestPath = np.zeros((nTimeSteps,))
     bestPath[-1] = bestPathEndState
-    for t in reversed(range(nTimeSteps-1)):
+    tStep = list(range(nTimeSteps-1))
+    tStep.reverse()
+    for t in tStep:
         bestPath[t] = T2[int(bestPath[t+1]), t+1]
 
     return bestPath, maxPathLogProb, T1, T2
@@ -423,7 +447,6 @@ class PoissonHMM(object):
             spikes = np.array([spikes])
 
         nTrials, nCells, nTimeSteps = spikes.shape
-        minFR = 1/(nTimeSteps*dt)
 
         A = self.transition
         B = self.emission
@@ -461,27 +484,12 @@ class PoissonHMM(object):
                 epsilons[i, :, :, :] = tmp_epsilons
 
         # Store old parameters for convergence check
-        oldPI = PI
-        oldA = A
-        oldB = B
+        self.update_history(PI, A, B)
 
-        PI = np.sum(gammas, axis=0)[:,1] / nTrials
-        Anumer = np.sum(np.sum(epsilons, axis=3), axis=0)
-        Adenom = np.sum(np.sum(gammas[:,:,:-1], axis=2), axis=0)
-        A = Anumer/Adenom
-        A = A/np.sum(A, axis=1)
-        Bnumer = np.sum(np.array([np.matmul(tmp_y, tmp_g.T)
-                                  for tmp_y, tmp_g in zip(spikes, gammas)]),
-                        axis=0)
-        Bdenom =  np.sum(np.sum(gammas, axis=2), axis=0)
-        B = (Bnumer / Bdenom)/dt
-        idx = np.where(B < minFR)[0]
-        B[idx] = minFR
-
+        PI, A, B = compute_new_matrices(spikes, dt, gammas, epsilons)
         self.transition = A
         self.emission = B
         self.inital_distribution = PI
-        self.update_history(oldPI, oldA, oldB)
 
     def update_history(self, oldPI, oldA, oldB):
         A = self.transition
@@ -564,7 +572,7 @@ def plot_state_raster(data, stateVec, dt, ax=None):
         data = np.array([data])
 
     nTrials, nCells, nTimeSteps = data.shape
-    nStates = len(np.unique(stateVec))
+    nStates = np.max(stateVec) +1
 
     gradient = np.array([0 + i/(nCells+1) for i in range(nCells)])
     time = np.arange(0, nTimeSteps * dt * 1000, dt * 1000)
@@ -618,3 +626,23 @@ def wrap_baum_welch(trial_id, trial_dat, nStates, dt, PI, A, B):
     beta = backward(trial_dat, nStates, dt, A, B, norms)
     tmp_gamma, tmp_epsilons = baum_welch(trial_dat, nStates, dt, A, B, alpha, beta)
     return trial_id, tmp_gamma, tmp_epsilons
+
+
+def compute_new_matrices(spikes, dt, gammas, epsilons):
+    nTrials, nCells, nTimeSteps = spikes.shape
+    minFR = 1/(nTimeSteps*dt)
+
+    PI = np.sum(gammas, axis=0)[:,1] / nTrials
+    Anumer = np.sum(np.sum(epsilons, axis=3), axis=0)
+    Adenom = np.sum(np.sum(gammas[:,:,:-1], axis=2), axis=0)
+    A = Anumer/Adenom
+    A = A/np.sum(A, axis=1)
+    Bnumer = np.sum(np.array([np.matmul(tmp_y, tmp_g.T)
+                              for tmp_y, tmp_g in zip(spikes, gammas)]),
+                    axis=0)
+    Bdenom =  np.sum(np.sum(gammas, axis=2), axis=0)
+    B = (Bnumer / Bdenom)/dt
+    idx = np.where(B < minFR)[0]
+    B[idx] = minFR
+
+    return PI, A, B
