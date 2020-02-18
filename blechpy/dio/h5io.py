@@ -756,7 +756,7 @@ def get_next_unit_name(rec_dir):
     return out
 
 
-def get_spike_data(rec_dir, unit, din):
+def get_spike_data(rec_dir, units=None, din=None):
     '''Opens hf5 file in rec_dir and returns a Trial x Time spike array and a
     1D time vector
     Parameters
@@ -771,17 +771,46 @@ def get_spike_data(rec_dir, unit, din):
     '''
     h5_file = get_h5_filename(rec_dir)
 
-    if isinstance(unit, int):
-        unit_num = unit
-    else:
-        unit_num = parse_unit_number(unit)
+    if units is None:
+        units = get_unit_names(rec_dir)
+    elif not isinstance(units, list):
+        units = [units]
 
+    unit_nums = []
+    for u in units:
+        if isinstance(u, int):
+            unit_nums.append(u)
+        else:
+            unit_nums.append(parse_unit_number(u))
+
+    unit_nums = np.array(unit_nums)
+
+    if not isinstance(din, list):
+        din = [din]
+
+    out = {}
+    time = None
     with tables.open_file(h5_file, 'r') as hf5:
-        st = hf5.root.spike_trains['dig_in_%i' % din]
-        time = st['array_time'][:]
-        spike_array = st['spike_array'][:, unit_num, :]
+        if din is None:
+            dins = [x._v_name for x in hf5.list_nodes('/spike_trains')]
+        else:
+            dins = ['dig_in_%i' % x for x in din]
 
-    return time, spike_array
+        for dig_str in dins:
+            st = hf5.root.spike_trains[dig_str]
+            tmp_time = st['array_time'][:]
+            if time is None:
+                time = tmp_time
+            elif not np.array_equal(time, tmp_time):
+                raise ValueError('Misaligned time vectors encountered')
+
+            spike_array = st['spike_array'][:, unit_nums, :]
+            out[dig_str] = spike_array
+
+    if len(out) == 1:
+        out = out.popitem()[1]
+
+    return time, out
 
 
 def get_raw_trace(rec_dir, electrode, el_map=None):
