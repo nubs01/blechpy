@@ -5,6 +5,7 @@ import pylab as plt
 import seaborn as sns
 import pandas as pd
 import multiprocessing as mp
+from scipy.spatial.distance import euclidean
 from numba import jit
 
 
@@ -38,7 +39,7 @@ def poisson(rate, n, dt):
 def forward(spikes, nStates, dt, PI, A, B):
     '''Run forward algorithm to compute alpha = P(Xt = i| o1...ot, pi)
     Gives the probabilities of being in a specific state at each time point
-    given the past observations and inital probabilities
+    given the past observations and initial probabilities
 
     Parameters
     ----------
@@ -48,7 +49,7 @@ def forward(spikes, nStates, dt, PI, A, B):
     nStates : int, # of hidden states predicted to have generate the spikes
     dt : float, timebin in seconds (i.e. 0.001)
     PI : np.array
-        nStates x 1 vector of inital state probabilities
+        nStates x 1 vector of initial state probabilities
     A : np.array
         nStates x nStates state transmission matrix with each entry ((i,j))
         giving the probability of transitioning from state i to state j
@@ -69,7 +70,7 @@ def forward(spikes, nStates, dt, PI, A, B):
     nTimeSteps = spikes.shape[1]
 
     # For each state, use the the initial state distribution and spike counts
-    # to initalize alpha(:,1)
+    # to initialize alpha(:,1)
     row = np.array([PI[i] * np.prod(poisson(B[:,i], spikes[:,0], dt))
                     for i in range(nStates)])
     alpha = np.zeros((nStates, nTimeSteps))
@@ -157,7 +158,7 @@ def poisson_baum_welch(spikes, nStates, dt, maxIter, convergence_thresh=1e-4):
 
     # Initialize transition matrix with high prob for transition to same
     # state and uniform elsewhere
-    # For Baum-Welch, inital parameters cannot be flat distribution
+    # For Baum-Welch, initial parameters cannot be flat distribution
     # TODO: Change this initialization
     A = np.zeros((nStates, nStates)) * (0.01 / (nStates-1))
     for i in range(nStates):
@@ -397,7 +398,7 @@ class PoissonHMM(object):
     Author: Roshan Nanu
     Adpated from code by Ben Ballintyn
     '''
-    def __init__(self, n_predicted_states, n_cells, max_history=500):
+    def __init__(self, n_predicted_states, n_cells, max_history=50):
         self.n_states = n_predicted_states
         self.n_cells = n_cells
         self._max_history = max_history
@@ -408,25 +409,34 @@ class PoissonHMM(object):
         nCells = self.n_cells
 
         # Initialize transition matrix with high stay probability
-        diag = np.random.normal(.99, .01, nStates)
+        print('Randomizing')
+        diag = np.abs(np.random.normal(.99, .01, nStates))
         A = np.abs(np.random.normal(0.01/(nStates-1), 0.01, (nStates, nStates)))
         for i in range(nStates):
             A[i, i] = diag[i]
             A[i,:] = A[i,:] / np.sum(A[i,:])
+            #d = diag[i]
+            #if d >=1:
+            #    d=0.99
+
+            #rem = 1 - d
+            #rest = np.array([*A[i,:i], *A[i,i+1:]])
+            #rest = rest * rem / np.sum(rest)
+            #A[i,:] = np.insert(rest, i, d)
 
         # Initialize rate matrix ("Emission" matrix)
         B = np.random.rand(nCells, nStates)
 
         self.transition = A
         self.emission = B
-        self.inital_distribution = np.ones((nStates,)) / nStates
+        self.initial_distribution = np.ones((nStates,)) / nStates
         self.converged = False
         self.history = None
         self.data = None
         self.dt = None
 
     def fit(self, spikes, dt, max_iter = 1000, convergence_thresh = 1e-4,
-            parallel=False):
+            parallel=True):
         if self.converged:
             return
 
@@ -450,7 +460,7 @@ class PoissonHMM(object):
 
         A = self.transition
         B = self.emission
-        PI = self.inital_distribution
+        PI = self.initial_distribution
         nStates = self.n_states
 
         # For multiple trials need to cmpute gamma and epsilon for every trial
@@ -464,7 +474,7 @@ class PoissonHMM(object):
                 epsilons[idx, :, :, :] = ans[2]
 
             def error(ans):
-                raise ValueError(ans)
+                raise RuntimeError(ans)
 
             n_cores = mp.cpu_count() - 1
             pool = mp.get_context('spawn').Pool(n_cores)
@@ -489,12 +499,12 @@ class PoissonHMM(object):
         PI, A, B = compute_new_matrices(spikes, dt, gammas, epsilons)
         self.transition = A
         self.emission = B
-        self.inital_distribution = PI
+        self.initial_distribution = PI
 
     def update_history(self, oldPI, oldA, oldB):
         A = self.transition
         B = self.emission
-        PI = self.inital_distribution
+        PI = self.initial_distribution
 
         if self.history is None:
             self.history = {}
@@ -521,7 +531,7 @@ class PoissonHMM(object):
         oldA = self.history['A'][-1]
         oldB = self.history['B'][-1]
 
-        PI = self.inital_distribution
+        PI = self.initial_distribution
         A = self.transition
         B = self.emission
 
@@ -529,42 +539,148 @@ class PoissonHMM(object):
         dA = np.sqrt(np.sum(np.power(oldA - A, 2)))
         dB = np.sqrt(np.sum(np.power(oldB - B, 2)))
         print('dPI = %f,  dA = %f,  dB = %f' % (dPI, dA, dB))
+
+        # TODO: determine if this is reasonable
+        # dB takes waaaaay longer to converge than the rest, i'm going to
+        # double the thresh just for that
+        dB = dB/2
+
         if not all([x < thresh for x in [dPI, dA, dB]]):
             return False
         else:
             return True
 
-    def get_best_path(self):
+    def get_best_paths(self, new_data=None, new_dt=None, new_mats=None, state_map=None):
         if not self.converged:
             raise ValueError('model not yet fitted')
 
         spikes = self.data
+        if new_data:
+            spikes = new_data
+
+        dt = self.dt
+        if new_dt:
+            dt = new_dt
+
+        PI = self.initial_distribution
+        A = self.transition
+        B = self.emission
+        if new_mats:
+            PI = new_mats['PI']
+            A = new_mats['A']
+            B = new_mats['B']
+
         if len(spikes.shape) == 2:
             spikes = np.array([spikes])
 
         nTrials, nCells, nTimeSteps = spikes.shape
         bestPaths = np.zeros((nTrials, nTimeSteps))-1
         pathProbs = np.zeros((nTrials,))
+
         for i, trial in enumerate(spikes):
-            bestPaths[i,:], pathProbs[i], _, _ = poisson_viterbi(trial, self.dt,
-                                                                 self.inital_distribution,
-                                                                 self.transition,
-                                                                 self.emission)
+            bestPaths[i,:], pathProbs[i], _, _ = poisson_viterbi(trial, dt, PI,
+                                                                 A, B)
+
+        # If the states you're comparing to have different numbers do this
+        if state_map is not None:
+            newPaths = np.zeros(bestPaths.shape)
+            for k,v in state_map.items():
+                idx = np.where(bestPaths == k)
+                newPaths[idx] = v
+
+            bestPaths = newPaths
 
         return bestPaths, pathProbs
 
+    def get_BIC(self, new_data=None, new_dt=None, new_mats=None):
+        PI = self.initial_distribution
+        A = self.transition
+        B = self.emission
+        if new_mats:
+            PI = new_mats['PI']
+            A = new_mats['A']
+            B = new_mats['B']
 
-    def plot_state_raster(self, ax=None):
-        bestPaths, _ = self.get_best_path()
+        bestPaths, maxLogProb = self.get_best_paths(new_data=new_data, new_dt=new_dt,
+                                            new_mats=new_mats)
+        maxLogProb = np.max(maxLogProb)
+
+        nParams = (A.shape[0]*(A.shape[1]-1) +
+                   (PI.shape[0]-1) +
+                   B.shape[0]*(B.shape[1]-1))
+
+        nPts = self.data.shape[-1]
+        if new_data:
+            nPts = new_data.shape[-1]
+
+        BIC = -2 * maxLogProb + nParams * np.log(nPts)
+        return BIC, bestPaths
+
+    def find_best_in_history(self):
+        self.update_history(self.initial_distribution,
+                            self.transition, self.emission)
+        hist = self.history
+        PIs = hist['PI']
+        As = hist['A']
+        Bs = hist['B']
+        iters = hist['iterations']
+        BICs = []
+        for PI, A, B in zip(PIs, As, Bs):
+            tmp = {'PI': PI, 'A': A, 'B': B}
+            tmp_bic, paths = self.get_BIC(new_mats=tmp)
+            BICs.append(tmp_bic)
+
+        idx = np.argmin(BICs)
+        out = {'PI': PIs[idx], 'A': As[idx], 'B': Bs[idx]}
+        return out, iters[idx], BICs
+
+    def set_matrices(self, new_mats):
+        self.initial_distribution = new_mats['PI']
+        self.transition = new_mats['A']
+        self.emission = new_mats['B']
+
+    def set_data(self, new_data, dt):
+        self.data = new_data
+        self.dt = dt
+
+    def plot_state_raster(self, ax=None, state_map=None):
+        bestPaths, _ = self.get_best_paths(state_map=state_map)
         data = self.data
         fig, ax = plot_state_raster(data, bestPaths, self.dt, ax=ax)
         return fig, ax
 
-    def plot_state_rates(self, ax=None):
+    def plot_state_rates(self, ax=None, state_map=None):
         rates = self.emission
+        if state_map:
+            idx = [state_map[k] for k in sorted(state_map.keys())]
+            maxState = np.max(list(state_map.values()))
+            newRates = np.zeros((rates.shape[0], maxState+1))
+            for k, v in state_map.items():
+                newRates[:, v] = rates[:, k]
+
+            rates = newRates
+
         fig, ax = plot_state_rates(rates, ax=ax)
         return fig, ax
 
+    def reorder_states(self, state_map):
+        idx = [state_map[k] for k in sorted(state_map.keys())]
+        PI = self.initial_distribution
+        A = self.transition
+        B = self.emission
+
+        newPI = PI[idx]
+        newB = B[:, idx]
+        newA = np.zeros(A.shape)
+        for x in range(A.shape[0]):
+            for y in range(A.shape[1]):
+                i = state_map[x]
+                j = state_map[y]
+                newA[i,j] = A[x,y]
+
+        self.initial_distribution = newPI
+        self.transition = newA
+        self.emission = newB
 
 
 def plot_state_raster(data, stateVec, dt, ax=None):
@@ -602,23 +718,119 @@ def plot_state_rates(rates, ax=None):
     df = pd.DataFrame(rates, columns=['state %i' % i for i in range(nStates)])
     df['cell'] = ['cell %i' % i for i in df.index]
     df = pd.melt(df, 'cell', ['state %i' % i for i in range(nStates)], 'state', 'rate')
-    sns.catplot(x='state', y='rate', hue='cell', data=df, kind='bar',
+    sns.barplot(x='state', y='rate', hue='cell', data=df,
                 palette='muted', ax=ax)
 
     return fig, ax
 
-def compare_hmm_to_truth(truth_dat, hmm):
+def compare_hmm_to_truth(truth_dat, hmm, state_map=None):
+    if state_map is None:
+        state_map = match_states(truth_dat.ground_truth['firing_rates'], hmm.emission)
+
     fig, ax = plt.subplots(nrows=2, ncols=2, figsize=(15,10))
     truth_dat.plot_state_raster(ax=ax[0,0])
     truth_dat.plot_state_rates(ax=ax[1,0])
-    hmm.plot_state_raster(ax=ax[0,1])
-    hmm.plot_state_rates(ax=ax[1,1])
+    hmm.plot_state_raster(ax=ax[0,1], state_map=state_map)
+    hmm.plot_state_rates(ax=ax[1,1], state_map=state_map)
     ax[0,0].set_title('Ground Truth States')
     ax[0,1].set_title('HMM Best Decoded States')
     ax[1,0].get_legend().remove()
     ax[1,1].legend(loc='upper center', bbox_to_anchor=[-0.4, -0.6, 0.5, 0.5], ncol=5)
+
+    # Compute edit distances, histogram, return mean and median % correct
+    truePaths = truth_dat.ground_truth['state_vectors']
+    bestPaths, _ = hmm.get_best_paths(state_map=state_map)
+    edit_distances = np.zeros((truePaths.shape[0],))
+    pool = mp.Pool(mp.cpu_count())
+    def update(ans):
+        edit_distances[ans[0]] = ans[1]
+
+    print('Computing edit distances...')
+    for i, x in enumerate(zip(truePaths, bestPaths)):
+        pool.apply_async(levenshtein_mp, (i, *x), callback=update)
+
+    pool.close()
+    pool.join()
+    print('Done!')
+
+    nPts = truePaths.shape[1]
+    mean_correct = 100*(nPts - np.mean(edit_distances)) / nPts
+    median_correct = 100*(nPts - np.median(edit_distances)) / nPts
+
+    # Plot:
+    #   - edit distance histogram
+    #   - side-by-side trial comparison
+    h = 0.25
+    dt = hmm.dt
+    time = np.arange(0, nPts * (dt*1000), dt*1000)  # time in ms
+    fig2, ax2 = plt.subplots(ncols=2, figsize=(15,10))
+    ax2[0].hist(100*(nPts-edit_distances)/nPts)
+    ax2[0].set_xlabel('Percent Correct')
+    ax2[0].set_ylabel('Trial Count')
+    ax2[0].set_title('Percent Correct based on edit distance\n'
+                     'Mean Correct: %0.1f%%, Median: %0.1f%%'
+                     % (mean_correct, median_correct))
+
+    maxState = int(np.max((bestPaths, truePaths)))
+    colors = [plt.cm.Paired(x) for x in np.linspace(0, 1, (maxState+1)*2)]
+    trueCol = [colors[x] for x in np.arange(0, (maxState+1)*2, 2)]
+    hmmCol = [colors[x] for x in np.arange(1, (maxState+1)*2, 2)]
+    leg = {}
+    leg['hmm'] = {k: None for k in np.unique((bestPaths, truePaths))}
+    leg['truth'] = {k: None for k in np.unique((bestPaths, truePaths))}
+    for i, x in enumerate(zip(truePaths, bestPaths)):
+        y = x[0]
+        z = x[1]
+        t = 0
+        while(t  < nPts):
+            s = int(y[t])
+            next_t = np.where(y[t:] != s)[0]
+            if len(next_t) == 0:
+                next_t = nPts - t
+            else:
+                next_t = next_t[0]
+
+            t_start = time[t]
+            t_end = time[t+next_t-1]
+            tmp = ax2[1].fill_between([t_start, t_end], [i, i], [i+h, i+h], color=trueCol[s])
+            if leg['truth'][s] is None:
+                leg['truth'][s] = tmp
+
+            t += next_t
+
+        t = 0
+        while(t  < nPts):
+            s = int(z[t])
+            next_t = np.where(z[t:] != s)[0]
+            if len(next_t) == 0:
+                next_t = nPts - t
+            else:
+                next_t = next_t[0]
+
+            t_start = time[t]
+            t_end = time[t+next_t-1]
+            tmp = ax2[1].fill_between([t_start, t_end], [i, i], [i-h, i-h], color=hmmCol[s])
+            if leg['hmm'][s] is None:
+                leg['hmm'][s] = tmp
+
+            t += next_t
+
+        # Write % correct next to line
+        t_str = '%0.1f%%' % (100 * (nPts - edit_distances[i])/nPts)
+        ax2[1].text(nPts+5, i-h, t_str)
+
+    ax2[1].set_xlim((0, nPts+int(nPts/3)))
+    ax2[1].set_xlabel('Time (ms)')
+    ax2[1].set_title('State Sequences')
+    handles = list(leg['truth'].values()) + list(leg['hmm'].values())
+    labels = (['True State %i' % i for i in leg['truth'].keys()] +
+              ['HMM State %i' % i for i in leg['hmm'].keys()])
+    ax2[1].legend(handles, labels, shadow=True,
+                  bbox_to_anchor=(0.78, 0.5, 0.5, 0.5))
+
     fig.show()
-    return fig, ax
+    fig2.show()
+    return fig, ax, fig2, ax2
 
 
 def wrap_baum_welch(trial_id, trial_dat, nStates, dt, PI, A, B):
@@ -646,3 +858,79 @@ def compute_new_matrices(spikes, dt, gammas, epsilons):
     B[idx] = minFR
 
     return PI, A, B
+
+
+def match_states(rates1, rates2):
+    '''Takes 2 Cell X State firing rate matrices and determines which states
+    are most similar. Returns dict mapping rates2 states to rates1 states
+    '''
+    distances = np.zeros((rates1.shape[1], rates2.shape[1]))
+    for x, y in it.product(range(rates1.shape[1]), range(rates2.shape[1])):
+        tmp = euclidean(rates1[:, x], rates2[:, y])
+        distances[x, y] = tmp
+
+    states = list(range(rates2.shape[1]))
+    out = {}
+    for i in range(rates2.shape[1]):
+        s = np.argmin(distances[:,i])
+        r = np.argmin(distances[s, :])
+        if r == i and s in states:
+            out[i] = s
+            idx = np.where(states == s)[0]
+            states.pop(int(idx))
+
+    for i in range(rates2.shape[1]):
+        if i not in out:
+            s = np.argmin(distances[states, i])
+            out[i] = states[s]
+
+    return out
+
+
+@jit(nopython=True)
+def levenshtein(seq1, seq2):
+    ''' Computes edit distance between 2 sequences
+    '''
+    size_x = len(seq1) + 1
+    size_y = len(seq2) + 1
+    matrix = np.zeros ((size_x, size_y))
+    for x in range(size_x):
+        matrix [x, 0] = x
+
+    for y in range(size_y):
+        matrix [0, y] = y
+
+    for x in range(1, size_x):
+        for y in range(1, size_y):
+            if seq1[x-1] == seq2[y-1]:
+                matrix [x,y] = min(matrix[x-1, y] + 1, matrix[x-1, y-1],
+                                   matrix[x, y-1] + 1)
+            else:
+                matrix [x,y] = min(matrix[x-1,y] + 1, matrix[x-1,y-1] + 1,
+                                   matrix[x,y-1] + 1)
+
+    return (matrix[size_x - 1, size_y - 1])
+
+@jit(nopython=True)
+def levenshtein_mp(i, seq1, seq2):
+    ''' Computes edit distance between 2 sequences
+    '''
+    size_x = len(seq1) + 1
+    size_y = len(seq2) + 1
+    matrix = np.zeros ((size_x, size_y))
+    for x in range(size_x):
+        matrix [x, 0] = x
+
+    for y in range(size_y):
+        matrix [0, y] = y
+
+    for x in range(1, size_x):
+        for y in range(1, size_y):
+            if seq1[x-1] == seq2[y-1]:
+                matrix [x,y] = min(matrix[x-1, y] + 1, matrix[x-1, y-1],
+                                   matrix[x, y-1] + 1)
+            else:
+                matrix [x,y] = min(matrix[x-1,y] + 1, matrix[x-1,y-1] + 1,
+                                   matrix[x,y-1] + 1)
+
+    return i, matrix[size_x - 1, size_y - 1]
