@@ -430,16 +430,21 @@ class PoissonHMM(object):
         self.transition = A
         self.emission = B
         self.initial_distribution = np.ones((nStates,)) / nStates
-        self.converged = False
+        self.fitted = False
         self.history = None
         self.data = None
         self.dt = None
 
     def fit(self, spikes, dt, max_iter = 1000, convergence_thresh = 1e-4,
-            parallel=True):
-        if self.converged:
+            parallel=False):
+        '''using parallels for processing trials actually seems to slow down
+        processing (with 15 trials). Might still be useful if there is a very
+        large nubmer of trials
+        '''
+        if self.fitted:
             return
 
+        spikes = spikes.astype('int32')
         self.data = spikes
         self.dt = dt
         iterNum = 0
@@ -450,7 +455,8 @@ class PoissonHMM(object):
             iterNum += 1
             print('Iter #%i complete.' % iterNum)
 
-        self.converged = True
+        self.fitted = True
+        return self
 
     def _step(self, spikes, dt, parallel=False):
         if len(spikes.shape) == 2:
@@ -551,9 +557,6 @@ class PoissonHMM(object):
             return True
 
     def get_best_paths(self, new_data=None, new_dt=None, new_mats=None, state_map=None):
-        if not self.converged:
-            raise ValueError('model not yet fitted')
-
         spikes = self.data
         if new_data:
             spikes = new_data
@@ -602,7 +605,7 @@ class PoissonHMM(object):
             B = new_mats['B']
 
         bestPaths, maxLogProb = self.get_best_paths(new_data=new_data, new_dt=new_dt,
-                                            new_mats=new_mats)
+                                                    new_mats=new_mats)
         maxLogProb = np.max(maxLogProb)
 
         nParams = (A.shape[0]*(A.shape[1]-1) +
