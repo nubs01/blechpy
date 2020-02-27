@@ -1063,6 +1063,9 @@ class SpikeSorter(object):
                                             pyramidal, interneuron):
             for i, rec in rec_key.items():
                 idx = np.where(clust['spike_map'] == i)[0]
+                if len(idx) == 0:
+                    continue
+
                 waves = clust['spike_waveforms'][idx]
                 times = clust['spike_times'][idx]
                 unit_name = h5io.add_new_unit(rec, self.electrode, waves,

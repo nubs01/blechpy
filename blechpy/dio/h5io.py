@@ -1294,10 +1294,12 @@ def delete_unit(file_dir, unit_num):
         del_plots = ['Unit%i.png' % unit_num, 'Unit%i_mean_sd.png' % unit_num]
         print('Correcting names of plots and metrics...')
         for x in del_plots:
-            os.remove(os.path.join(plot_dir, x))
+            if os.path.exists(os.path.join(plot_dir, x)):
+                os.remove(os.path.join(plot_dir, x))
 
         for x in swap_files:
-            os.rename(os.path.join(plot_dir, x[0]), os.path.join(plot_dir, x[1]))
+            if os.path.exists(os.path.join(plot_dir, x[0])):
+                os.rename(os.path.join(plot_dir, x[0]), os.path.join(plot_dir, x[1]))
 
     # compress_and_repack(h5_file)
     print('Finished deleting unit\n----------')

@@ -108,6 +108,7 @@ class project(data_object):
                                                ignore_index=True)
         print('Experiment %s added to project.\n\tExperiment Group: %s\n\t'
               ' Experiment Directory: %s' % (exp_name, exp_group, exp_dir))
+        self.save()
 
     @Logger('Removing Experiment')
     def remove_experiment(self, exp_name):
@@ -119,3 +120,4 @@ class project(data_object):
             print('Dropping experiment %s from project.\n%s\nRemoved' % (exp_name, df.loc[idx]))
 
         self._exp_info = df.drop(index=idx)
+        self.save()
