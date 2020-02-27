@@ -104,11 +104,18 @@ class project(data_object):
 
         self._exp_info = self._exp_info.append({'exp_name': exp_name,
                                                 'exp_group': exp_group,
-                                                'exp_dir': exp_dir})
+                                                'exp_dir': exp_dir},
+                                               ignore_index=True)
         print('Experiment %s added to project.\n\tExperiment Group: %s\n\t'
               ' Experiment Directory: %s' % (exp_name, exp_group, exp_dir))
 
+    @Logger('Removing Experiment')
+    def remove_experiment(self, exp_name):
+        df = self._exp_info
+        idx = df.query('exp_name == @exp_name').index
+        if len(idx) == 0:
+            print('Tried to drop %s. Experiment not found in project' % exp_name)
+        else:
+            print('Dropping experiment %s from project.\n%s\nRemoved' % (exp_name, df.loc[idx]))
 
-
-
-        pass
+        self._exp_info = df.drop(index=idx)
