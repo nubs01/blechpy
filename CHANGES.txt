@@ -6,6 +6,7 @@ v2.0.14 (2020-2-03)
 - Unfinished module for Poisson HMM decoding of spike data
 - Expanded functionality of h5io.get_spike_data to provide data for multiple neurons and digital inputs at once
 - Fix adding and removing experiments from project datastructure
+- Spike sorting no longer saves 0 spike clusters
 
 
 v2.0.13 (2020-2-02)
