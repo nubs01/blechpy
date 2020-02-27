@@ -784,6 +784,8 @@ def get_spike_data(rec_dir, units=None, din=None):
             unit_nums.append(parse_unit_number(u))
 
     unit_nums = np.array(unit_nums)
+    if len(unit_nums) == 1:
+        unit_nums = unit_nums[0]
 
     if not isinstance(din, list):
         din = [din]
