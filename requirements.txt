@@ -15,3 +15,4 @@ entrypoints>=0.2.2
 umap-learn>=0.3.10
 holoviews>=1.12.7
 h5py>=2.10.0
+statsmodels
