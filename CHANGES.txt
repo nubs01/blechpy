@@ -1,3 +1,8 @@
+v2.0.15 (2020-2-28)
+-------------------
+- Trying to get BlechClust object to adpat if experiment root dir has changed
+- Updated requirements
+
 v2.0.14 (2020-2-03)
 -------------------
 - Correction to how spike time autocrrelation and xcorr are computed (from counts -> spike/s)
