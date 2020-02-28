@@ -605,7 +605,7 @@ class SpikeDetection(object):
         return '\n'.join(out)
 
 
-class BlechClust(object): 
+class BlechClust(object):
     def __init__(self, rec_dirs, electrode, out_dir=None, params=None,
                  overwrite=False, no_write=False, n_pc=3,
                  data_transform=compute_waveform_metrics):
@@ -689,8 +689,24 @@ class BlechClust(object):
 
         # Deal with existing rec key
         if file_check['rec_key']:
+            rec_dirs = self.rec_dirs
             rec_key = wt.read_dict_from_json(self._files['rec_key'])
             rec_key = {int(x): y for x,y in rec_key.items()}
+            if len(rec_key) != len(rec_dir):
+                raise ValueError('Rec key does not match rec dirs')
+
+            # Correct rec key in case rec_dir roots have changed
+            for rd in rec_dirs:
+                rn = os.path.basename(rd)
+                dn = os.path.dirname(rd)
+                kd = [(x, y) for x,y in rec_keys.items() if rn in y]
+                if len(kd) == 0:
+                    raise ValueError('%s not found in rec_key' % rn)
+
+                kd = kd[0]
+                if kd[1] != rd:
+                    rec_key[kd[0]] = rd
+
             inverted = {v:k for k,v in rec_key.items()}
             self.rec_dirs = sorted(self.rec_dirs, key=lambda i: inverted[i])
             self._rec_key = rec_key
