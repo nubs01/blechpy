@@ -854,6 +854,10 @@ class dataset(data_object):
         def update_pbar(ans):
             pbar.update()
 
+        errors = []
+        def error_call(e):
+            errors.append(e)
+
         if not umap:
             clust_objs = [clust.BlechClust(self.root_dir, x, params=self.clustering_params)
                           for x in electrodes]
@@ -870,7 +874,7 @@ class dataset(data_object):
 
             pool = multiprocessing.get_context('spawn').Pool(n_cores)
             for x in clust_objs:
-                pool.apply_async(x.run, callback=update_pbar)
+                pool.apply_async(x.run, callback=update_pbar, error_callback=error_call)
 
             pool.close()
             pool.join()
@@ -886,6 +890,9 @@ class dataset(data_object):
         dio.h5io.write_electrode_map_to_h5(self.h5_file, em)
         self.save()
         print('Clustering Complete\n------------------')
+        if len(errors) > 0:
+            print('Errors encountered:')
+            print(errors)
 
     @Logger('Cleaning up clustering memory logs. Removing raw data and setting'
             'up hdf5 for unit sorting')

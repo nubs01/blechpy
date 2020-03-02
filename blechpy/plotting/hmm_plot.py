@@ -1,5 +1,7 @@
+import os
 import numpy as np
-import pandas a pd
+import pandas as pd
+from scipy.ndimage import gaussian_filter1d
 import matplotlib
 matplotlib.use('TkAgg')
 import pylab as plt
@@ -47,7 +49,9 @@ def get_threshold_windows(trace, thresh=0.75):
             else:
                 tmp = tmp[0]
 
-            out.append((t, tmp+t-1, i))
+            if row[t] >= thresh:
+                out.append((t, tmp+t-1, i))
+
             t += tmp
 
     return out
@@ -61,11 +65,11 @@ def get_hmm_plot_vars(hmm, time_window=None):
 
     n_trials, n_cells, n_steps = spikes.shape
     n_states = hmm.n_states
-    if not time_window:
+    if time_window is None:
         time_window = [0, n_steps * dt * 1000]
 
     time = np.arange(time_window[0], time_window[1], dt*1000)  # Time in ms
-    colors = [plt.cm.Set2(x) for x in np.linspace(0, 1, n_states)]
+    colors = [plt.cm.tab10(x) for x in np.linspace(0, 1, n_states)]
     return spikes, dt, time, colors
 
 
@@ -82,7 +86,7 @@ def plot_raster(spikes, time=None, ax=None, y_min=0.05, y_max=0.95):
         _, ax = plt.gca()
 
     n_rows, n_steps = spikes.shape
-    if not time:
+    if time is None:
         time = np.arange(0, n_steps)
 
     y_steps = np.linspace(y_min, y_max, n_rows)
@@ -91,7 +95,7 @@ def plot_raster(spikes, time=None, ax=None, y_min=0.05, y_max=0.95):
         if len(idx) == 0:
             continue
 
-        ax.plot(time[idx], row[idx]*y_steps[i], color='black', marker='|')
+        ax.scatter(time[idx], row[idx]*y_steps[i], color='black', marker='|')
 
     return ax
 
@@ -113,12 +117,12 @@ def make_hmm_raster(spikes, time=None, save_file=None):
         spikes = np.array([spikes])
 
     n_trials, n_cells, n_steps = spikes.shape
-    if not time:
+    if time is None:
         time = np.arange(0, n_steps)
 
-    fig, axes = plt.subplots(nrows=nTrials, figsize=(15, n_trials))
-    y_step = np.linspace(0.05, 0.95, nCells)
-    for ax, seq, trial in zip(axes, spikes):
+    fig, axes = plt.subplots(nrows=n_trials, figsize=(15, n_trials))
+    y_step = np.linspace(0.05, 0.95, n_cells)
+    for ax, trial in zip(axes, spikes):
         tmp = plot_raster(trial, time=time, ax=ax)
 
         for spine in ax.spines.values():
@@ -127,7 +131,7 @@ def make_hmm_raster(spikes, time=None, save_file=None):
         ax.get_yaxis().set_visible(False)
         ax.get_xaxis().set_visible(False)
         if time[0] != 0:
-            ax.axvline(0, color='red', linestyle='--', linewidth=1, alpha=0.8)
+            ax.axvline(0, color='red', linestyle='--', linewidth=3, alpha=0.8)
 
     axes[-1].get_xaxis().set_visible(True)
     tmp_ax = fig.add_subplot('111', frameon=False)
@@ -171,7 +175,8 @@ def plot_sequence(seq, time=None, ax=None, y_min=0, y_max=1, colors=None):
 
 def plot_viterbi_paths(hmm, time=None, colors=None, axes=None, legend=True,
                        hmm_id=None, save_file=None):
-    spikes, dt, time, colors = get_plot_vairables(hmm, time_window=time_window)
+    spikes = hmm.data
+    dt = hmm.dt
     if not axes:
         fig, axes = make_hmm_raster(spikes, time=time)
     else:
@@ -180,16 +185,27 @@ def plot_viterbi_paths(hmm, time=None, colors=None, axes=None, legend=True,
     if legend:
         fig.subplots_adjust(right=0.9)  # To  make room for legend
 
+
     BIC, paths = hmm.get_BIC()
-    n_trials, n_states, n_steps = alphas.shape
+    n_trials, n_steps = paths.shape
+    n_states = hmm.n_states
+    if time is None:
+        time = np.arange(0, n_steps)
+
+    if not colors:
+        colors = [plt.cm.Set2(x) for x in np.linspace(0,1, n_states)]
 
     handles = []
     labels = []
     for trial, ax in zip(paths, axes):
-        _, h, l = plot_sequence(trial, time=time, ax=ax, colors=colors)
-        if l not in labels:
-            handles.append(h)
-            labels.append(l)
+        _, tmp_handles, tmp_labels = plot_sequence(trial, time=time, ax=ax, colors=colors)
+        for l, h in zip(tmp_labels, tmp_handles):
+            if l not in labels:
+                handles.append(h)
+                labels.append(l)
+
+    if time[0] != 0:
+        ax.axvline(0, color='red', linestyle='--', linewidth=3, alpha=0.8)
 
     if legend:
         mid = int(n_trials/2)
@@ -211,7 +227,10 @@ def plot_viterbi_paths(hmm, time=None, colors=None, axes=None, legend=True,
         return fig, axes
 
 
-def plot_probability_traces(traces, time=None, ax=None, colors=None, thresh=0.75):
+def plot_probability_traces(traces, time=None, ax=None, colors=None, thresh=0.75,
+                           smoothing=3):
+    y_min=0
+    y_max=1
     if ax is None:
         _, ax = plt.gca()
 
@@ -222,7 +241,7 @@ def plot_probability_traces(traces, time=None, ax=None, colors=None, thresh=0.75
     if not colors:
         colors = [plt.cm.Set2(x) for x in np.linspace(0, 1, n_states)]
 
-    windows = get_threshold_windows(trace, thresh=thresh)
+    windows = get_threshold_windows(traces, thresh=thresh)
     handles = {}
     for win in windows:
         t_vec = [time[win[0]], time[win[1]]]
@@ -235,16 +254,19 @@ def plot_probability_traces(traces, time=None, ax=None, colors=None, thresh=0.75
     leg_labels = ['State %i' % k for k in sorted(handles.keys())]
 
     for line, col in zip(traces, colors):
-        ax.plot(time, line, color=col, linewdith=2)
+        tmp = line
+        if smoothing:
+            tmp = gaussian_filter1d(tmp, smoothing)
+
+        ax.plot(time, tmp, color=col, linewidth=2)
 
     return ax, leg_handles, leg_labels
 
 
 def plot_forward_probs(hmm, time=None, colors=None, axes=None, legend=True,
-                       hmm_id=None, save_file=None):
-    spikes, dt, time, colors = get_plot_vairables(hmm, time_window=time_window)
+                       hmm_id=None, thresh=0.75, save_file=None):
     if not axes:
-        fig, axes = make_hmm_raster(spikes, time=time)
+        fig, axes = make_hmm_raster(hmm.data, time=time)
     else:
         fig = axes[0].figure
 
@@ -253,15 +275,24 @@ def plot_forward_probs(hmm, time=None, colors=None, axes=None, legend=True,
 
     alphas = hmm.get_forward_probabilities()
     n_trials, n_states, n_steps = alphas.shape
+    if time is None:
+        time = np.arange(0, n_steps)
+
+    if not colors:
+        colors = [plt.cm.Set2(x) for x in np.linspace(0,1, n_states)]
 
     handles = []
     labels = []
     for trial, ax in zip(alphas, axes):
-        _, h, l = plot_probability_traces(trial,time=time, ax=ax,
-                                          colors=colors, thresh)
-        if l not in labels:
-            handles.append(h)
-            labels.append(l)
+        _, tmp_handles, tmp_labels = plot_probability_traces(trial,time=time, ax=ax,
+                                                             colors=colors, thresh=thresh)
+        for l, h in zip(tmp_labels, tmp_handles):
+            if l not in labels:
+                handles.append(h)
+                labels.append(l)
+
+    if time[0] != 0:
+        ax.axvline(0, color='red', linestyle='--', linewidth=3, alpha=0.8)
 
     if legend:
         mid = int(n_trials/2)
@@ -284,10 +315,9 @@ def plot_forward_probs(hmm, time=None, colors=None, axes=None, legend=True,
 
 
 def plot_backward_probs(hmm, time=None, colors=None, axes=None, legend=True,
-                        hmm_id=None, save_file=None):
-    spikes, dt, time, colors = get_plot_vairables(hmm, time_window=time_window)
+                        hmm_id=None, thresh=0.75, save_file=None):
     if not axes:
-        fig, axes = make_hmm_raster(spikes, time=time)
+        fig, axes = make_hmm_raster(hmm.data, time=time)
     else:
         fig = axes[0].figure
 
@@ -295,16 +325,25 @@ def plot_backward_probs(hmm, time=None, colors=None, axes=None, legend=True,
         fig.subplots_adjust(right=0.9)  # To  make room for legend
 
     betas = hmm.get_backward_probabilities()
-    n_trials, n_states, n_steps = alphas.shape
+    n_trials, n_states, n_steps = betas.shape
+    if time is None:
+        time = np.arange(0, n_steps)
+
+    if not colors:
+        colors = [plt.cm.Set2(x) for x in np.linspace(0,1, n_states)]
 
     handles = []
     labels = []
     for trial, ax in zip(betas, axes):
-        _, h, l = plot_probability_traces(trial,time=time, ax=ax,
-                                          colors=colors, thresh)
-        if l not in labels:
-            handles.append(h)
-            labels.append(l)
+        _, tmp_handles, tmp_labels = plot_probability_traces(trial,time=time, ax=ax,
+                                                             colors=colors, thresh=thresh)
+        for l, h in zip(tmp_labels, tmp_handles):
+            if l not in labels:
+                handles.append(h)
+                labels.append(l)
+
+    if time[0] != 0:
+        ax.axvline(0, color='red', linestyle='--', linewidth=3, alpha=0.8)
 
     if legend:
         mid = int(n_trials/2)
@@ -327,10 +366,9 @@ def plot_backward_probs(hmm, time=None, colors=None, axes=None, legend=True,
 
 
 def plot_gamma_probs(hmm, time=None, colors=None, axes=None, legend=True,
-                     hmm_id=None, save_file=None):
-    spikes, dt, time, colors = get_plot_vairables(hmm, time_window=time_window)
+                     hmm_id=None, thresh=0.75, save_file=None):
     if not axes:
-        fig, axes = make_hmm_raster(spikes, time=time)
+        fig, axes = make_hmm_raster(hmm.data, time=time)
     else:
         fig = axes[0].figure
 
@@ -338,16 +376,25 @@ def plot_gamma_probs(hmm, time=None, colors=None, axes=None, legend=True,
         fig.subplots_adjust(right=0.9)  # To  make room for legend
 
     gammas = hmm.get_gamma_probabilities()
-    n_trials, n_states, n_steps = alphas.shape
+    n_trials, n_states, n_steps = gammas.shape
+    if time is None:
+        time = np.arange(0, n_steps)
+
+    if not colors:
+        colors = [plt.cm.Set2(x) for x in np.linspace(0,1, n_states)]
 
     handles = []
     labels = []
     for trial, ax in zip(gammas, axes):
-        _, h, l = plot_probability_traces(trial,time=time, ax=ax,
-                                          colors=colors, thresh)
-        if l not in labels:
-            handles.append(h)
-            labels.append(l)
+        _, tmp_handles, tmp_labels = plot_probability_traces(trial,time=time, ax=ax,
+                                                             colors=colors, thresh=thresh)
+        for l, h in zip(tmp_labels, tmp_handles):
+            if l not in labels:
+                handles.append(h)
+                labels.append(l)
+
+    if time[0] != 0:
+        ax.axvline(0, color='red', linestyle='--', linewidth=3, alpha=0.8)
 
     if legend:
         mid = int(n_trials/2)
@@ -378,7 +425,7 @@ def plot_hmm_rates(rates, axes=None, colors=None):
         Cell X State matrix of firing rates
     '''
     n_cells, n_states = rates.shape
-    if not axes:
+    if axes is None:
         _, axes = plt.subplot(ncols=n_states)
 
     if len(axes) < n_states:
@@ -387,23 +434,24 @@ def plot_hmm_rates(rates, axes=None, colors=None):
     if not colors:
         colors = [plt.cm.Set2(x) for x in np.linspace(0,1, n_states)]
 
-    df = pd.DataFrame(rates, columns=['state %i' % i for i in range(nStates)])
+    df = pd.DataFrame(rates, columns=['state %i' % i for i in range(n_states)])
     df['cell'] = ['cell %i' % i for i in df.index]
-    df = pd.melt(df, 'cell', ['state %i' % i for i in range(nStates)], 'state', 'rate')
+    df = pd.melt(df, 'cell', ['state %i' % i for i in range(n_states)], 'state', 'rate')
     for g, ax, col in zip(df.groupby('state'), axes, colors):
         sns.barplot(data=g[1], x='rate', y='cell',
-                    palette='muted', ax=ax)
+                    color='black', ax=ax)
         ax.set_title(g[0])
         ax.set_ylabel('')
         ax.set_xlabel('')
         ax.set_facecolor(col)
+        ax.patch.set_alpha(0.5)
         ax.set_yticklabels([])
         ax.tick_params(left=False)
         for spine in ax.spines.values():
             spine.set_visible(False)
 
 
-    axes[0].set_yticklabels(['Cell %i' % i or i in range(n_cells)])
+    axes[0].set_yticklabels(['Cell %i' % i for i in range(n_cells)])
     mid = int(n_states/2)
     axes[mid].set_xlabel('Firing Rate (Hz)')
     return axes
@@ -416,7 +464,8 @@ def plot_hmm_transition(transition, ax=None):
     n_states = transition.shape[0]
     labels = ['State %i' % i for i in range(n_states)]
     sns.heatmap(transition, ax=ax, cmap='plasma', cbar=True, square=True,
-                xticklabels=labels, yticklabels=labels, vmin=0, vmax=1)
+                xticklabels=labels, yticklabels=labels, vmin=0, vmax=1,
+                cbar_kws={'shrink': 0.5})
     ax.set_ylim((0, n_states))
     ax.set_title('Transition Probabilities')
     return ax
@@ -427,12 +476,13 @@ def plot_hmm_initial_probs(PI, ax=None):
         _ , ax = plt.gca()
 
     n_states = PI.shape[0]
-    labels = ['Cell %i' % i for i in range(n_states)]
+    labels = ['State %i' % i for i in range(n_states)]
+    PI = np.expand_dims(PI, 1)
     sns.heatmap(PI, ax=ax, cmap='plasma', cbar=True,
-                yticklabel=labels, vmin=0, vmax=1)
+                yticklabels=labels, vmin=0, vmax=1)
     ax.set_ylim((0, n_states))
     ax.set_title('Initial Probabilities')
-    return an
+    return ax
 
 
 def plot_hmm_overview(hmm, colors=None, hmm_id=None, save_file=None):
@@ -443,10 +493,21 @@ def plot_hmm_overview(hmm, colors=None, hmm_id=None, save_file=None):
     PI = hmm.initial_distribution
     A = hmm.transition
     B = hmm.emission
-    fig, axes = plt.subplot(nrows=2, ncols=n_states, figsize=(20, 15))
-    plot_hmm_initial_probs(PI, ax=ax[0,0])
-    plot_hmm_transition(A, ax=ax[0,1])
-    plot_hmm_rates(B, axes=ax[1,:], colors=colors)
+    fig, axes = plt.subplots(nrows=2, ncols=np.max((n_states,2)), figsize=(20, 15))
+    if n_states > 2:
+        for ax in axes[0,1:-1]:
+            ax.axis('off')
+
+    plot_hmm_initial_probs(PI, ax=axes[0,0])
+    plot_hmm_transition(A, ax=axes[0,-1])
+    plot_hmm_rates(B, axes=axes[1,:], colors=colors)
+    mid = int(n_states/2)
+    axes[1, mid].set_xlabel('')
+    tmp_ax = fig.add_subplot('111', frameon=False)
+    tmp_ax.tick_params(labelcolor='none', top=False, bottom=False,
+                       left=False, right=False)
+    tmp_ax.set_xlabel('Firing Rate (Hz)')
+
     fig.subplots_adjust(top=0.9)
     title_str = 'Fitted HMM Parameters'
     if hmm_id:
@@ -462,7 +523,7 @@ def plot_hmm_overview(hmm, colors=None, hmm_id=None, save_file=None):
 
 
 def plot_hmm_figures(hmm, time_window=None, hmm_id=None, save_dir=None):
-    spikes, dt, time, colors = get_plot_vairables(hmm, time_window=time_window)
+    spikes, dt, time, colors = get_hmm_plot_vars(hmm, time_window=time_window)
     # Plot raster
 
     fig_names = ['sequences', 'forward_probabilities',
@@ -474,19 +535,26 @@ def plot_hmm_figures(hmm, time_window=None, hmm_id=None, save_dir=None):
 
 
     # Plot sequences
+    print('Plotting Viterbi Decoded Paths...')
     plot_viterbi_paths(hmm, time=time, colors=colors,
                        hmm_id=hmm_id, save_file=files['sequences'])
 
     # Plot alphas
+    print('Plotting Forward Probabilities...')
     plot_forward_probs(hmm, time=time, colors=colors,
                        hmm_id=hmm_id, save_file=files['forward_probabilities'])
     # Plot betas
+    print('Plotting Backward Probabilities...')
     plot_backward_probs(hmm, time=time, colors=colors,
                         hmm_id=hmm_id, save_file=files['backward_probabilities'])
 
     # Plot gammas
+    print('Plotting Gamma Probabilities...')
     plot_gamma_probs(hmm, time=time, colors=colors,
                      hmm_id=hmm_id, save_file=files['gamma_probabilities'])
 
     # Plot stats: rate bar plots, transition heat map, initial probabilities
+    print('Plotting HMM Overview...')
     plot_hmm_overview(hmm, colors=colors, save_file=files['overview'])
+
+    print('Plotting Complete!')

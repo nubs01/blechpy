@@ -515,7 +515,7 @@ class PoissonHMM(object):
             pool.join()
         else:
             for i, trial in enumerate(spikes):
-                tmp_gamma, tmp_epsilons = wrap_baum_welch(i, trial, dt, PI, A, B)
+                _, tmp_gamma, tmp_epsilons = wrap_baum_welch(i, trial, dt, PI, A, B)
                 gammas[i, :, :] = tmp_gamma
                 epsilons[i, :, :, :] = tmp_epsilons
 
@@ -647,8 +647,8 @@ class PoissonHMM(object):
         A = self.transition
         B = self.emission
         gammas = []
-        for trial in self.data:
-            tmp, _ = wrap_baum_welch(trial, dt, PI, A, B)
+        for i, trial in enumerate(self.data):
+            _, tmp, _ = wrap_baum_welch(i, trial, self.dt, PI, A, B)
             gammas.append(tmp)
 
         return np.array(gammas)

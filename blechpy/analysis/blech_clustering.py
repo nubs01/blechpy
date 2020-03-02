@@ -692,14 +692,14 @@ class BlechClust(object):
             rec_dirs = self.rec_dirs
             rec_key = wt.read_dict_from_json(self._files['rec_key'])
             rec_key = {int(x): y for x,y in rec_key.items()}
-            if len(rec_key) != len(rec_dir):
+            if len(rec_key) != len(rec_dirs):
                 raise ValueError('Rec key does not match rec dirs')
 
             # Correct rec key in case rec_dir roots have changed
             for rd in rec_dirs:
                 rn = os.path.basename(rd)
                 dn = os.path.dirname(rd)
-                kd = [(x, y) for x,y in rec_keys.items() if rn in y]
+                kd = [(x, y) for x,y in rec_key.items() if rn in y]
                 if len(kd) == 0:
                     raise ValueError('%s not found in rec_key' % rn)
 
