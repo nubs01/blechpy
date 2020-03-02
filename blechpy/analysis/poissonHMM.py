@@ -36,7 +36,7 @@ def poisson(rate, n, dt):
     return tmp
 
 @njit
-def forward(spikes, nStates, dt, PI, A, B):
+def forward(spikes, dt, PI, A, B):
     '''Run forward algorithm to compute alpha = P(Xt = i| o1...ot, pi)
     Gives the probabilities of being in a specific state at each time point
     given the past observations and initial probabilities
@@ -68,6 +68,7 @@ def forward(spikes, nStates, dt, PI, A, B):
         norms(t) = sum(alpha(:,t))
     '''
     nTimeSteps = spikes.shape[1]
+    nStates = A.shape[0]
 
     # For each state, use the the initial state distribution and spike counts
     # to initialize alpha(:,1)
@@ -89,7 +90,7 @@ def forward(spikes, nStates, dt, PI, A, B):
 
 
 @njit
-def backward(spikes, nStates, dt, A, B, norms):
+def backward(spikes, dt, A, B, norms):
     ''' Runs the backward algorithm to compute beta = P(ot+1...oT | Xt=s)
     Computes the probability of observing all future observations given the
     current state at each time point
@@ -107,6 +108,7 @@ def backward(spikes, nStates, dt, A, B, norms):
     beta : np.array, nStates x T matrix of backward probabilities
     '''
     nTimeSteps = spikes.shape[1]
+    nStates = A.shape[0]
     beta = np.zeros((nStates, nTimeSteps))
     beta[:, -1] = 1  # Initialize final beta to 1 for all states
     tStep = list(range(nTimeSteps-1))
@@ -121,8 +123,9 @@ def backward(spikes, nStates, dt, A, B, norms):
     return beta
 
 @njit
-def baum_welch(spikes, nStates, dt, A, B, alpha, beta):
+def baum_welch(spikes, dt, A, B, alpha, beta):
     nTimeSteps = spikes.shape[1]
+    nStates = A.shape[0]
     gamma = np.zeros((nStates, nTimeSteps))
     epsilons = np.zeros((nStates, nStates, nTimeSteps-1))
     for t in range(nTimeSteps):
@@ -170,8 +173,8 @@ def poisson_baum_welch(spikes, nStates, dt, maxIter, convergence_thresh=1e-4):
     notConverged = False
     iterNum = 0
     while (notConverged and (iterNum < maxIter)):
-        alpha, norms = forward(spikes, nStates, dt, PI, A, B)
-        beta = backward(spikes, nStates, dt, A, B, norms)
+        alpha, norms = forward(spikes, dt, PI, A, B)
+        beta = backward(spikes, dt, A, B, norms)
         gamma = np.zeros((nStates, nTimeSteps))
         epsilons = np.zeros((nStates, nStates, nTimeSteps-1))
         for t in range(nTimeSteps):
@@ -505,16 +508,14 @@ class PoissonHMM(object):
             pool = mp.get_context('spawn').Pool(n_cores)
             for i, trial in enumerate(spikes):
                 pool.apply_async(wrap_baum_welch,
-                                 (i, trial, nStates, dt, PI, A, B),
+                                 (i, trial, dt, PI, A, B),
                                  callback=update, error_callback=error)
 
             pool.close()
             pool.join()
         else:
             for i, trial in enumerate(spikes):
-                alpha, norms = forward(trial, nStates, dt, PI, A, B)
-                beta = backward(trial, nStates, dt, A, B, norms)
-                tmp_gamma, tmp_epsilons = baum_welch(trial, nStates, dt, A, B, alpha, beta)
+                tmp_gamma, tmp_epsilons = wrap_baum_welch(i, trial, dt, PI, A, B)
                 gammas[i, :, :] = tmp_gamma
                 epsilons[i, :, :, :] = tmp_epsilons
 
@@ -619,6 +620,38 @@ class PoissonHMM(object):
             bestPaths = newPaths
 
         return bestPaths, pathProbs
+
+    def get_forward_probabilities(self):
+        alphas = []
+        for trial in self.data:
+            tmp, _ = forward(trial, self.dt, self.initial_distribution,
+                             self.transition, self.emission)
+            alphas.append(tmp)
+
+        return np.array(alphas)
+
+    def get_backward_probabilities(self):
+        PI = self.initial_distribution
+        A = self.transition
+        B = self.emission
+        betas = []
+        for trial in self.data:
+            alpha, norms = forward(trial, self.dt, PI, A, B)
+            tmp = backward(trial, self.dt, A, B, norms)
+            betas.append(tmp)
+
+        return np.array(betas)
+
+    def get_gamma_probabilities(self):
+        PI = self.initial_distribution
+        A = self.transition
+        B = self.emission
+        gammas = []
+        for trial in self.data:
+            tmp, _ = wrap_baum_welch(trial, dt, PI, A, B)
+            gammas.append(tmp)
+
+        return np.array(gammas)
 
     def get_BIC(self, new_data=None, new_dt=None, new_mats=None):
         PI = self.initial_distribution
@@ -921,10 +954,10 @@ def compare_hmm_to_truth(truth_dat, hmm, state_map=None):
     return fig, ax, fig2, ax2
 
 
-def wrap_baum_welch(trial_id, trial_dat, nStates, dt, PI, A, B):
-    alpha, norms = forward(trial_dat, nStates, dt, PI, A, B)
-    beta = backward(trial_dat, nStates, dt, A, B, norms)
-    tmp_gamma, tmp_epsilons = baum_welch(trial_dat, nStates, dt, A, B, alpha, beta)
+def wrap_baum_welch(trial_id, trial_dat, dt, PI, A, B):
+    alpha, norms = forward(trial_dat, dt, PI, A, B)
+    beta = backward(trial_dat, dt, A, B, norms)
+    tmp_gamma, tmp_epsilons = baum_welch(trial_dat, dt, A, B, alpha, beta)
     return trial_id, tmp_gamma, tmp_epsilons
 
 
