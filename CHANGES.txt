@@ -1,5 +1,6 @@
 v2.0.17 (2020-3-2)
 -------------------
+- Store both BIC and Cost on each iteration of fitting HMM in history
 - Critical Bug Fix:
     - Remove use of tempfile when waveform plotting
     - Prevents errors while clustering
