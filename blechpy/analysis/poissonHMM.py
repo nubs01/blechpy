@@ -412,6 +412,10 @@ class PoissonHMM(object):
         self.n_states = n_predicted_states
         self._cost_window = cost_window
         self._max_history = max_history
+        self.cost = None
+        self.BIC = None
+        self.best_sequences = None
+        self._rate_data = None
         self._compute_data_rate_array()
         self.randomize()
 
@@ -451,7 +455,7 @@ class PoissonHMM(object):
         self.initial_distribution = np.ones((nStates,)) / nStates
         self.fitted = False
         self.history = None
-        self._compute_cost()
+        #self._update_cost()
 
     def fit(self, spikes=None, dt=None, max_iter = 1000, convergence_thresh = 1e-4,
             parallel=False):
@@ -520,15 +524,15 @@ class PoissonHMM(object):
                 epsilons[i, :, :, :] = tmp_epsilons
 
         # Store old parameters for convergence check
-        self.update_history(PI, A, B, self.cost)
+        self.update_history(PI, A, B, self.cost, self.BIC)
 
         PI, A, B = compute_new_matrices(spikes, dt, gammas, epsilons)
         self.transition = A
         self.emission = B
         self.initial_distribution = PI
-        self._compute_cost()
+        self._update_cost()
 
-    def update_history(self, oldPI, oldA, oldB, oldCost):
+    def update_history(self, oldPI, oldA, oldB, oldCost, oldBIC):
         A = self.transition
         B = self.emission
         PI = self.initial_distribution
@@ -540,12 +544,14 @@ class PoissonHMM(object):
             self.history['PI'] = [PI]
             self.history['iterations'] = [0]
             self.history['cost'] = [oldCost]
+            self.history['BIC'] = [oldBIC]
         else:
             self.history['A'].append(oldA)
             self.history['B'].append(oldB)
             self.history['PI'].append(oldPI)
             self.history['iterations'].append(self.history['iterations'][-1]+1)
-            self.history['cost'].append(self.cost)
+            self.history['cost'].append(oldCost)
+            self.history['BIC'].append(oldBIC)
 
         if len(self.history['iterations']) > self._max_history:
             nmax = self._max_history
@@ -570,7 +576,8 @@ class PoissonHMM(object):
         dA = np.sqrt(np.sum(np.power(oldA - A, 2)))
         dB = np.sqrt(np.sum(np.power(oldB - B, 2)))
         dCost = cost-oldCost
-        print('dPI = %f,  dA = %f,  dB = %f, dCost = %f' % (dPI, dA, dB, dCost))
+        print('dPI = %f,  dA = %f,  dB = %f, dCost = %f, cost = %f'
+              % (dPI, dA, dB, dCost, cost))
 
         # TODO: determine if this is reasonable
         # dB takes waaaaay longer to converge than the rest, i'm going to
@@ -582,43 +589,18 @@ class PoissonHMM(object):
         else:
             return True
 
-    def get_best_paths(self, new_data=None, new_dt=None, new_mats=None, state_map=None):
+    def get_best_paths(self):
+        if self.best_sequences is not None:
+            return self.best_sequences
+
         spikes = self.data
-        if new_data:
-            spikes = new_data
-
         dt = self.dt
-        if new_dt:
-            dt = new_dt
-
         PI = self.initial_distribution
         A = self.transition
         B = self.emission
-        if new_mats:
-            PI = new_mats['PI']
-            A = new_mats['A']
-            B = new_mats['B']
 
-        if len(spikes.shape) == 2:
-            spikes = np.array([spikes])
-
-        nTrials, nCells, nTimeSteps = spikes.shape
-        bestPaths = np.zeros((nTrials, nTimeSteps))-1
-        pathProbs = np.zeros((nTrials,))
-
-        for i, trial in enumerate(spikes):
-            bestPaths[i,:], pathProbs[i], _, _ = poisson_viterbi(trial, dt, PI,
-                                                                 A, B)
-
-        # If the states you're comparing to have different numbers do this
-        if state_map is not None:
-            newPaths = np.zeros(bestPaths.shape)
-            for k,v in state_map.items():
-                idx = np.where(bestPaths == k)
-                newPaths[idx] = v
-
-            bestPaths = newPaths
-
+        bestPaths, pathProbs = compute_best_paths(spikes, dt, PI, A, B)
+        self.best_sequences = bestPaths
         return bestPaths, pathProbs
 
     def get_forward_probabilities(self):
@@ -653,32 +635,20 @@ class PoissonHMM(object):
 
         return np.array(gammas)
 
-    def get_BIC(self, new_data=None, new_dt=None, new_mats=None):
+    def get_BIC(self):
+        if self.BIC is not None:
+            return self.BIC
+
         PI = self.initial_distribution
         A = self.transition
         B = self.emission
-        if new_mats:
-            PI = new_mats['PI']
-            A = new_mats['A']
-            B = new_mats['B']
-
-        bestPaths, maxLogProb = self.get_best_paths(new_data=new_data, new_dt=new_dt,
-                                                    new_mats=new_mats)
-        maxLogProb = np.max(maxLogProb)
-
-        nParams = (A.shape[0]*(A.shape[1]-1) +
-                   (PI.shape[0]-1) +
-                   B.shape[0]*(B.shape[1]-1))
-
-        nPts = self.data.shape[-1]
-        if new_data:
-            nPts = new_data.shape[-1]
-
-        BIC = -2 * maxLogProb + nParams * np.log(nPts)
+        BIC, bestPaths = compute_BIC(self.data, self.dt, PI, A, B)
+        self.BIC = BIC
+        self.best_sequences = bestPaths
         return BIC, bestPaths
 
     def _compute_data_rate_array(self):
-        if self._rate_data:
+        if self._rate_data is not None:
             return self._rate_data
 
         win_size = self._cost_window
@@ -699,18 +669,14 @@ class PoissonHMM(object):
 
     def find_best_in_history(self):
         self.update_history(self.initial_distribution,
-                            self.transition, self.emission, self.cost)
+                            self.transition, self.emission,
+                            self.cost, self.BIC)
         hist = self.history
         PIs = hist['PI']
         As = hist['A']
         Bs = hist['B']
         iters = hist['iterations']
-        BICs = []
-        for PI, A, B in zip(PIs, As, Bs):
-            tmp = {'PI': PI, 'A': A, 'B': B}
-            tmp_bic, paths = self.get_BIC(new_mats=tmp)
-            BICs.append(tmp_bic)
-
+        BICs = hist['BIC']
         idx = np.argmin(BICs)
         out = {'PI': PIs[idx], 'A': As[idx], 'B': Bs[idx]}
         return out, iters[idx], BICs
@@ -724,22 +690,25 @@ class PoissonHMM(object):
         self.initial_distribution = hist['PI'][idx]
         self.transition = hist['A'][idx]
         self.emission = hist['B'][idx]
-        self._compute_cost()
+        self._update_cost()
 
     def set_matrices(self, new_mats):
         self.initial_distribution = new_mats['PI']
         self.transition = new_mats['A']
         self.emission = new_mats['B']
-        self._compute_cost()
+        self._update_cost()
 
     def set_data(self, new_data, dt):
         self.data = new_data
         self.dt = dt
         self._compute_data_rate_array()
-        self._compute_cost()
+        self._update_cost()
 
     def plot_state_raster(self, ax=None, state_map=None):
-        bestPaths, _ = self.get_best_paths(state_map=state_map)
+        bestPaths, _ = self.get_best_paths()
+        if state_map is not None:
+            bestPaths = convert_path_state_numbers(bestPaths, state_map)
+
         data = self.data
         fig, ax = plot_state_raster(data, bestPaths, self.dt, ax=ax)
         return fig, ax
@@ -776,17 +745,79 @@ class PoissonHMM(object):
         self.initial_distribution = newPI
         self.transition = newA
         self.emission = newB
+        self._update_cost()
 
-    def _compute_cost(self):
+    def _update_cost(self):
+        spikes = self.data
+        win_size = self._cost_window
+        dt = self.dt
+        PI = self.initial_distribution
+        A  = self.transition
+        B  = self.emission
         true_rates = self._rate_data
-        new_rates = self._compute_predicted_rate_array()
-        cost = compute_hmm_cost(true_rates, new_rates)
+        cost, BIC, bestPaths = compute_hmm_cost(spikes, dt, PI, A, B,
+                                                win_size=win_size,
+                                                true_rates=true_rates)
         self.cost = cost
-        return cost
+        self.BIC = BIC
+        self.best_sequences = bestPaths
+
+    def get_cost(self):
+        if self.cost is None:
+            self._update_cost()
+
+        return self.cost
+
+
+def compute_BIC(spikes, dt, PI, A, B):
+    bestPaths, maxLogProb = compute_best_paths(spikes, dt, PI, A, B)
+    maxLogProb = np.max(maxLogProb)
+
+    nParams = (A.shape[0]*(A.shape[1]-1) +
+               (PI.shape[0]-1) +
+               B.shape[0]*(B.shape[1]-1))
+
+    nPts = spikes.shape[-1]
+    BIC = -2 * maxLogProb + nParams * np.log(nPts)
+    return BIC, bestPaths
+
+
+def compute_hmm_cost(spikes, dt, PI, A, B, win_size=0.25, true_rates=None):
+    if true_rates is None:
+        true_rates = convert_spikes_to_rates(spikes, dt, win_size)
+
+    BIC, bestPaths = compute_BIC(spikes, dt, PI, A, B)
+    hmm_rates = generate_rate_array_from_state_seq(bestPaths, B, dt, win_size,
+                                                   step_size=win_size)
+    RMSE = compute_rate_rmse(true_rates, hmm_rates)
+    return cost, BIC, bestPaths
+
+
+def compute_best_paths(spikes, dt, PI, A, B):
+    if len(spikes.shape) == 2:
+        spikes = np.array([spikes])
+
+    nTrials, nCells, nTimeSteps = spikes.shape
+    bestPaths = np.zeros((nTrials, nTimeSteps))-1
+    pathProbs = np.zeros((nTrials,))
+
+    for i, trial in enumerate(spikes):
+        bestPaths[i,:], pathProbs[i], _, _ = poisson_viterbi(trial, dt, PI,
+                                                             A, B)
+    return bestPaths, pathProbs
+
+
+def convert_path_state_numbers(paths, state_map):
+    newPaths = np.zeros(paths.shape)
+    for k,v in state_map.items():
+        idx = np.where(paths == k)
+        newPaths[idx] = v
+
+    return newPaths
 
 
 @njit
-def compute_hmm_cost(rates1, rates2):
+def compute_rate_rmse(rates1, rates2):
     # Compute RMSE per trial
     # Mean over trials
     n_trials, n_cells, n_steps = rates1.shape
@@ -860,7 +891,10 @@ def compare_hmm_to_truth(truth_dat, hmm, state_map=None):
 
     # Compute edit distances, histogram, return mean and median % correct
     truePaths = truth_dat.ground_truth['state_vectors']
-    bestPaths, _ = hmm.get_best_paths(state_map=state_map)
+    bestPaths, _ = hmm.get_best_paths()
+    if state_map is not None:
+        bestPaths = convert_path_state_numbers(bestPaths, state_map)
+
     edit_distances = np.zeros((truePaths.shape[0],))
     pool = mp.Pool(mp.cpu_count())
     def update(ans):
@@ -1089,7 +1123,7 @@ def generate_rate_array_from_state_seq(bestPaths, B, dt, win_size,
     n_cells, n_states = B.shape
     rates = np.zeros((n_trials, n_cells, n_steps))
     for j in range(n_trials):
-        seq = bestPaths[j, :]
+        seq = bestPaths[j, :].astype(np.int64)
         rates[j, :, :] = B[:, seq]
 
     n_pts = int(win_size / dt)
