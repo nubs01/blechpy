@@ -7,3 +7,4 @@ build/
 dist/
 *.egg-info
 datashader_temp*
+__pycache__
