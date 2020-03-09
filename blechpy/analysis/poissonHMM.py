@@ -402,7 +402,7 @@ class PoissonHMM(object):
     Adpated from code by Ben Ballintyn
     '''
     def __init__(self, n_predicted_states, spikes, dt,
-                 max_history=50, cost_window=0.25):
+                 max_history=500, cost_window=0.25, set_data=None):
         if len(spikes.shape) == 2:
             spikes = np.array([spikes])
 
@@ -416,8 +416,17 @@ class PoissonHMM(object):
         self.BIC = None
         self.best_sequences = None
         self._rate_data = None
+        self.history = None
         self._compute_data_rate_array()
-        self.randomize()
+        if set_data is None:
+            self.randomize()
+        else:
+            self.fitted = set_data['fitted']
+            self.initial_distribution = set_data['initial_distribution']
+            self.transition = set_data['transition']
+            self.emission = set_data['emission']
+            self._update_cost()
+
 
     def randomize(self):
         nStates = self.n_states
@@ -433,14 +442,6 @@ class PoissonHMM(object):
         for i in range(nStates):
             A[i, i] = diag[i]
             A[i,:] = A[i,:] / np.sum(A[i,:])
-            # d = diag[i]
-            # if d >=1:
-            #     d=0.99
-
-            # rem = 1 - d
-            # rest = np.array([*A[i,:i], *A[i,i+1:]])
-            # rest = rest * rem / np.sum(rest)
-            # A[i,:] = np.insert(rest, i, d)
 
         # Initialize rate matrix ("Emission" matrix)
         spike_counts = np.sum(spikes, axis=2) / total_time
@@ -453,9 +454,10 @@ class PoissonHMM(object):
         self.transition = A
         self.emission = B
         self.initial_distribution = np.ones((nStates,)) / nStates
+        self.iteration = 0
         self.fitted = False
         self.history = None
-        #self._update_cost()
+        self._update_cost()
 
     def fit(self, spikes=None, dt=None, max_iter = 1000, convergence_thresh = 1e-4,
             parallel=False):
@@ -530,6 +532,7 @@ class PoissonHMM(object):
         self.transition = A
         self.emission = B
         self.initial_distribution = PI
+        self.iteration += 1
         self._update_cost()
 
     def update_history(self, oldPI, oldA, oldB, oldCost, oldBIC):
@@ -667,6 +670,29 @@ class PoissonHMM(object):
                                                         step_size=win_size)
         return mean_rates
 
+    def set_to_lowest_cost(self):
+        if self.iteration not in self.history['iterations']:
+            self.update_history(self.initial_distribution,
+                                self.transition, self.emission,
+                                self.cost, self.BIC)
+
+        hist = self.history
+        idx = np.argmin(hist['cost'])
+        iteration = hist['iterations'][idx]
+        self.roll_back(iteration)
+
+    def set_to_lowest_BIC(self):
+        if self.iteration not in self.history['iterations']:
+            self.update_history(self.initial_distribution,
+                                self.transition, self.emission,
+                                self.cost, self.BIC)
+
+        hist = self.history
+        idx = np.argmin(hist['BIC'])
+        iteration = hist['iterations'][idx]
+        self.roll_back(iteration)
+
+
     def find_best_in_history(self):
         self.update_history(self.initial_distribution,
                             self.transition, self.emission,
@@ -690,12 +716,15 @@ class PoissonHMM(object):
         self.initial_distribution = hist['PI'][idx]
         self.transition = hist['A'][idx]
         self.emission = hist['B'][idx]
+        self.iteration = iteration
         self._update_cost()
 
     def set_matrices(self, new_mats):
         self.initial_distribution = new_mats['PI']
         self.transition = new_mats['A']
         self.emission = new_mats['B']
+        if 'iteration' in new_mats:
+            self.iteration = new_mats['iteration']
         self._update_cost()
 
     def set_data(self, new_data, dt):
@@ -790,7 +819,7 @@ def compute_hmm_cost(spikes, dt, PI, A, B, win_size=0.25, true_rates=None):
     hmm_rates = generate_rate_array_from_state_seq(bestPaths, B, dt, win_size,
                                                    step_size=win_size)
     RMSE = compute_rate_rmse(true_rates, hmm_rates)
-    return cost, BIC, bestPaths
+    return RMSE, BIC, bestPaths
 
 
 def compute_best_paths(spikes, dt, PI, A, B):
