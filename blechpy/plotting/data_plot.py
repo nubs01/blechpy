@@ -443,14 +443,17 @@ def plot_ISIs(ISIs, total_spikes=None, save_file=None):
     viol_2ms = np.sum(ISIs < 2.0)
     fig, ax = plt.subplots(figsize=(15,10))
     max_bin = max(np.max(ISIs), 11.0)
-    ax.hist(ISIs, bins = [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, max_bin])
+    bins = [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, max_bin]
+    histogram, _ = np.histogram(ISIs, bins)
+    histogram = histogram[:-1]
+    ax.hist(ISIs, bins = bins)
     ax.set_xlim((0.0, 10.0))
     title_str = ('2ms violations = %0.1f %% (%i/%i)\n'
                  '1ms violations = %0.1f %% (%i/%i)' % (100*viol_2ms/total_spikes,
                                                         viol_2ms, total_spikes,
                                                         100*viol_1ms/total_spikes,
                                                         viol_1ms, total_spikes))
-    ax.autoscale(axis='y', tight=False)
+    ax.set_ylim((0.0, np.max(histogram)+5))
     ax.set_title(title_str)
     ax.set_xlabel('ISIs (ms)')
     if save_file is not None:

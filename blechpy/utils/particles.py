@@ -44,3 +44,26 @@ class digital_mapping_particle(tables.IsDescription):
     spike_array = tables.BoolCol()
     exclude = tables.BoolCol()
     laser_channels = tables.BoolCol()
+
+
+class HMMInfoParticle(tables.IsDescription):
+    #   HMM_ID, taste, din_channel, n_cells, time_start, time_end, thresh,
+    #   unit_type, n_repeats, dt, n_states, n_iters, BIC, cost, converged
+    hmm_id = tables.Int16Col()
+    taste = tables.StringCol(20)
+    channel = tables.Int16Col()
+    n_cells = tables.Int32Col()
+    unit_type = tables.StringCol(15)
+    n_trials = tables.Int32Col()
+    dt = tables.Float64Col()
+    max_iter = tables.Int32Col()
+    threshold = tables.Float64Col()
+    time_start = tables.Int32Col()
+    time_end = tables.Int32Col()
+    n_repeats = tables.Int16Col()
+    n_states = tables.Int32Col()
+    n_iterations = tables.Int32Col()
+    BIC = tables.Float64Col()
+    cost = tables.Float64Col()
+    converged = tables.BoolCol()
+    fitted = tables.BoolCol()
