@@ -17,3 +17,5 @@ holoviews>=1.12.7
 h5py>=2.10.0
 statsmodels
 seaborn
+appdirs>=1.4.3
+joblib>=0.14.1

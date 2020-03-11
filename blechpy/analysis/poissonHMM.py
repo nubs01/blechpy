@@ -13,6 +13,10 @@ from blechpy.utils.particles import HMMInfoParticle
 from blechpy import load_dataset
 from blechpy.dio import h5io
 from blechpy.plotting import hmm_plot as hmmplt
+from joblib import Parallel, delayed, Memory
+from appdirs import user_cache_dir
+cachedir = user_cache_dir('blechpy')
+memory = Memory(cachedir, verbose=0)
 
 
 
@@ -1257,6 +1261,7 @@ class HmmHandler(object):
         trials = dat.dig_in_trials
         data_params = []
         fit_objs = []
+        fit_params = []
         for i, X in enumerate(it.product(params,tastes)):
             p = X[0].copy()
             t = X[1]
@@ -1273,9 +1278,11 @@ class HmmHandler(object):
             for i in range(p['n_repeats']):
                 hmmFit = HMMFit(dat.root_dir, p)
                 fit_objs.append(hmmFit)
+                fit_params.append(p)
 
         self._fit_objects = fit_objs
         self._data_params = data_params
+        self._fit_params = fit_params
         self._fitted_models = dict.fromkeys([x['hmm_id'] for x in data_params])
         self.write_overview_to_hdf5()
 
@@ -1287,6 +1294,7 @@ class HmmHandler(object):
         rec_dir = self._dataset.root_dir
         params = []
         fit_objs = []
+        fit_params = []
         fitted_models = {}
         with tables.open_file(h5_file, 'r') as hf5:
             table = hf5.root.data_overview
@@ -1303,6 +1311,7 @@ class HmmHandler(object):
                 for i in range(p['n_repeats']):
                     hmmFit = HMMFit(rec_dir, p)
                     fit_objs.append(hmmFit)
+                    fit_params.append(p)
 
         for p in params:
             hmm_id = p['hmm_id']
@@ -1311,6 +1320,7 @@ class HmmHandler(object):
         self._data_params = params
         self._fit_objects = fit_objs
         self._fitted_models = fitted_models
+        self._fit_params = fit_params
 
 
     def write_overview_to_hdf5(self):
@@ -1377,54 +1387,68 @@ class HmmHandler(object):
     def run(self, parallel=True):
         self.write_overview_to_hdf5()
         h5_file = self.h5_file
+        rec_dir = self._dataset.root_dir
         fit_objs = self._fit_objects
+        fit_params = self._fit_params
         self._fitted_models = dict.fromkeys([x['hmm_id'] for x in self._data_params])
         errors = []
 
-        def update(ans):
-            hmm_id = ans[0]
-            hmm = ans[1]
-            if self._fitted_models[hmm_id] is not None:
-                best_hmm = pick_best_hmm([HMMs[hmm_id], hmm])
-                self._fitted_models[hmm_id] = best_hmm
-                write_hmm_to_hdf5(h5_file, hmm_id, best_hmm)
-                del hmm, best_hmm
-            else:
-                # Check history for lowest BIC
-                self._fitted_models[hmm_id] = hmm.set_to_lowest_BIC()
-                write_hmm_to_hdf5(h5_file, hmm_id, hmm)
-                del hmm
+        # def update(ans):
+        #     hmm_id = ans[0]
+        #     hmm = ans[1]
+        #     if self._fitted_models[hmm_id] is not None:
+        #         best_hmm = pick_best_hmm([HMMs[hmm_id], hmm])
+        #         self._fitted_models[hmm_id] = best_hmm
+        #         write_hmm_to_hdf5(h5_file, hmm_id, best_hmm)
+        #         del hmm, best_hmm
+        #     else:
+        #         # Check history for lowest BIC
+        #         self._fitted_models[hmm_id] = hmm.set_to_lowest_BIC()
+        #         write_hmm_to_hdf5(h5_file, hmm_id, hmm)
+        #         del hmm
 
-        def error_call(e):
-            errors.append(e)
+        # def error_call(e):
+        #     errors.append(e)
 
+        # if parallel:
+        #     n_cpu = np.min((mp.cpu_count()-1, len(fit_objs)))
+        #     if n_cpu > 10:
+        #         pool = mp.get_context('spawn').Pool(n_cpu)
+        #     else:
+        #         pool = mp.Pool(n_cpu)
+
+        #     for f in fit_objs:
+        #         pool.apply_async(f.run, callback=update, error_callback=error_call)
+
+        #     pool.close()
+        #     pool.join()
+        # else:
+        #     for f in fit_objs:
+        #         try:
+        #             ans = f.run()
+        #             update(ans)
+        #         except Exception as e:
+        #             raise Exception(e)
+        #             error_call(e)
         if parallel:
-            n_cpu = np.min((mp.cpu_count()-1, len(fit_objs)))
-            if n_cpu > 10:
-                pool = mp.get_context('spawn').Pool(n_cpu)
-            else:
-                pool = mp.Pool(n_cpu)
-
-            for f in fit_objs:
-                pool.apply_async(f.run, callback=update, error_callback=error_call)
-
-            pool.close()
-            pool.join()
+            n_cpu = np.min((mp.cpu_count()-1, len(fit_params)))
         else:
-            for f in fit_objs:
-                try:
-                    ans = f.run()
-                    update(ans)
-                except Exception as e:
-                    raise Exception(e)
-                    error_call(e)
+            n_cpu = 1
+
+        results = Parallel(n_jobs=n_cpu, verbose=20)(delayed(hmm_fit_mp)(rec_dir, p) for p in fit_params)
+        for hmm_id, hmm in zip(*results):
+            if self._fitted_models[hmm_id] is None:
+                self._fitted_models[hmm_id] = hmm
+            else:
+                new_hmm = pick_best_hmm([hmm, self._fitted_models[hmm_id]])
+                self._fitted_models[hmm_id] = new_hmm
 
         self.write_overview_to_hdf5()
         self.save_fitted_models()
-        if len(errors) > 0:
-            print('Encountered errors: ')
-            for e in errors:
-                print(e)
+        # if len(errors) > 0:
+        #     print('Encountered errors: ')
+        #     for e in errors:
+        #         print(e)
 
     def save_fitted_models(self):
         models = self._fitted_models
@@ -1439,6 +1463,27 @@ class HmmHandler(object):
             params = self._data_params[idx]
             time_window = [params['time_start'], params['time_end']]
             hmmplt.plot_hmm_figures(v, time_window, save_dir=plot_dir)
+
+
+@memory.cache
+def get_hmm_spike_data(rec_dir, unit_type, channel, time_start=None, time_end=None, dt=None):
+    units = query_units(rec_dir, unit_type)
+    time, spike_array = h5io.get_spike_data(rec_dir, units, channel)
+    curr_dt = np.unique(np.diff(time))[0] / 1000
+    if dt is not None and curr_dt < dt:
+        spike_array, time = rebin_spike_array(spike_array, curr_dt, time, dt)
+    elif dt is not None and curr_dt > dt:
+        raise ValueError('Cannot upsample spike array from %f ms '
+                         'bins to %f ms bins' % (dt, curr_dt))
+    else:
+        dt = curr_dt
+
+    if time_start and time_end:
+        idx = np.where((time >= time_start) & (time < time_end))[0]
+        time = time[idx]
+        spike_array = spike_array[:, :, idx]
+
+    return spike_array.astype('int32'), dt, time
 
 
 def read_hmm_from_hdf5(h5_file, hmm_id, rec_dir):
@@ -1573,6 +1618,23 @@ class HMMFit(object):
                                                time_start=p['time_start'],
                                                time_end=p['time_end'])
         return spike_array, dt, time
+
+def hmm_fit_mp(rec_dir, params):
+    hmm_id = params['hmm_id']
+    n_states = params['n_states']
+    dt = params['dt']
+    time_start = params['time_start']
+    time_end = params['time_end']
+    max_iter = params['max_iter']
+    threshold = params['threshold']
+    unit_type = params['unit_type']
+    channel = params['channel']
+    spikes, dt, time = get_hmm_spike_data(rec_dir, unit_type, channel,
+                                          time_start=time_start,
+                                          time_end=time_end, dt = dt)
+    hmm = PoissonHMM(params['n_states'], spikes, dt)
+    hmm.fit(max_iter=max_iter, convergence_thresh=threshold)
+    return hmm_id, hmm
 
 
 def get_spike_data(rec_dir, units, channel, dt=None, time_start=None, time_end=None):
