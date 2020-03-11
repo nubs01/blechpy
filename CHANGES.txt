@@ -1,3 +1,8 @@
+v2.0.18 (2020-3-11)
+-------------------
+- Add HMMHandler to plan and distribute fitting of HMMs over multiple parameter sets and tastes
+- Convert to using joblib to fit HMMs in parallel
+
 v2.0.17 (2020-3-2)
 -------------------
 - Store both BIC and Cost on each iteration of fitting HMM in history
