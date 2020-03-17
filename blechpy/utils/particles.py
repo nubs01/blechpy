@@ -67,3 +67,4 @@ class HMMInfoParticle(tables.IsDescription):
     cost = tables.Float64Col()
     converged = tables.BoolCol()
     fitted = tables.BoolCol()
+    max_log_prob = tables.Float64Col()

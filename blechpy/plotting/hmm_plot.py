@@ -57,20 +57,9 @@ def get_threshold_windows(trace, thresh=0.75):
     return out
 
 
-def get_hmm_plot_vars(hmm, time_window=None):
-    spikes = hmm.data
-    dt = hmm.dt
-    if len(spikes) == 2:
-        spikes = np.array([spikes])
-
-    n_trials, n_cells, n_steps = spikes.shape
-    n_states = hmm.n_states
-    if time_window is None:
-        time_window = [0, n_steps * dt * 1000]
-
-    time = np.arange(time_window[0], time_window[1], dt*1000)  # Time in ms
+def get_hmm_plot_colors(n_states, time_window=None):
     colors = [plt.cm.tab10(x) for x in np.linspace(0, 1, n_states)]
-    return spikes, dt, time, colors
+    return colors
 
 
 def plot_raster(spikes, time=None, ax=None, y_min=0.05, y_max=0.95):
@@ -173,10 +162,8 @@ def plot_sequence(seq, time=None, ax=None, y_min=0, y_max=1, colors=None):
     return ax, leg_handles, leg_labels
 
 
-def plot_viterbi_paths(hmm, time=None, colors=None, axes=None, legend=True,
+def plot_viterbi_paths(hmm, spikes, time=None, colors=None, axes=None, legend=True,
                        hmm_id=None, save_file=None):
-    spikes = hmm.data
-    dt = hmm.dt
     if not axes:
         fig, axes = make_hmm_raster(spikes, time=time)
     else:
@@ -186,7 +173,8 @@ def plot_viterbi_paths(hmm, time=None, colors=None, axes=None, legend=True,
         fig.subplots_adjust(right=0.9)  # To  make room for legend
 
 
-    BIC, paths = hmm.get_BIC()
+    BIC = hmm.BIC
+    paths = hmm.best_sequences
     n_trials, n_steps = paths.shape
     n_states = hmm.n_states
     if time is None:
@@ -263,17 +251,17 @@ def plot_probability_traces(traces, time=None, ax=None, colors=None, thresh=0.75
     return ax, leg_handles, leg_labels
 
 
-def plot_forward_probs(hmm, time=None, colors=None, axes=None, legend=True,
+def plot_forward_probs(hmm, spikes, dt, time=None, colors=None, axes=None, legend=True,
                        hmm_id=None, thresh=0.75, save_file=None):
     if not axes:
-        fig, axes = make_hmm_raster(hmm.data, time=time)
+        fig, axes = make_hmm_raster(spikes, time=time)
     else:
         fig = axes[0].figure
 
     if legend:
         fig.subplots_adjust(right=0.9)  # To  make room for legend
 
-    alphas = hmm.get_forward_probabilities()
+    alphas = hmm.get_forward_probabilities(spikes, dt)
     n_trials, n_states, n_steps = alphas.shape
     if time is None:
         time = np.arange(0, n_steps)
@@ -314,17 +302,17 @@ def plot_forward_probs(hmm, time=None, colors=None, axes=None, legend=True,
         return fig, axes
 
 
-def plot_backward_probs(hmm, time=None, colors=None, axes=None, legend=True,
+def plot_backward_probs(hmm, spikes, dt, time=None, colors=None, axes=None, legend=True,
                         hmm_id=None, thresh=0.75, save_file=None):
     if not axes:
-        fig, axes = make_hmm_raster(hmm.data, time=time)
+        fig, axes = make_hmm_raster(spikes, time=time)
     else:
         fig = axes[0].figure
 
     if legend:
         fig.subplots_adjust(right=0.9)  # To  make room for legend
 
-    betas = hmm.get_backward_probabilities()
+    betas = hmm.get_backward_probabilities(spikes, dt)
     n_trials, n_states, n_steps = betas.shape
     if time is None:
         time = np.arange(0, n_steps)
@@ -365,17 +353,17 @@ def plot_backward_probs(hmm, time=None, colors=None, axes=None, legend=True,
         return fig, axes
 
 
-def plot_gamma_probs(hmm, time=None, colors=None, axes=None, legend=True,
+def plot_gamma_probs(hmm, spikes, dt, time=None, colors=None, axes=None, legend=True,
                      hmm_id=None, thresh=0.75, save_file=None):
     if not axes:
-        fig, axes = make_hmm_raster(hmm.data, time=time)
+        fig, axes = make_hmm_raster(spikes, time=time)
     else:
         fig = axes[0].figure
 
     if legend:
         fig.subplots_adjust(right=0.9)  # To  make room for legend
 
-    gammas = hmm.get_gamma_probabilities()
+    gammas = hmm.get_gamma_probabilities(spikes, dt)
     n_trials, n_states, n_steps = gammas.shape
     if time is None:
         time = np.arange(0, n_steps)
@@ -488,7 +476,7 @@ def plot_hmm_initial_probs(PI, ax=None):
 def plot_hmm_overview(hmm, colors=None, hmm_id=None, save_file=None):
     n_states = hmm.n_states
     if not colors:
-        _, _, _, colors = get_hmm_plot_vars(hmm)
+        colors = get_hmm_plot_colors(n_states)
 
     PI = hmm.initial_distribution
     A = hmm.transition
@@ -522,9 +510,11 @@ def plot_hmm_overview(hmm, colors=None, hmm_id=None, save_file=None):
         return fig, axes
 
 
-def plot_hmm_figures(hmm, time_window=None, hmm_id=None, save_dir=None):
-    spikes, dt, time, colors = get_hmm_plot_vars(hmm, time_window=time_window)
-    # Plot raster
+def plot_hmm_figures(hmm, spikes, dt, time, hmm_id=None, save_dir=None):
+    colors = get_hmm_plot_colors(hmm.n_states)
+    if hmm_id is None:
+        hmm_id = hmm.hmm_id
+
 
     fig_names = ['sequences', 'forward_probabilities',
                  'backward_probabilities', 'gamma_probabilities', 'overview']
@@ -536,21 +526,21 @@ def plot_hmm_figures(hmm, time_window=None, hmm_id=None, save_dir=None):
 
     # Plot sequences
     print('Plotting Viterbi Decoded Paths...')
-    plot_viterbi_paths(hmm, time=time, colors=colors,
+    plot_viterbi_paths(hmm, spikes, colors=colors,
                        hmm_id=hmm_id, save_file=files['sequences'])
 
     # Plot alphas
     print('Plotting Forward Probabilities...')
-    plot_forward_probs(hmm, time=time, colors=colors,
+    plot_forward_probs(hmm, spikes, dt, time=time, colors=colors,
                        hmm_id=hmm_id, save_file=files['forward_probabilities'])
     # Plot betas
     print('Plotting Backward Probabilities...')
-    plot_backward_probs(hmm, time=time, colors=colors,
+    plot_backward_probs(hmm, spikes, dt, time=time, colors=colors,
                         hmm_id=hmm_id, save_file=files['backward_probabilities'])
 
     # Plot gammas
     print('Plotting Gamma Probabilities...')
-    plot_gamma_probs(hmm, time=time, colors=colors,
+    plot_gamma_probs(hmm, spikes, dt, time=time, colors=colors,
                      hmm_id=hmm_id, save_file=files['gamma_probabilities'])
 
     # Plot stats: rate bar plots, transition heat map, initial probabilities
