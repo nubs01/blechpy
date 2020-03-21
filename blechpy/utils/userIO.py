@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import ttk
-from collections.abc import Mapping
+from collections import Mapping
 from copy import deepcopy
 from blechpy.utils import print_tools as pt
 import easygui as eg
@@ -230,7 +230,12 @@ class dict_fill_pane(ttk.Frame):
                 prompt += ' : '
                 label = ttk.Label(line, text=prompt)
                 if t is bool:
-                    var = tk.BooleanVar(self, value=v)
+                    if isinstance(v, type):
+                        val = False
+                    else:
+                        val = v
+
+                    var = tk.BooleanVar(self, value=val)
                     entry = ttk.Checkbutton(line, text='', variable=var)
                 else:
                     var = tk.StringVar(self, value=default)
@@ -257,6 +262,7 @@ class dict_fill_pane(ttk.Frame):
                 output[k] = v.get()
             else:
                 output[k] = convert_str_to_type(v.get(), t)
+
         return deepcopy(output)
 
 
@@ -337,6 +343,7 @@ def get_user_input(msg, default=None, shell=False):
         out = eg.enterbox(msg, default=default)
 
         return out
+
 
 def select_from_list(prompt, items, title='', multi_select=False, shell=False):
     '''makes a popup for list selections, can be multichoice or single choice
@@ -613,3 +620,54 @@ def get_files(prompt='', root=None, filetypes=None, multi=False, shell=False):
         out = None
 
     return out
+
+
+class fill_dict_popup(object):
+    def __init__(self, data, master=None, prompt=None):
+        if master:
+            root = self.root = tk.Toplevel(master)
+        else:
+            root = self.root = tk.Tk()
+
+        root.style = ttk.Style()
+        root.style.theme_use('clam')
+        self.data = data
+
+        if prompt:
+            prompt_label = ttk.Label(root, text=prompt)
+            prompt_label.pack(side='top', fill='x', expand='True')
+            ttk.Separator(root, orient='horizontal').pack(side='top', fill='x',
+                                                         expand=True, pady=10)
+
+        type_dict = make_type_dict(data)
+        dict_pane = dict_fill_pane(root, data, type_dict)
+        dict_pane.pack(side='top', fill='both', expand=True)
+        self.dict_pane = dict_pane
+        line = ttk.Frame(root)
+        submit = ttk.Button(line, text='Submit', command=self.submit)
+        cancel = ttk.Button(line, text='Cancel', command=self.cancel)
+        submit.pack(side='left')
+        cancel.pack(side='right')
+        line.pack(side='bottom', anchor='e', pady=5)
+        center(root)
+
+        self.output = deepcopy(data)
+        self.cancelled = False
+
+        if master is None:
+            root.mainloop()
+
+    def submit(self):
+        output = self.dict_pane.get_values()
+        for k,v in output.items():
+            self.output[k] = v
+
+        self.root.destroy()
+
+    def cancel(self):
+        self.cancelled = True
+        self.root.destroy()
+
+
+def new_fill_dict(data, prompt=None, shell=False, gui_root=None):
+    pass

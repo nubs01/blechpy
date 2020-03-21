@@ -1,12 +1,14 @@
 import os
 import shutil
+from tqdm import tqdm
+import multiprocessing
 import numpy as np
 import pandas as pd
 from itertools import combinations
 from blechpy import dio
 from blechpy.datastructures.objects import data_object, load_dataset
-from blechpy.utils import userIO, print_tools as pt
-from blechpy.analysis import held_unit_analysis as hua
+from blechpy.utils import userIO, print_tools as pt, write_tools as wt, spike_sorting_GUI as ssg
+from blechpy.analysis import held_unit_analysis as hua, blech_clustering as bclust
 from blechpy.plotting import data_plot as dplt
 from blechpy.utils.decorators import Logger
 
@@ -28,7 +30,7 @@ class experiment(data_object):
         if 'SSH_CONNECTION' in os.environ:
             shell = True
 
-        super().__init__('experiment', exp_dir, exp_name)
+        super().__init__('experiment', root_dir=exp_dir, data_name=exp_name, shell=shell)
 
         fd = [os.path.join(exp_dir, x) for x in os.listdir(exp_dir)]
         file_dirs = [x for x in fd if (os.path.isdir(x) and
@@ -72,6 +74,8 @@ class experiment(data_object):
         new_root = super()._change_root(new_root)
         self.recording_dirs = [x.replace(old_root, new_root)
                                for x in self.recording_dirs]
+        self.rec_labels = {k: v.replace(old_root, new_root)
+                           for k,v in self.rec_labels.items()}
         return new_root
 
     def __str__(self):
@@ -175,7 +179,7 @@ class experiment(data_object):
             raise FileNotFoundError('No .h5 file found in %s' % new_dir)
 
         if not any([x.endswith('dataset.p') for x in os.listdir(new_dir)]):
-            raise FileNotFoundEorr('*_dataset.p file not found in %s' % new_dir)
+            raise FileNotFoundError('*_dataset.p file not found in %s' % new_dir)
 
         if new_dir.endswith('/'):
             new_dir = new_dir[:-1]
@@ -332,3 +336,129 @@ class experiment(data_object):
         row['electrode'] = electrode
         row['area'] = area
         return row
+
+    @Logger('Running Spike Clustering')
+    def cluster_spikes(self, data_quality=None, multi_process=True,
+                       n_cores=None, custom_params=None, umap=False):
+        '''Write clustering parameters to file and
+        Run blech_process on each electrode using GNU parallel
+
+        Parameters
+        ----------
+        data_quality : {'clean', 'noisy', None (default)}
+            set if you want to change the data quality parameters for cutoff
+            and spike detection before running clustering. These parameters are
+            automatically set as "clean" during initial parameter setup
+        accept_params : bool, False (default)
+            set to True in order to skip popup confirmation of parameters when
+            running
+        '''
+        clustering_params = None
+        if custom_params:
+            clustering_params = custom_params
+        elif data_quality:
+            tmp = dio.params.load_params('clustering_params', self.root_dir,
+                                         default_keyword=data_quality)
+            if tmp:
+                clustering_params = tmp
+            else:
+                raise ValueError('%s is not a valid data_quality preset. Must '
+                                 'be "clean" or "noisy" or None.')
+
+
+        # Get electrodes, throw out 'dead' electrodes
+        em = self.electrode_mapping
+        if 'dead' in em.columns:
+            electrodes = em.Electrode[em['dead'] == False].tolist()
+        else:
+            electrodes = em.Electrode.tolist()
+
+
+        # Setup progress bar
+        pbar = tqdm(total = len(electrodes))
+        def update_pbar(ans):
+            pbar.update()
+
+
+        # get clustering params
+        rec_dirs = list(self.rec_labels.values())
+        if clustering_params is None:
+            dat =  load_dataset(rec_dirs[0])
+            clustering_params = dat.clustering_params.copy()
+
+        print('\nRunning Blech Clust\n-------------------')
+        print('Parameters\n%s' % pt.print_dict(clustering_params))
+
+        # Write clustering params to recording directories & check for spike detection
+        spike_detect = True
+        for rd in rec_dirs:
+            dat = load_dataset(rd)
+            if dat.process_status['spike_detection'] == False:
+                raise FileNotFoundError('Spike detection has not been run on %s' % rd)
+
+            dat.clustering_params = clustering_params
+            wt.write_params_to_json('clustering_params', rd, clustering_params)
+            # dat.save()
+
+        # Run clustering
+        if not umap:
+            clust_objs = [bclust.BlechClust(rec_dirs, x, params=clustering_params)
+                          for x in electrodes]
+        else:
+            clust_objs = [bclust.BlechClust(rec_dirs, x,
+                                            params=clustering_params,
+                                            data_transform=bclust.UMAP_METRICS,
+                                            n_pc=5)
+                          for x in electrodes]
+
+        if multi_process:
+            if n_cores is None or n_cores > multiprocessing.cpu_count():
+                n_cores = multiprocessing.cpu_count() - 1
+
+            pool = multiprocessing.get_context('spawn').Pool(n_cores)
+            for x in clust_objs:
+                pool.apply_async(x.run, callback=update_pbar)
+
+            pool.close()
+            pool.join()
+        else:
+            for x in clust_objs:
+                res = x.run()
+                update_pbar(res)
+
+        pbar.close()
+
+        for rd in rec_dirs:
+            dat = load_dataset(rd)
+            dat.process_status['spike_clustering'] = True
+            dat.process_status['cleanup_clustering'] = False
+            # dat.save()
+
+        # self.save()
+        print('Clustering Complete\n------------------')
+
+    def sort_spikes(self, electrode=None, shell=False):
+        if electrode is None:
+            electrode = userIO.get_user_input('Electrode #: ', shell=shell)
+            if electrode is None or not electrode.isnumeric():
+                return
+
+            electrode = int(electrode)
+
+        rec_dirs = list(self.rec_labels.values())
+        for rd in rec_dirs:
+            dat = load_dataset(rd)
+            if not dat.process_status['cleanup_clustering']:
+                dat.cleanup_clustering()
+
+            dat.process_status['sort_units'] = True
+
+        sorter = bclust.SpikeSorter(rec_dirs, electrode, shell=shell)
+        if not shell:
+           root, sorter_GUI = ssg.launch_sorter_GUI(sorter)
+           return root, sorter_GUI
+        else:
+            print('No shell UI yet')
+            return
+
+

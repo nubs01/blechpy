@@ -340,7 +340,7 @@ def get_response_change(unit_name, rec1, unit1,
         fr1 = norm_func(bin_time1, fr1)
         fr2 = norm_fun(bin_time2, fr2)
 
-    difference_of_mean, SEM = get_mean_difference(fr1, fr2, axis=0)
+    difference_of_mean, SEM = sas.get_mean_difference(fr1, fr2, axis=0)
 
     return difference_of_mean, SEM, bin_time1
 

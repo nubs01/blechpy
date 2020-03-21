@@ -9,6 +9,7 @@ import subprocess
 import pylab as plt
 from blechpy.plotting import data_plot as dplt
 from blechpy.analysis import clustering as clust, spike_sorting as ss
+from blechpy.analysis import blech_clustering as blcust
 import pandas as pd
 
 SCRIPT_DIR = os.path.dirname(__file__)
@@ -236,7 +237,7 @@ class circus_clust(object):
             plt.close('all')
 
             for clust in cluster_data:
-                fig, ax = dplt.plot_cluster_waveforms(clust)
+                fig, ax = dplt.plot_waveforms(clust['spike_waveforms'])
                 fn = os.path.join(plot_dir, 'E%i_Ch%i_C%s_waveforms.png'
                                   % (electrode_num, channel, clust['cluster_id']))
                 fig.savefig(fn)
@@ -268,10 +269,10 @@ class circus_clust(object):
                 idx = np.where(clusters == c)[0]
                 spike_times = all_times[idx]
                 spike_waveforms, new_fs = clust.get_waveforms(ref_el, spike_times)
-                ISI, violations1, violations2 = ss.get_ISI_and_violations(spike_times, fs)
+                ISI, violations1, violations2 = bclust.get_ISI_and_violations(spike_times, fs)
                 # TODO: Actually make cluster data matrix
                 data = None
-                cluster = {'Cluster Name': cluster_name,
+                cluster = {'Cluster_Name': cluster_name,
                            'electrode': electrode_num,
                            'solution': channel_num,
                            'cluster_id': str(c),

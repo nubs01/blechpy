@@ -12,3 +12,10 @@ mistune>=0.8.1
 ipython>=5.0.0
 jupyter-core>=4.4.0
 entrypoints>=0.2.2
+umap-learn>=0.3.10
+holoviews>=1.12.7
+h5py>=2.10.0
+statsmodels
+seaborn
+appdirs>=1.4.3
+joblib>=0.14.1

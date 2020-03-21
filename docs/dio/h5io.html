@@ -29,6 +29,7 @@ import re
 import os
 import time
 import sys
+import shutil
 import subprocess
 import pandas as pd
 import numpy as np
@@ -500,28 +501,6 @@ def cleanup_clustering(file_dir):
     -------
     str, path to new hdf5 file
     &#39;&#39;&#39;
-    # Check for memory_monitor_clustering files
-    # If found write all conents into memory_usage.txt and delete files
-    println(&#39;Consolidating clustering memory usage logs...&#39;)
-    mem_dir = os.path.join(file_dir, &#39;memory_monitor_clustering&#39;)
-    mem_file = os.path.join(mem_dir, &#39;memory_usage.txt&#39;)
-
-    if not os.path.isfile(mem_file):
-        file_list = os.listdir(mem_dir)
-
-        with open(mem_file, &#39;w&#39;) as write_file:
-            for f in file_list:
-                try:
-                    mem_usage = np.loadtxt(os.path.join(mem_dir, f))
-                    print(&#39;electrode%s\t%sMB&#39; % (f.replace(&#39;.txt&#39;, &#39;&#39;),
-                                                 str(mem_usage)),
-                          file=write_file)
-                    os.remove(os.path.join(mem_dir, f))
-                except OSError as os_error:
-                    print(&#39;No clustering memory files to consolidate&#39;)
-
-    print(&#39;Done!&#39;)
-
     # Grab h5 filename
     hdf5_file = get_h5_filename(file_dir)
 
@@ -548,11 +527,6 @@ def cleanup_clustering(file_dir):
             changes = True
 
         if &#39;/unit_descriptor&#39; not in hf5:
-            hf5.create_table(&#39;/&#39;, &#39;unit_descriptor&#39;,
-                             description=particles.unit_descriptor)
-            changes = True
-        else:
-            hf5.remove_node(&#39;/unit_descriptor&#39;, recursive=1)
             hf5.create_table(&#39;/&#39;, &#39;unit_descriptor&#39;,
                              description=particles.unit_descriptor)
             changes = True
@@ -745,8 +719,11 @@ def get_unit_names(rec_dir):
     h5_file = get_h5_filename(rec_dir)
 
     with tables.open_file(h5_file, &#39;r&#39;) as hf5:
-        units = hf5.list_nodes(&#39;/sorted_units&#39;)
-        unit_names = [x._v_name for x in units]
+        if &#39;/sorted_units&#39; in  hf5:
+            units = hf5.list_nodes(&#39;/sorted_units&#39;)
+            unit_names = [x._v_name for x in units]
+        else:
+            unit_names = []
 
     return unit_names
 
@@ -782,6 +759,27 @@ def get_unit_table(rec_dir):
 
     unit_table = unit_table.apply(add_descrip, axis=1)
     return unit_table
+
+
+def get_next_unit_name(rec_dir):
+    &#39;&#39;&#39;returns node name for next sorted unit
+
+    Parameters
+    ----------
+    rec_dir : str, full path to recording directory
+
+    Returns
+    -------
+    str , name of next unit in sequence ex: &#34;unit001&#34;
+    &#39;&#39;&#39;
+    units = get_unit_names(rec_dir)
+    unit_nums = sorted([parse_unit_number(i) for i in units])
+    if units == []:
+        out = &#39;unit%03d&#39; % 0
+    else:
+        out = &#39;unit%03d&#39; % int(max(unit_nums)+1)
+
+    return out
 
 
 def get_spike_data(rec_dir, unit, din):
@@ -959,19 +957,9 @@ def get_raw_unit_waveforms(rec_dir, unit_name, electrode_mapping=None,
     if raw_el is None:
         raise FileNotFoundError(&#39;Raw data not found&#39;)
 
-    # Filter and extract waveforms
-    filt_el = clust.get_filtered_electrode(raw_el, freq=bandpass,
-                                           sampling_rate=fs)
-    del raw_el
-    pre_pts = int((snapshot[0]+0.1) * (fs/1000))
-    post_pts = int((snapshot[1]+0.2) * (fs/1000))
-    slices = np.zeros((spike_times.shape[0], pre_pts+post_pts))
-    for i, st in enumerate(spike_times):
-        slices[i, :] = filt_el[st - pre_pts: st + post_pts]
-
-    slices_dj, times_dj = clust.dejitter(slices, spike_times, snapshot, fs)
-
-    return slices_dj, descriptor, fs*10
+    slices_dj, new_fs = clust.get_waveforms(raw_el, spike_times, sampling_rate=fs,
+                                            snapshot=snapshot, bandpass=bandpass)
+    return slices_dj, descriptor, new_fs
 
 
 def get_unit_waveforms(file_dir, unit, required_descrip=None):
@@ -1118,7 +1106,126 @@ def read_unit_description(unit_description):
     elif fsu:
         return &#39;Fast-spiking&#39;
     else:
-        return &#39;Unlabelled&#39;</code></pre>
+        return &#39;Unlabelled&#39;
+
+
+def add_new_unit(rec_dir, electrode, waves, times, single_unit, pyramidal, interneuron):
+    &#39;&#39;&#39;Adds new sorted unit to h5_file and returns the new unit name
+    Creates new row for unit description and add waveforms and times arrays
+
+    Parameters
+    ----------
+    rec_dir : str
+    electrode : int
+    waves : np.array
+    times : np.array
+    single_unit : bool or int
+    pyramidal : bool or int
+    interneuron : bool or int
+
+    Returns
+    -------
+    str : unit_name
+    &#39;&#39;&#39;
+    h5_file = get_h5_filename(rec_dir)
+    unit_name = get_next_unit_name(rec_dir)
+
+    with tables.open_file(h5_file, &#39;r+&#39;) as hf5:
+        if &#39;/sorted_units&#39; not in hf5:
+            hf5.create_group(&#39;/&#39;, &#39;sorted_units&#39;)
+
+        if &#39;/unit_descriptor&#39; not in hf5:
+            hf5.create_table(&#39;/&#39;, &#39;unit_descriptor&#39;,
+                             description=particles.unit_descriptor)
+
+
+        table = hf5.root.unit_descriptor
+        unit_descrip = table.row
+        unit_descrip[&#39;electrode_number&#39;] = int(electrode)
+        unit_descrip[&#39;single_unit&#39;] = int(single_unit)
+        unit_descrip[&#39;regular_spiking&#39;] = int(pyramidal)
+        unit_descrip[&#39;fast_spiking&#39;] = int(interneuron)
+
+        hf5.create_group(&#39;/sorted_units&#39;, unit_name, title=unit_name)
+        waveforms = hf5.create_array(&#39;/sorted_units/%s&#39; % unit_name,
+                                     &#39;waveforms&#39;, waves)
+        times = hf5.create_array(&#39;/sorted_units/%s&#39; % unit_name,
+                                 &#39;times&#39;, times)
+        unit_descrip.append()
+        table.flush()
+        hf5.flush()
+
+    return unit_name
+
+
+def delete_unit(file_dir, unit_num):
+    &#39;&#39;&#39;Delete a sorted unit and re-label all following units.
+
+    Parameters
+    ----------
+    file_dir : str, full path to recording directory
+    unit_num : int, number of unit to delete
+    &#39;&#39;&#39;
+    if isinstance(unit_num, str):
+        unit_num = parse_unit_number(unit_num)
+
+    print(&#39;\n----------\nDeleting unit %i from dataset\n----------\n&#39;
+          % unit_num)
+    h5_file = get_h5_filename(file_dir)
+    unit_names = get_unit_names(file_dir)
+    unit_numbers = [parse_unit_number(i) for i in unit_names]
+    if unit_num not in unit_numbers:
+        print(&#39;Unit %i not found in data. Nothing being deleted&#39; % unit_num)
+        return False
+
+    metrics_dir = os.path.join(file_dir, &#39;sorted_unit_metrics&#39;)
+    plot_dir = os.path.join(file_dir, &#39;unit_waveforms_plots&#39;)
+
+    unit_name = &#39;unit%03d&#39; % unit_num
+    change_units = [x for x in unit_numbers if x &gt; unit_num]
+    new_units = [x-1 for x in change_units]
+    new_names = [&#39;unit%03d&#39; % x for x in new_units]
+    old_names = [&#39;unit%03d&#39; % x for x in change_units]
+    old_prefix = [&#39;Unit%i&#39; % x for x in change_units]
+    new_prefix = [&#39;Unit%i&#39; %x for x in new_units]
+
+    # Remove metrics
+    if os.path.exists(os.path.join(metrics_dir, unit_name)):
+        shutil.rmtree(os.path.join(metrics_dir, unit_name))
+
+    # remove unit from hdf5 store
+    with tables.open_file(h5_file, &#39;r+&#39;) as hf5:
+        hf5.remove_node(&#39;/sorted_units&#39;, name=unit_name, recursive=True)
+        table = hf5.root.unit_descriptor
+        table.remove_row(unit_num)
+        # rename rest of units in hdf5 and metrics folders
+        print(&#39;Renaming following units...&#39;)
+        for x, y in zip(old_names, new_names):
+            print(&#39;Renaming %s to %s&#39; % (x,y))
+            hf5.rename_node(&#39;/sorted_units&#39;, newname=y, name=x)
+            os.rename(os.path.join(metrics_dir, x),
+                      os.path.join(metrics_dir, y))
+
+        hf5.flush()
+
+    # delete and rename plot files
+    if os.path.exists(plot_dir):
+        swap_files = [(&#39;Unit%i.png&#39; % x, &#39;Unit%i.png&#39; % y)
+                      for x, y in zip(change_units, new_units)]
+        swap_files2 = [(&#39;Unit%i_mean_sd.png&#39; % x, &#39;Unit%i_mean_sd.png&#39; % y)
+                       for x, y in zip(change_units, new_units)]
+        swap_files.extend(swap_files2)
+        del_plots = [&#39;Unit%i.png&#39; % unit_num, &#39;Unit%i_mean_sd.png&#39; % unit_num]
+        print(&#39;Correcting names of plots and metrics...&#39;)
+        for x in del_plots:
+            os.remove(os.path.join(plot_dir, x))
+
+        for x in swap_files:
+            os.rename(os.path.join(plot_dir, x[0]), os.path.join(plot_dir, x[1]))
+
+    # compress_and_repack(h5_file)
+    print(&#39;Finished deleting unit\n----------&#39;)
+    return True</code></pre>
 </details>
 </section>
 <section>
@@ -1128,6 +1235,87 @@ def read_unit_description(unit_description):
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
+<dt id="blechpy.dio.h5io.add_new_unit"><code class="name flex">
+<span>def <span class="ident">add_new_unit</span></span>(<span>rec_dir, electrode, waves, times, single_unit, pyramidal, interneuron)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Adds new sorted unit to h5_file and returns the new unit name
+Creates new row for unit description and add waveforms and times arrays</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>rec_dir</code></strong> :&ensp;<code>str</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>electrode</code></strong> :&ensp;<code>int</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>waves</code></strong> :&ensp;<code>np.array</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>times</code></strong> :&ensp;<code>np.array</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>single_unit</code></strong> :&ensp;<code>bool</code> or <code>int</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>pyramidal</code></strong> :&ensp;<code>bool</code> or <code>int</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>interneuron</code></strong> :&ensp;<code>bool</code> or <code>int</code></dt>
+<dd>&nbsp;</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>str</code></strong> :&ensp;<code>unit_name</code></dt>
+<dd>&nbsp;</dd>
+</dl></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def add_new_unit(rec_dir, electrode, waves, times, single_unit, pyramidal, interneuron):
+    &#39;&#39;&#39;Adds new sorted unit to h5_file and returns the new unit name
+    Creates new row for unit description and add waveforms and times arrays
+
+    Parameters
+    ----------
+    rec_dir : str
+    electrode : int
+    waves : np.array
+    times : np.array
+    single_unit : bool or int
+    pyramidal : bool or int
+    interneuron : bool or int
+
+    Returns
+    -------
+    str : unit_name
+    &#39;&#39;&#39;
+    h5_file = get_h5_filename(rec_dir)
+    unit_name = get_next_unit_name(rec_dir)
+
+    with tables.open_file(h5_file, &#39;r+&#39;) as hf5:
+        if &#39;/sorted_units&#39; not in hf5:
+            hf5.create_group(&#39;/&#39;, &#39;sorted_units&#39;)
+
+        if &#39;/unit_descriptor&#39; not in hf5:
+            hf5.create_table(&#39;/&#39;, &#39;unit_descriptor&#39;,
+                             description=particles.unit_descriptor)
+
+
+        table = hf5.root.unit_descriptor
+        unit_descrip = table.row
+        unit_descrip[&#39;electrode_number&#39;] = int(electrode)
+        unit_descrip[&#39;single_unit&#39;] = int(single_unit)
+        unit_descrip[&#39;regular_spiking&#39;] = int(pyramidal)
+        unit_descrip[&#39;fast_spiking&#39;] = int(interneuron)
+
+        hf5.create_group(&#39;/sorted_units&#39;, unit_name, title=unit_name)
+        waveforms = hf5.create_array(&#39;/sorted_units/%s&#39; % unit_name,
+                                     &#39;waveforms&#39;, waves)
+        times = hf5.create_array(&#39;/sorted_units/%s&#39; % unit_name,
+                                 &#39;times&#39;, times)
+        unit_descrip.append()
+        table.flush()
+        hf5.flush()
+
+    return unit_name</code></pre>
+</details>
+</dd>
 <dt id="blechpy.dio.h5io.cleanup_clustering"><code class="name flex">
 <span>def <span class="ident">cleanup_clustering</span></span>(<span>file_dir)</span>
 </code></dt>
@@ -1161,28 +1349,6 @@ def cleanup_clustering(file_dir):
     -------
     str, path to new hdf5 file
     &#39;&#39;&#39;
-    # Check for memory_monitor_clustering files
-    # If found write all conents into memory_usage.txt and delete files
-    println(&#39;Consolidating clustering memory usage logs...&#39;)
-    mem_dir = os.path.join(file_dir, &#39;memory_monitor_clustering&#39;)
-    mem_file = os.path.join(mem_dir, &#39;memory_usage.txt&#39;)
-
-    if not os.path.isfile(mem_file):
-        file_list = os.listdir(mem_dir)
-
-        with open(mem_file, &#39;w&#39;) as write_file:
-            for f in file_list:
-                try:
-                    mem_usage = np.loadtxt(os.path.join(mem_dir, f))
-                    print(&#39;electrode%s\t%sMB&#39; % (f.replace(&#39;.txt&#39;, &#39;&#39;),
-                                                 str(mem_usage)),
-                          file=write_file)
-                    os.remove(os.path.join(mem_dir, f))
-                except OSError as os_error:
-                    print(&#39;No clustering memory files to consolidate&#39;)
-
-    print(&#39;Done!&#39;)
-
     # Grab h5 filename
     hdf5_file = get_h5_filename(file_dir)
 
@@ -1209,11 +1375,6 @@ def cleanup_clustering(file_dir):
             changes = True
 
         if &#39;/unit_descriptor&#39; not in hf5:
-            hf5.create_table(&#39;/&#39;, &#39;unit_descriptor&#39;,
-                             description=particles.unit_descriptor)
-            changes = True
-        else:
-            hf5.remove_node(&#39;/unit_descriptor&#39;, recursive=1)
             hf5.create_table(&#39;/&#39;, &#39;unit_descriptor&#39;,
                              description=particles.unit_descriptor)
             changes = True
@@ -1673,6 +1834,92 @@ def create_trial_data_table(h5_file, digital_map, fs, dig_type=&#39;in&#39;):
     return trial_df</code></pre>
 </details>
 </dd>
+<dt id="blechpy.dio.h5io.delete_unit"><code class="name flex">
+<span>def <span class="ident">delete_unit</span></span>(<span>file_dir, unit_num)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Delete a sorted unit and re-label all following units.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>file_dir</code></strong> :&ensp;<code>str</code>, <code>full</code> <code>path</code> <code>to</code> <code>recording</code> <code>directory</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>unit_num</code></strong> :&ensp;<code>int</code>, <code>number</code> of <code>unit</code> <code>to</code> <code>delete</code></dt>
+<dd>&nbsp;</dd>
+</dl></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def delete_unit(file_dir, unit_num):
+    &#39;&#39;&#39;Delete a sorted unit and re-label all following units.
+
+    Parameters
+    ----------
+    file_dir : str, full path to recording directory
+    unit_num : int, number of unit to delete
+    &#39;&#39;&#39;
+    if isinstance(unit_num, str):
+        unit_num = parse_unit_number(unit_num)
+
+    print(&#39;\n----------\nDeleting unit %i from dataset\n----------\n&#39;
+          % unit_num)
+    h5_file = get_h5_filename(file_dir)
+    unit_names = get_unit_names(file_dir)
+    unit_numbers = [parse_unit_number(i) for i in unit_names]
+    if unit_num not in unit_numbers:
+        print(&#39;Unit %i not found in data. Nothing being deleted&#39; % unit_num)
+        return False
+
+    metrics_dir = os.path.join(file_dir, &#39;sorted_unit_metrics&#39;)
+    plot_dir = os.path.join(file_dir, &#39;unit_waveforms_plots&#39;)
+
+    unit_name = &#39;unit%03d&#39; % unit_num
+    change_units = [x for x in unit_numbers if x &gt; unit_num]
+    new_units = [x-1 for x in change_units]
+    new_names = [&#39;unit%03d&#39; % x for x in new_units]
+    old_names = [&#39;unit%03d&#39; % x for x in change_units]
+    old_prefix = [&#39;Unit%i&#39; % x for x in change_units]
+    new_prefix = [&#39;Unit%i&#39; %x for x in new_units]
+
+    # Remove metrics
+    if os.path.exists(os.path.join(metrics_dir, unit_name)):
+        shutil.rmtree(os.path.join(metrics_dir, unit_name))
+
+    # remove unit from hdf5 store
+    with tables.open_file(h5_file, &#39;r+&#39;) as hf5:
+        hf5.remove_node(&#39;/sorted_units&#39;, name=unit_name, recursive=True)
+        table = hf5.root.unit_descriptor
+        table.remove_row(unit_num)
+        # rename rest of units in hdf5 and metrics folders
+        print(&#39;Renaming following units...&#39;)
+        for x, y in zip(old_names, new_names):
+            print(&#39;Renaming %s to %s&#39; % (x,y))
+            hf5.rename_node(&#39;/sorted_units&#39;, newname=y, name=x)
+            os.rename(os.path.join(metrics_dir, x),
+                      os.path.join(metrics_dir, y))
+
+        hf5.flush()
+
+    # delete and rename plot files
+    if os.path.exists(plot_dir):
+        swap_files = [(&#39;Unit%i.png&#39; % x, &#39;Unit%i.png&#39; % y)
+                      for x, y in zip(change_units, new_units)]
+        swap_files2 = [(&#39;Unit%i_mean_sd.png&#39; % x, &#39;Unit%i_mean_sd.png&#39; % y)
+                       for x, y in zip(change_units, new_units)]
+        swap_files.extend(swap_files2)
+        del_plots = [&#39;Unit%i.png&#39; % unit_num, &#39;Unit%i_mean_sd.png&#39; % unit_num]
+        print(&#39;Correcting names of plots and metrics...&#39;)
+        for x in del_plots:
+            os.remove(os.path.join(plot_dir, x))
+
+        for x in swap_files:
+            os.rename(os.path.join(plot_dir, x[0]), os.path.join(plot_dir, x[1]))
+
+    # compress_and_repack(h5_file)
+    print(&#39;Finished deleting unit\n----------&#39;)
+    return True</code></pre>
+</details>
+</dd>
 <dt id="blechpy.dio.h5io.get_digital_mapping"><code class="name flex">
 <span>def <span class="ident">get_digital_mapping</span></span>(<span>rec_dir, dig_type)</span>
 </code></dt>
@@ -1772,6 +2019,46 @@ False for GUI</dd>
         return None
 
     return os.path.join(file_dir, h5_files[0])</code></pre>
+</details>
+</dd>
+<dt id="blechpy.dio.h5io.get_next_unit_name"><code class="name flex">
+<span>def <span class="ident">get_next_unit_name</span></span>(<span>rec_dir)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>returns node name for next sorted unit</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>rec_dir</code></strong> :&ensp;<code>str</code>, <code>full</code> <code>path</code> <code>to</code> <code>recording</code> <code>directory</code></dt>
+<dd>&nbsp;</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>str</code> , <code>name</code> of <code>next</code> <code>unit</code> <code>in</code> <code>sequence</code> <code>ex</code>: <code>"unit001"</code></dt>
+<dd>&nbsp;</dd>
+</dl></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_next_unit_name(rec_dir):
+    &#39;&#39;&#39;returns node name for next sorted unit
+
+    Parameters
+    ----------
+    rec_dir : str, full path to recording directory
+
+    Returns
+    -------
+    str , name of next unit in sequence ex: &#34;unit001&#34;
+    &#39;&#39;&#39;
+    units = get_unit_names(rec_dir)
+    unit_nums = sorted([parse_unit_number(i) for i in units])
+    if units == []:
+        out = &#39;unit%03d&#39; % 0
+    else:
+        out = &#39;unit%03d&#39; % int(max(unit_nums)+1)
+
+    return out</code></pre>
 </details>
 </dd>
 <dt id="blechpy.dio.h5io.get_node_list"><code class="name flex">
@@ -1998,19 +2285,9 @@ does not match required_descrip</dd>
     if raw_el is None:
         raise FileNotFoundError(&#39;Raw data not found&#39;)
 
-    # Filter and extract waveforms
-    filt_el = clust.get_filtered_electrode(raw_el, freq=bandpass,
-                                           sampling_rate=fs)
-    del raw_el
-    pre_pts = int((snapshot[0]+0.1) * (fs/1000))
-    post_pts = int((snapshot[1]+0.2) * (fs/1000))
-    slices = np.zeros((spike_times.shape[0], pre_pts+post_pts))
-    for i, st in enumerate(spike_times):
-        slices[i, :] = filt_el[st - pre_pts: st + post_pts]
-
-    slices_dj, times_dj = clust.dejitter(slices, spike_times, snapshot, fs)
-
-    return slices_dj, descriptor, fs*10</code></pre>
+    slices_dj, new_fs = clust.get_waveforms(raw_el, spike_times, sampling_rate=fs,
+                                            snapshot=snapshot, bandpass=bandpass)
+    return slices_dj, descriptor, new_fs</code></pre>
 </details>
 </dd>
 <dt id="blechpy.dio.h5io.get_referenced_trace"><code class="name flex">
@@ -2171,8 +2448,11 @@ Parameters</p>
     h5_file = get_h5_filename(rec_dir)
 
     with tables.open_file(h5_file, &#39;r&#39;) as hf5:
-        units = hf5.list_nodes(&#39;/sorted_units&#39;)
-        unit_names = [x._v_name for x in units]
+        if &#39;/sorted_units&#39; in  hf5:
+            units = hf5.list_nodes(&#39;/sorted_units&#39;)
+            unit_names = [x._v_name for x in units]
+        else:
+            unit_names = []
 
     return unit_names</code></pre>
 </details>
@@ -2746,15 +3026,18 @@ def read_trial_data_table(h5_file, dig_type=&#39;in&#39;, channels=None):
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
+<li><code><a title="blechpy.dio.h5io.add_new_unit" href="#blechpy.dio.h5io.add_new_unit">add_new_unit</a></code></li>
 <li><code><a title="blechpy.dio.h5io.cleanup_clustering" href="#blechpy.dio.h5io.cleanup_clustering">cleanup_clustering</a></code></li>
 <li><code><a title="blechpy.dio.h5io.common_avg_reference" href="#blechpy.dio.h5io.common_avg_reference">common_avg_reference</a></code></li>
 <li><code><a title="blechpy.dio.h5io.compress_and_repack" href="#blechpy.dio.h5io.compress_and_repack">compress_and_repack</a></code></li>
 <li><code><a title="blechpy.dio.h5io.create_empty_data_h5" href="#blechpy.dio.h5io.create_empty_data_h5">create_empty_data_h5</a></code></li>
 <li><code><a title="blechpy.dio.h5io.create_hdf_arrays" href="#blechpy.dio.h5io.create_hdf_arrays">create_hdf_arrays</a></code></li>
 <li><code><a title="blechpy.dio.h5io.create_trial_data_table" href="#blechpy.dio.h5io.create_trial_data_table">create_trial_data_table</a></code></li>
+<li><code><a title="blechpy.dio.h5io.delete_unit" href="#blechpy.dio.h5io.delete_unit">delete_unit</a></code></li>
 <li><code><a title="blechpy.dio.h5io.get_digital_mapping" href="#blechpy.dio.h5io.get_digital_mapping">get_digital_mapping</a></code></li>
 <li><code><a title="blechpy.dio.h5io.get_electrode_mapping" href="#blechpy.dio.h5io.get_electrode_mapping">get_electrode_mapping</a></code></li>
 <li><code><a title="blechpy.dio.h5io.get_h5_filename" href="#blechpy.dio.h5io.get_h5_filename">get_h5_filename</a></code></li>
+<li><code><a title="blechpy.dio.h5io.get_next_unit_name" href="#blechpy.dio.h5io.get_next_unit_name">get_next_unit_name</a></code></li>
 <li><code><a title="blechpy.dio.h5io.get_node_list" href="#blechpy.dio.h5io.get_node_list">get_node_list</a></code></li>
 <li><code><a title="blechpy.dio.h5io.get_raw_trace" href="#blechpy.dio.h5io.get_raw_trace">get_raw_trace</a></code></li>
 <li><code><a title="blechpy.dio.h5io.get_raw_unit_waveforms" href="#blechpy.dio.h5io.get_raw_unit_waveforms">get_raw_unit_waveforms</a></code></li>

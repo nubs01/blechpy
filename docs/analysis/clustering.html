@@ -28,9 +28,7 @@
 from scipy.signal import butter
 from scipy.signal import filtfilt
 from scipy.interpolate import interp1d
-from sklearn.mixture import GaussianMixture
-import pylab as plt
-from sklearn.decomposition import PCA
+
 
 def get_filtered_electrode(data, freq = [300.0, 3000.0], sampling_rate = 30000.0):
     el = data
@@ -38,36 +36,11 @@ def get_filtered_electrode(data, freq = [300.0, 3000.0], sampling_rate = 30000.0
     filt_el = filtfilt(m, n, el)
     return filt_el
 
-def extract_waveforms(filt_el, spike_snapshot = [0.5, 1.0], sampling_rate = 30000.0):
-    m = np.mean(filt_el)
-    th = 5.0*np.median(np.abs(filt_el)/0.6745)
-    pos = np.where(filt_el &lt;= m-th)[0]
-    changes = []
-    for i in range(len(pos)-1):
-        if pos[i+1] - pos[i] &gt; 1:
-            changes.append(i+1)
-
-    # slices = np.zeros((len(changes)-1,150))
-    slices = []
-    spike_times = []
-    for i in range(len(changes) - 1):
-        minimum = np.where(filt_el[pos[changes[i]:changes[i+1]]] \
-                == np.min(filt_el[pos[changes[i]:changes[i+1]]]))[0]
-        #print minimum, len(slices), len(changes), len(filt_el)
-        # try slicing out the putative waveform, only do this if there are 10ms
-        # of data points (waveform is not too close to the start or end of the
-        # recording)
-        if pos[minimum[0]+changes[i]] - int((spike_snapshot[0] + 0.1)*(sampling_rate/1000.0)) \
-                &gt; 0 and pos[minimum[0]+changes[i]] + \
-                int((spike_snapshot[1] + 0.1)*(sampling_rate/1000.0)) &lt; len(filt_el):
-            slices.append(filt_el[pos[minimum[0]+changes[i]] - int((spike_snapshot[0] + 0.1) \
-                    *(sampling_rate/1000.0)) : pos[minimum[0]+changes[i]] + \
-                    int((spike_snapshot[1] + 0.1)*(sampling_rate/1000.0))])
-            spike_times.append(pos[minimum[0]+changes[i]])
-
-    return np.array(slices), spike_times
 
 def dejitter(slices, spike_times, spike_snapshot = [0.5, 1.0], sampling_rate = 30000.0):
+    &#39;&#39;&#39;Upsamples (by 10) and aligns spike waveforms to minima. Returns the
+    upsampled waveforms are correct spike_times
+    &#39;&#39;&#39;
     x = np.arange(0,len(slices[0]),1)
     xnew = np.arange(0,len(slices[0])-1,0.1)
 
@@ -85,9 +58,9 @@ def dejitter(slices, spike_times, spike_snapshot = [0.5, 1.0], sampling_rate = 3
         orig_min_time = x[orig_min] / (sampling_rate/1000)
         minimum = np.where(ynew == np.min(ynew))[0][0]
         min_time = xnew[minimum] / (sampling_rate/1000)
-                # Only accept spikes if the interpolated minimum has shifted by
-                # less than 1/10th of a ms (3 samples for a 30kHz recording, 30
-                # samples after interpolation)
+        # Only accept spikes if the interpolated minimum has shifted by
+        # less than 1/10th of a ms (3 samples for a 30kHz recording, 30
+        # samples after interpolation)
         if np.abs(min_time - orig_min_time) &lt;= 0.1:
             # If minimum is too close to the end for a full snapshot then toss out spike
             if minimum + after*10 &lt; len(ynew) and minimum - before*10 &gt;= 0:
@@ -96,38 +69,24 @@ def dejitter(slices, spike_times, spike_snapshot = [0.5, 1.0], sampling_rate = 3
 
     return np.array(slices_dejittered), np.array(spike_times_dejittered)
 
-def scale_waveforms(slices_dejittered):
-    energy = np.sqrt(np.sum(slices_dejittered**2, axis = 1))/len(slices_dejittered[0])
-    scaled_slices = np.zeros((len(slices_dejittered),len(slices_dejittered[0])))
-    for i in range(len(slices_dejittered)):
-        scaled_slices[i] = slices_dejittered[i]/energy[i]
 
-    return scaled_slices, energy
+def get_waveforms(el_trace, spike_times, snapshot = [0.5, 1.0],
+                  sampling_rate = 30000.0, bandpass=[300, 3000]):
+    &#39;&#39;&#39;Returns waveform slices based on the given spike_times (in samples)
+    &#39;&#39;&#39;
+    # Filter and extract waveforms
+    filt_el = get_filtered_electrode(el_trace, freq=bandpass,
+                                     sampling_rate=sampling_rate)
+    del el_trace
+    pre_pts = int((snapshot[0]+0.1) * (sampling_rate/1000))
+    post_pts = int((snapshot[1]+0.2) * (sampling_rate/1000))
+    slices = np.zeros((spike_times.shape[0], pre_pts+post_pts))
+    for i, st in enumerate(spike_times):
+        slices[i, :] = filt_el[st - pre_pts: st + post_pts]
 
-def implement_pca(scaled_slices):
-    pca = PCA()
-    pca_slices = pca.fit_transform(scaled_slices)
-    return pca_slices, pca.explained_variance_ratio_
+    slices_dj, times_dj = dejitter(slices, spike_times, snapshot, sampling_rate)
 
-def clusterGMM(data, n_clusters, n_iter, restarts, threshold):
-    g = []
-    bayesian = []
-
-    for i in range(restarts):
-        g.append(GaussianMixture(n_components = n_clusters, covariance_type = &#39;full&#39;, 
-            tol = threshold, random_state = i, max_iter = n_iter))
-        g[-1].fit(data)
-        if g[-1].converged_:
-            bayesian.append(g[-1].bic(data))
-        else:
-            del g[-1]
-
-    #print len(akaike)
-    bayesian = np.array(bayesian)
-    best_fit = np.where(bayesian == np.min(bayesian))[0][0]
-    predictions = g[best_fit].predict(data)
-
-    return g[best_fit], predictions, np.min(bayesian)</code></pre>
+    return slices_dj, sampling_rate*10</code></pre>
 </details>
 </section>
 <section>
@@ -137,46 +96,20 @@ def clusterGMM(data, n_clusters, n_iter, restarts, threshold):
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
-<dt id="blechpy.analysis.clustering.clusterGMM"><code class="name flex">
-<span>def <span class="ident">clusterGMM</span></span>(<span>data, n_clusters, n_iter, restarts, threshold)</span>
-</code></dt>
-<dd>
-<section class="desc"></section>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def clusterGMM(data, n_clusters, n_iter, restarts, threshold):
-    g = []
-    bayesian = []
-
-    for i in range(restarts):
-        g.append(GaussianMixture(n_components = n_clusters, covariance_type = &#39;full&#39;, 
-            tol = threshold, random_state = i, max_iter = n_iter))
-        g[-1].fit(data)
-        if g[-1].converged_:
-            bayesian.append(g[-1].bic(data))
-        else:
-            del g[-1]
-
-    #print len(akaike)
-    bayesian = np.array(bayesian)
-    best_fit = np.where(bayesian == np.min(bayesian))[0][0]
-    predictions = g[best_fit].predict(data)
-
-    return g[best_fit], predictions, np.min(bayesian)</code></pre>
-</details>
-</dd>
 <dt id="blechpy.analysis.clustering.dejitter"><code class="name flex">
 <span>def <span class="ident">dejitter</span></span>(<span>slices, spike_times, spike_snapshot=[0.5, 1.0], sampling_rate=30000.0)</span>
 </code></dt>
 <dd>
-<section class="desc"></section>
+<section class="desc"><p>Upsamples (by 10) and aligns spike waveforms to minima. Returns the
+upsampled waveforms are correct spike_times</p></section>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def dejitter(slices, spike_times, spike_snapshot = [0.5, 1.0], sampling_rate = 30000.0):
+    &#39;&#39;&#39;Upsamples (by 10) and aligns spike waveforms to minima. Returns the
+    upsampled waveforms are correct spike_times
+    &#39;&#39;&#39;
     x = np.arange(0,len(slices[0]),1)
     xnew = np.arange(0,len(slices[0])-1,0.1)
 
@@ -194,9 +127,9 @@ def clusterGMM(data, n_clusters, n_iter, restarts, threshold):
         orig_min_time = x[orig_min] / (sampling_rate/1000)
         minimum = np.where(ynew == np.min(ynew))[0][0]
         min_time = xnew[minimum] / (sampling_rate/1000)
-                # Only accept spikes if the interpolated minimum has shifted by
-                # less than 1/10th of a ms (3 samples for a 30kHz recording, 30
-                # samples after interpolation)
+        # Only accept spikes if the interpolated minimum has shifted by
+        # less than 1/10th of a ms (3 samples for a 30kHz recording, 30
+        # samples after interpolation)
         if np.abs(min_time - orig_min_time) &lt;= 0.1:
             # If minimum is too close to the end for a full snapshot then toss out spike
             if minimum + after*10 &lt; len(ynew) and minimum - before*10 &gt;= 0:
@@ -204,45 +137,6 @@ def clusterGMM(data, n_clusters, n_iter, restarts, threshold):
                 spike_times_dejittered.append(spike_times[i])
 
     return np.array(slices_dejittered), np.array(spike_times_dejittered)</code></pre>
-</details>
-</dd>
-<dt id="blechpy.analysis.clustering.extract_waveforms"><code class="name flex">
-<span>def <span class="ident">extract_waveforms</span></span>(<span>filt_el, spike_snapshot=[0.5, 1.0], sampling_rate=30000.0)</span>
-</code></dt>
-<dd>
-<section class="desc"></section>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def extract_waveforms(filt_el, spike_snapshot = [0.5, 1.0], sampling_rate = 30000.0):
-    m = np.mean(filt_el)
-    th = 5.0*np.median(np.abs(filt_el)/0.6745)
-    pos = np.where(filt_el &lt;= m-th)[0]
-    changes = []
-    for i in range(len(pos)-1):
-        if pos[i+1] - pos[i] &gt; 1:
-            changes.append(i+1)
-
-    # slices = np.zeros((len(changes)-1,150))
-    slices = []
-    spike_times = []
-    for i in range(len(changes) - 1):
-        minimum = np.where(filt_el[pos[changes[i]:changes[i+1]]] \
-                == np.min(filt_el[pos[changes[i]:changes[i+1]]]))[0]
-        #print minimum, len(slices), len(changes), len(filt_el)
-        # try slicing out the putative waveform, only do this if there are 10ms
-        # of data points (waveform is not too close to the start or end of the
-        # recording)
-        if pos[minimum[0]+changes[i]] - int((spike_snapshot[0] + 0.1)*(sampling_rate/1000.0)) \
-                &gt; 0 and pos[minimum[0]+changes[i]] + \
-                int((spike_snapshot[1] + 0.1)*(sampling_rate/1000.0)) &lt; len(filt_el):
-            slices.append(filt_el[pos[minimum[0]+changes[i]] - int((spike_snapshot[0] + 0.1) \
-                    *(sampling_rate/1000.0)) : pos[minimum[0]+changes[i]] + \
-                    int((spike_snapshot[1] + 0.1)*(sampling_rate/1000.0))])
-            spike_times.append(pos[minimum[0]+changes[i]])
-
-    return np.array(slices), spike_times</code></pre>
 </details>
 </dd>
 <dt id="blechpy.analysis.clustering.get_filtered_electrode"><code class="name flex">
@@ -261,37 +155,32 @@ def clusterGMM(data, n_clusters, n_iter, restarts, threshold):
     return filt_el</code></pre>
 </details>
 </dd>
-<dt id="blechpy.analysis.clustering.implement_pca"><code class="name flex">
-<span>def <span class="ident">implement_pca</span></span>(<span>scaled_slices)</span>
+<dt id="blechpy.analysis.clustering.get_waveforms"><code class="name flex">
+<span>def <span class="ident">get_waveforms</span></span>(<span>el_trace, spike_times, snapshot=[0.5, 1.0], sampling_rate=30000.0, bandpass=[300, 3000])</span>
 </code></dt>
 <dd>
-<section class="desc"></section>
+<section class="desc"><p>Returns waveform slices based on the given spike_times (in samples)</p></section>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def implement_pca(scaled_slices):
-    pca = PCA()
-    pca_slices = pca.fit_transform(scaled_slices)
-    return pca_slices, pca.explained_variance_ratio_</code></pre>
-</details>
-</dd>
-<dt id="blechpy.analysis.clustering.scale_waveforms"><code class="name flex">
-<span>def <span class="ident">scale_waveforms</span></span>(<span>slices_dejittered)</span>
-</code></dt>
-<dd>
-<section class="desc"></section>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def scale_waveforms(slices_dejittered):
-    energy = np.sqrt(np.sum(slices_dejittered**2, axis = 1))/len(slices_dejittered[0])
-    scaled_slices = np.zeros((len(slices_dejittered),len(slices_dejittered[0])))
-    for i in range(len(slices_dejittered)):
-        scaled_slices[i] = slices_dejittered[i]/energy[i]
+<pre><code class="python">def get_waveforms(el_trace, spike_times, snapshot = [0.5, 1.0],
+                  sampling_rate = 30000.0, bandpass=[300, 3000]):
+    &#39;&#39;&#39;Returns waveform slices based on the given spike_times (in samples)
+    &#39;&#39;&#39;
+    # Filter and extract waveforms
+    filt_el = get_filtered_electrode(el_trace, freq=bandpass,
+                                     sampling_rate=sampling_rate)
+    del el_trace
+    pre_pts = int((snapshot[0]+0.1) * (sampling_rate/1000))
+    post_pts = int((snapshot[1]+0.2) * (sampling_rate/1000))
+    slices = np.zeros((spike_times.shape[0], pre_pts+post_pts))
+    for i, st in enumerate(spike_times):
+        slices[i, :] = filt_el[st - pre_pts: st + post_pts]
 
-    return scaled_slices, energy</code></pre>
+    slices_dj, times_dj = dejitter(slices, spike_times, snapshot, sampling_rate)
+
+    return slices_dj, sampling_rate*10</code></pre>
 </details>
 </dd>
 </dl>
@@ -312,12 +201,9 @@ def clusterGMM(data, n_clusters, n_iter, restarts, threshold):
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
-<li><code><a title="blechpy.analysis.clustering.clusterGMM" href="#blechpy.analysis.clustering.clusterGMM">clusterGMM</a></code></li>
 <li><code><a title="blechpy.analysis.clustering.dejitter" href="#blechpy.analysis.clustering.dejitter">dejitter</a></code></li>
-<li><code><a title="blechpy.analysis.clustering.extract_waveforms" href="#blechpy.analysis.clustering.extract_waveforms">extract_waveforms</a></code></li>
 <li><code><a title="blechpy.analysis.clustering.get_filtered_electrode" href="#blechpy.analysis.clustering.get_filtered_electrode">get_filtered_electrode</a></code></li>
-<li><code><a title="blechpy.analysis.clustering.implement_pca" href="#blechpy.analysis.clustering.implement_pca">implement_pca</a></code></li>
-<li><code><a title="blechpy.analysis.clustering.scale_waveforms" href="#blechpy.analysis.clustering.scale_waveforms">scale_waveforms</a></code></li>
+<li><code><a title="blechpy.analysis.clustering.get_waveforms" href="#blechpy.analysis.clustering.get_waveforms">get_waveforms</a></code></li>
 </ul>
 </li>
 </ul>

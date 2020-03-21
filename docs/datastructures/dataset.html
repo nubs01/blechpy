@@ -36,11 +36,13 @@ from tqdm import tqdm
 from copy import deepcopy
 from blechpy.utils import print_tools as pt, write_tools as wt, userIO
 from blechpy.utils.decorators import Logger
-from blechpy.analysis import palatability_analysis as pal_analysis, spike_sorting as ss, spike_analysis
-from blechpy.analysis.blech_clust_process import blech_clust_process
+from blechpy.analysis import palatability_analysis as pal_analysis
+from blechpy.analysis import spike_sorting as ss, spike_analysis, circus_interface as circ
+from blechpy.analysis import blech_clustering as clust
 from blechpy.plotting import palatability_plot as pal_plt, data_plot as datplt
 from blechpy import dio
 from blechpy.datastructures.objects import data_object
+from blechpy.utils import spike_sorting_GUI as ssg
 
 
 class dataset(data_object):
@@ -83,8 +85,8 @@ class dataset(data_object):
         self.processing_steps = [&#39;initialize parameters&#39;,
                                  &#39;extract_data&#39;, &#39;create_trial_list&#39;,
                                  &#39;mark_dead_channels&#39;,
-                                 &#39;common_average_reference&#39;, &#39;blech_clust_run&#39;,
-                                 &#39;cleanup_clustering&#39;,
+                                 &#39;common_average_reference&#39;, &#39;spike_detection&#39;,
+                                 &#39;spike_clustering&#39;, &#39;cleanup_clustering&#39;,
                                  &#39;sort_units&#39;, &#39;make_unit_plots&#39;,
                                  &#39;units_similarity&#39;, &#39;make_unit_arrays&#39;,
                                  &#39;make_psth_arrays&#39;, &#39;plot_psths&#39;,
@@ -164,14 +166,19 @@ class dataset(data_object):
         clustering_params[&#39;sampling_rate&#39;] = sampling_rate
 
         # Setup digital input mapping
-        #TODO: Setup digital output mapping...ignoring for now
         if rec_info.get(&#39;dig_in&#39;):
-            self._setup_din_mapping(dig_in_names, shell)
+            self._setup_digital_mapping(&#39;in&#39;, dig_in_names, shell)
             dim = self.dig_in_mapping.copy()
             spike_array_params[&#39;laser_channels&#39;] = dim.channel[dim[&#39;laser&#39;]].to_list()
             spike_array_params[&#39;dig_ins_to_use&#39;] = dim.channel[dim[&#39;spike_array&#39;]].to_list()
         else:
             self.dig_in_mapping = None
+
+        if rec_info.get(&#39;dig_out&#39;):
+            self._setup_digital_mapping(&#39;out&#39;, dig_out_names, shell)
+            dom = self.dig_out_mapping.copy()
+        else:
+            self.dig_out_mapping = None
 
         # Setup electrode and emg mapping
         self._setup_channel_mapping(ports, channels, emg_port,
@@ -265,7 +272,29 @@ class dataset(data_object):
         self.CAR_electrodes = group_electrodes
         self.electrode_mapping = em.copy()
 
-    def _setup_din_mapping(self, dig_in_names=None, shell=False):
+    @Logger(&#39;Re-labelling CAR group areas&#39;)
+    def set_electrode_areas(self, areas):
+        &#39;&#39;&#39;sets the electrode area for each CAR group.
+
+        Parameters
+        ----------
+        areas : list of str
+            number of elements must match number of CAR groups
+
+        Throws
+        ------
+        ValueError
+        &#39;&#39;&#39;
+        em = self.electrode_mapping.copy()
+        if len(em[&#39;CAR_group&#39;].unique()) != len(areas):
+            raise ValueError(&#39;Number of items in areas must match number of CAR groups&#39;)
+
+        em[&#39;areas&#39;] = em[&#39;CAR_group&#39;].apply(lambda x: areas[int(x)])
+        self.electrode_mapping = em.copy()
+        dio.h5io.write_electrode_map_to_h5(self.h5_file, self.electrode_mapping)
+        self.save()
+
+    def _setup_digital_mapping(self, dig_type, dig_in_names=None, shell=False):
         &#39;&#39;&#39;sets up dig_in_mapping dataframe  and queries user to fill in columns
 
         Parameters
@@ -277,7 +306,7 @@ class dataset(data_object):
         &#39;&#39;&#39;
         rec_info = self.rec_info
         df = pd.DataFrame()
-        df[&#39;channel&#39;] = rec_info.get(&#39;dig_in&#39;)
+        df[&#39;channel&#39;] = rec_info.get(&#39;dig_%s&#39; % dig_type)
         n_dig_in = len(df)
         # Names
         if dig_in_names:
@@ -286,25 +315,34 @@ class dataset(data_object):
             df[&#39;name&#39;] = &#39;&#39;
 
         # Parameters to query
-        df[&#39;palatability_rank&#39;] = 0
-        df[&#39;laser&#39;] = False
-        df[&#39;spike_array&#39;] = True
+        if dig_type == &#39;in&#39;:
+            df[&#39;palatability_rank&#39;] = 0
+            df[&#39;laser&#39;] = False
+            df[&#39;spike_array&#39;] = True
+
         df[&#39;exclude&#39;] = False
         # Re-format for query
         idx = df.index
-        df.index = [&#39;dig_in_%i&#39; % x for x in df.channel]
+        df.index = [&#39;dig_%s_%i&#39; % (dig_type, x) for x in df.channel]
+        dig_str = dig_type + &#39;put&#39;
         # Query for user input
-        prompt = (&#39;Digital Input Parameters\nSet palatability ranks from 1 to %i&#39;
-                  &#39;\nor blank to exclude from pal_id analysis&#39;) % len(df)
+        prompt = (&#39;Digital %s Parameters\nSet palatability ranks from 1 to %i&#39;
+                  &#39;\nor blank to exclude from pal_id analysis&#39;) % (dig_str, len(df))
         tmp = userIO.fill_dict(df.to_dict(), prompt=prompt, shell=shell)
         # Reformat for storage
         df2 = pd.DataFrame.from_dict(tmp)
         df2 = df2.sort_values(by=[&#39;channel&#39;])
         df2.index = idx
-        df2[&#39;palatability_rank&#39;] = df2[&#39;palatability_rank&#39;].fillna(-1).astype(&#39;int&#39;)
-        self.dig_in_mapping = df2.copy()
+        if dig_type == &#39;in&#39;:
+            df2[&#39;palatability_rank&#39;] = df2[&#39;palatability_rank&#39;].fillna(-1).astype(&#39;int&#39;)
+
+        if dig_type == &#39;in&#39;:
+            self.dig_in_mapping = df2.copy()
+        else:
+            self.dig_out_mapping = df2.copy()
+
         if os.path.isfile(self.h5_file):
-            dio.h5io.write_digital_map_to_h5(self.h5_file, self.dig_in_mapping, &#39;in&#39;)
+            dio.h5io.write_digital_map_to_h5(self.h5_file, self.dig_in_mapping, dig_type)
 
     def _setup_channel_mapping(self, ports, channels, emg_port, emg_channels, shell=False):
         &#39;&#39;&#39;Creates electrode_mapping and emg_mapping DataFrames with columns:
@@ -575,6 +613,9 @@ class dataset(data_object):
         if self.dig_in_mapping is not None:
             dio.h5io.write_digital_map_to_h5(self.h5_file, self.dig_in_mapping, &#39;in&#39;)
 
+        if self.dig_out_mapping is not None:
+            dio.h5io.write_digital_map_to_h5(self.h5_file, self.dig_in_mapping, &#39;out&#39;)
+
         # update status
         self.h5_file = filename
         self.process_status[&#39;extract_data&#39;] = True
@@ -633,7 +674,7 @@ class dataset(data_object):
             userIO.tell_user(&#39;Making traces figure for dead channel detection...&#39;,
                              shell=True)
             save_file = os.path.join(self.root_dir, &#39;Electrode_Traces.png&#39;)
-            fig, ax = datplt.plot_traces_and_outliers(self.h5_filei, save_file=save_file)
+            fig, ax = datplt.plot_traces_and_outliers(self.h5_file, save_file=save_file)
             if not shell:
                 # Better to open figure outside of python since its a lot of
                 # data on figure and matplotlib is slow
@@ -703,10 +744,11 @@ class dataset(data_object):
         self.process_status[&#39;common_average_reference&#39;] = True
         self.save()
 
-    @Logger(&#39;Running Blech Clust&#39;)
-    def blech_clust_run(self, data_quality=None, n_cores=None):
-        &#39;&#39;&#39;Write clustering parameters to file and
-        Run blech_process on each electrode using GNU parallel
+    @Logger(&#39;Running Spike Detection&#39;)
+    def detect_spikes(self, data_quality=None, multi_process=True, n_cores=None):
+        &#39;&#39;&#39;Run spike detection on each electrode. Prepares for clustering with
+        BlechClust. Works for both single recording clustering or
+        multi-recording clustering
 
         Parameters
         ----------
@@ -714,42 +756,25 @@ class dataset(data_object):
             set if you want to change the data quality parameters for cutoff
             and spike detection before running clustering. These parameters are
             automatically set as &#34;clean&#34; during initial parameter setup
-        accept_params : bool, False (default)
-            set to True in order to skip popup confirmation of parameters when
-            running
+        n_cores : int (optional)
+            number of cores to use for parallel processing. default is max-1.
         &#39;&#39;&#39;
         if data_quality:
             tmp = dio.params.load_params(&#39;clustering_params&#39;, self.root_dir,
                                          default_keyword=data_quality)
             if tmp:
                 self.clustering_params = tmp
+                wt.write_params_to_json(&#39;clustering_params&#39;, self.root_dir, tmp)
             else:
                 raise ValueError(&#39;%s is not a valid data_quality preset. Must &#39;
                                  &#39;be &#34;clean&#34; or &#34;noisy&#34; or None.&#39;)
 
-        print(&#39;\nRunning Blech Clust\n-------------------&#39;)
+        print(&#39;\nRunning Spike Detection\n-------------------&#39;)
         print(&#39;Parameters\n%s&#39; % pt.print_dict(self.clustering_params))
 
         # Create folders for saving things within recording dir
         data_dir = self.root_dir
-        directories = [&#39;spike_waveforms&#39;, &#39;spike_times&#39;,
-                       &#39;clustering_results&#39;,
-                       &#39;Plots&#39;, &#39;memory_monitor_clustering&#39;]
-        for d in directories:
-            tmp_dir = os.path.join(data_dir, d)
-            if os.path.exists(tmp_dir):
-                shutil.rmtree(tmp_dir)
 
-            os.mkdir(tmp_dir)
-
-        # Set file for clusting log
-        self.clustering_log = os.path.join(data_dir, &#39;results.log&#39;)
-        if os.path.exists(self.clustering_log):
-            os.remove(self.clustering_log)
-
-        process_path = os.path.realpath(__file__)
-        process_path = os.path.join(os.path.dirname(process_path),
-                                    &#39;blech_process.py&#39;)
         em = self.electrode_mapping
         if &#39;dead&#39; in em.columns:
             electrodes = em.Electrode[em[&#39;dead&#39;] == False].tolist()
@@ -759,7 +784,6 @@ class dataset(data_object):
 
         pbar = tqdm(total = len(electrodes))
         results = [(None, None, None)] * (max(electrodes)+1)
-        clust_errors = [(x, None) for x in electrodes]
         def update_pbar(ans):
             if isinstance(ans, tuple) and ans[0] is not None:
                 results[ans[0]] = ans
@@ -768,17 +792,24 @@ class dataset(data_object):
 
             pbar.update()
 
-        if cores is None or cores &gt; multiprocessing.cpu_count():
-            cores = multiprocessing.cpu_count() - 1
+        spike_detectors = [clust.SpikeDetection(data_dir, x,
+                                                self.clustering_params)
+                           for x in electrodes]
+        if multi_process:
+            if n_cores is None or n_cores &gt; multiprocessing.cpu_count():
+                n_cores = multiprocessing.cpu_count() - 1
 
-        pool = multiprocessing.Pool(cores)
-        for x in electrodes:
-            pool.apply_async(blech_clust_process,
-                             args=(x, data_dir, self.clustering_params),
-                             callback=update_pbar)
+            pool = multiprocessing.Pool(n_cores)
+            for sd in spike_detectors:
+                pool.apply_async(sd.run, callback=update_pbar)
 
-        pool.close()
-        pool.join()
+            pool.close()
+            pool.join()
+        else:
+            for sd in spike_detectors:
+                res = sd.run()
+                update_pbar(res)
+
         pbar.close()
 
         print(&#39;Electrode    Result    Cutoff (s)&#39;)
@@ -800,12 +831,80 @@ class dataset(data_object):
         em[&#39;cutoff_time&#39;] = em[&#39;Electrode&#39;].map(cutoffs)
         em[&#39;clustering_result&#39;] = em[&#39;Electrode&#39;].map(clust_res)
         self.electrode_mapping = em.copy()
-        self.process_status[&#39;blech_clust_run&#39;] = True
+        self.process_status[&#39;spike_detection&#39;] = True
+        dio.h5io.write_electrode_map_to_h5(self.h5_file, em)
+        self.save()
+        print(&#39;Spike Detection Complete\n------------------&#39;)
+        return results
+
+    @Logger(&#39;Running Blech Clust&#39;)
+    def blech_clust_run(self, data_quality=None, multi_process=True, n_cores=None):
+        &#39;&#39;&#39;Write clustering parameters to file and
+        Run blech_process on each electrode using GNU parallel
+
+        Parameters
+        ----------
+        data_quality : {&#39;clean&#39;, &#39;noisy&#39;, None (default)}
+            set if you want to change the data quality parameters for cutoff
+            and spike detection before running clustering. These parameters are
+            automatically set as &#34;clean&#34; during initial parameter setup
+        accept_params : bool, False (default)
+            set to True in order to skip popup confirmation of parameters when
+            running
+        &#39;&#39;&#39;
+        if self.process_status[&#39;spike_detection&#39;] == False:
+            raise FileNotFoundError(&#39;Must run spike detection before clustering.&#39;)
+
+        if data_quality:
+            tmp = dio.params.load_params(&#39;clustering_params&#39;, self.root_dir,
+                                         default_keyword=data_quality)
+            if tmp:
+                self.clustering_params = tmp
+                wt.write_params_to_json(&#39;clustering_params&#39;, self.root_dir, tmp)
+            else:
+                raise ValueError(&#39;%s is not a valid data_quality preset. Must &#39;
+                                 &#39;be &#34;clean&#34; or &#34;noisy&#34; or None.&#39;)
+
+        print(&#39;\nRunning Blech Clust\n-------------------&#39;)
+        print(&#39;Parameters\n%s&#39; % pt.print_dict(self.clustering_params))
+
+        # Get electrodes, throw out &#39;dead&#39; electrodes
+        em = self.electrode_mapping
+        if &#39;dead&#39; in em.columns:
+            electrodes = em.Electrode[em[&#39;dead&#39;] == False].tolist()
+        else:
+            electrodes = em.Electrode.tolist()
+
+
+        pbar = tqdm(total = len(electrodes))
+        def update_pbar(ans):
+            pbar.update()
+
+        clust_objs = [clust.BlechClust(self.root_dir,
+                                       x, params=self.clustering_params)
+                      for x in electrodes]
+        if multi_process:
+            if n_cores is None or n_cores &gt; multiprocessing.cpu_count():
+                n_cores = multiprocessing.cpu_count() - 1
+
+            pool = multiprocessing.Pool(n_cores)
+            for x in clust_objs:
+                pool.apply_async(x.run, callback=update_pbar)
+
+            pool.close()
+            pool.join()
+        else:
+            for x in clust_objs:
+                res = x.run()
+                update_pbar(res)
+
+        pbar.close()
+
+        self.process_status[&#39;spike_clustering&#39;] = True
         self.process_status[&#39;cleanup_clustering&#39;] = False
         dio.h5io.write_electrode_map_to_h5(self.h5_file, em)
         self.save()
         print(&#39;Clustering Complete\n------------------&#39;)
-        return results
 
     @Logger(&#39;Cleaning up clustering memory logs. Removing raw data and setting&#39;
             &#39;up hdf5 for unit sorting&#39;)
@@ -813,23 +912,39 @@ class dataset(data_object):
         &#39;&#39;&#39;Consolidates memory monitor files, removes raw and referenced data
         and setups up hdf5 store for sorted units data
         &#39;&#39;&#39;
+        if self.process_status[&#39;cleanup_clustering&#39;]:
+            return
+
         h5_file = dio.h5io.cleanup_clustering(self.root_dir)
         self.h5_file = h5_file
         self.process_status[&#39;cleanup_clustering&#39;] = True
         self.save()
 
-    def sort_units(self, shell=False):
-        &#39;&#39;&#39;Begins processes to allow labelling of clusters as sorted units
+    def sort_spikes(self, electrode=None, shell=False):
+        if electrode is None:
+            electrode = userIO.get_user_input(&#39;Electrode #: &#39;, shell=shell)
+            if electrode is None or not electrode.isnumeric():
+                return
 
-        Parameters
-        ----------
-        shell : bool
-            True if command-line interfaced desired, False for GUI (default)
-        &#39;&#39;&#39;
-        fs = self.sampling_rate
-        ss.sort_units(self.root_dir, fs, shell)
+            electrode = int(electrode)
+
+        if not self.process_status[&#39;spike_clustering&#39;]:
+            raise ValueError(&#39;Must run spike clustering first.&#39;)
+
+        if not self.process_status[&#39;cleanup_clustering&#39;]:
+            self.cleanup_clustering()
+
+        sorter = clust.SpikeSorter(self.root_dir, electrode=electrode, shell=shell)
+        if not shell:
+            root, sorting_GUI = ssg.SpikeSorterGUI(sorter)
+            return root, sorting_GUI
+        else:
+            # TODO: Make shell UI
+            # TODO: Make sort by table
+            print(&#39;No shell UI yet&#39;)
+            return
+
         self.process_status[&#39;sort_units&#39;] = True
-        self.save()
 
     @Logger(&#39;Calculating Units Similarity&#39;)
     def units_similarity(self, similarity_cutoff=50, shell=False):
@@ -866,7 +981,7 @@ class dataset(data_object):
         return violations, sim
 
     @Logger(&#39;Deleting Unit&#39;)
-    def delete_unit(self, unit_num, shell=False):
+    def delete_unit(self, unit_num, confirm=False, shell=False):
         if isinstance(unit_num, str):
             unit_num = dio.h5io.parse_unit_number(unit_num)
 
@@ -874,14 +989,17 @@ class dataset(data_object):
             print(&#39;No unit deleted&#39;)
             return
 
-        q = userIO.ask_user(&#39;Are you sure you want to delete unit%03i?&#39; % unit_num,
-                            choices = [&#39;No&#39;,&#39;Yes&#39;], shell=shell)
+        if not confirm:
+            q = userIO.ask_user(&#39;Are you sure you want to delete unit%03i?&#39; % unit_num,
+                                choices = [&#39;No&#39;,&#39;Yes&#39;], shell=shell)
+        else:
+            q = 1
+
         if q == 0:
             print(&#39;No unit deleted&#39;)
             return
-
         else:
-            tmp = ss.delete_unit(self.root_dir, unit_num)
+            tmp = dio.h5io.delete_unit(self.root_dir, unit_num)
             if tmp is False:
                 userIO.tell_user(&#39;Unit %i not found in dataset. No unit deleted&#39;
                                  % unit_num, shell=shell)
@@ -948,6 +1066,26 @@ class dataset(data_object):
         self.process_status[&#39;palatability_plot&#39;] = True
         self.save()
 
+    @Logger(&#39;Removing low-spiking units&#39;)
+    def cleanup_lowSpiking_units(self, min_spikes=100):
+        unit_table = self.get_unit_table()
+        remove = []
+        spike_count = []
+        for unit in unit_table[&#39;unit_num&#39;]:
+            waves, descrip, fs = dio.h5io.get_unit_waveforms(self.root_dir, unit)
+            if waves.shape[0] &lt; min_spikes:
+                spike_count.append(waves.shape[0])
+                remove.append(unit)
+
+        for unit, count in zip(reversed(remove), reversed(spike_count)):
+            print(&#39;Removing unit %i. Only %i spikes.&#39; % (unit, count))
+            userIO.tell_user(&#39;Removing unit %i. Only %i spikes.&#39;
+                             % (unit, count), shell=True)
+            self.delete_unit(unit, confirm=True, shell=True)
+
+        userIO.tell_user(&#39;Removed %i units for having less than %i spikes.&#39;
+                         % (len(remove), min_spikes), shell=True)
+
     def get_unit_table(self):
         &#39;&#39;&#39;Returns a pandas dataframe with sorted unit information
 
@@ -960,8 +1098,47 @@ class dataset(data_object):
         unit_table = dio.h5io.get_unit_table(self.root_dir)
         return unit_table
 
-    def extract_and_cluster(self, shell=False):
-        pass
+    def circus_clust_run(self, shell=False):
+        circ.prep_for_circus(self.root_dir, self.electrode_mapping,
+                             self.data_name, self.sampling_rate)
+        circ.start_the_show()
+
+    def pre_process_for_clustering(self, shell=False, dead_channels=None):
+        status = self.process_status
+        if not status[&#39;initialize parameters&#39;]:
+            self.initParams(shell=shell)
+
+        if not status[&#39;extract_data&#39;]:
+            self.extract_data(shell=True)
+
+        if not status[&#39;create_trial_list&#39;]:
+            self.create_trial_list()
+
+        if not status[&#39;mark_dead_channels&#39;] and dead_channels != False:
+            self.mark_dead_channels(dead_channels=dead_channels, shell=shell)
+
+        if not status[&#39;common_average_reference&#39;]:
+            self.common_average_reference()
+
+        if not status[&#39;spike_detection&#39;]:
+            self.detect_spikes()
+
+    def extract_and_circus_cluster(self, dead_channels=None, shell=True):
+        print(&#39;Extracting Data...&#39;)
+        self.extract_data()
+        print(&#39;Marking dead channels...&#39;)
+        self.mark_dead_channels(dead_channels, shell=shell)
+        print(&#39;Common average referencing...&#39;)
+        self.common_average_reference()
+        print(&#39;Initiating circus clustering...&#39;)
+        circus = circ.circus_clust(self.root_dir, self.data_name,
+                                   self.sampling_rate, self.electrode_mapping)
+        print(&#39;Preparing for circus...&#39;)
+        circus.prep_for_circus()
+        print(&#39;Starting circus clustering...&#39;)
+        circus.start_the_show()
+        print(&#39;Plotting cluster waveforms...&#39;)
+        circus.plot_cluster_waveforms()
 
     def post_sorting(self):
         self.make_unit_plots()
@@ -1040,6 +1217,9 @@ def port_in_dataset(rec_dir=None, shell=False):
 
 
 def validate_data_integrity(rec_dir, verbose=False):
+    &#39;&#39;&#39;incomplete
+    &#39;&#39;&#39;
+    # TODO: Finish this
     print(&#39;Raw Data Validation\n&#39; + &#39;-&#39;*19)
     test_names = [&#39;file_type&#39;, &#39;recording_info&#39;, &#39;files&#39;, &#39;dropped_packets&#39;, &#39;data_length&#39;]
     number_names = [&#39;sample_rate&#39;, &#39;dropped_packets&#39;, &#39;missing_files&#39;, &#39;recording_length&#39;]
@@ -1259,12 +1439,15 @@ def validate_data_integrity(rec_dir, verbose=False):
 <span>def <span class="ident">validate_data_integrity</span></span>(<span>rec_dir, verbose=False)</span>
 </code></dt>
 <dd>
-<section class="desc"></section>
+<section class="desc"><p>incomplete</p></section>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def validate_data_integrity(rec_dir, verbose=False):
+    &#39;&#39;&#39;incomplete
+    &#39;&#39;&#39;
+    # TODO: Finish this
     print(&#39;Raw Data Validation\n&#39; + &#39;-&#39;*19)
     test_names = [&#39;file_type&#39;, &#39;recording_info&#39;, &#39;files&#39;, &#39;dropped_packets&#39;, &#39;data_length&#39;]
     number_names = [&#39;sample_rate&#39;, &#39;dropped_packets&#39;, &#39;missing_files&#39;, &#39;recording_length&#39;]
@@ -1473,8 +1656,8 @@ when prompted</dd>
         self.processing_steps = [&#39;initialize parameters&#39;,
                                  &#39;extract_data&#39;, &#39;create_trial_list&#39;,
                                  &#39;mark_dead_channels&#39;,
-                                 &#39;common_average_reference&#39;, &#39;blech_clust_run&#39;,
-                                 &#39;cleanup_clustering&#39;,
+                                 &#39;common_average_reference&#39;, &#39;spike_detection&#39;,
+                                 &#39;spike_clustering&#39;, &#39;cleanup_clustering&#39;,
                                  &#39;sort_units&#39;, &#39;make_unit_plots&#39;,
                                  &#39;units_similarity&#39;, &#39;make_unit_arrays&#39;,
                                  &#39;make_psth_arrays&#39;, &#39;plot_psths&#39;,
@@ -1554,14 +1737,19 @@ when prompted</dd>
         clustering_params[&#39;sampling_rate&#39;] = sampling_rate
 
         # Setup digital input mapping
-        #TODO: Setup digital output mapping...ignoring for now
         if rec_info.get(&#39;dig_in&#39;):
-            self._setup_din_mapping(dig_in_names, shell)
+            self._setup_digital_mapping(&#39;in&#39;, dig_in_names, shell)
             dim = self.dig_in_mapping.copy()
             spike_array_params[&#39;laser_channels&#39;] = dim.channel[dim[&#39;laser&#39;]].to_list()
             spike_array_params[&#39;dig_ins_to_use&#39;] = dim.channel[dim[&#39;spike_array&#39;]].to_list()
         else:
             self.dig_in_mapping = None
+
+        if rec_info.get(&#39;dig_out&#39;):
+            self._setup_digital_mapping(&#39;out&#39;, dig_out_names, shell)
+            dom = self.dig_out_mapping.copy()
+        else:
+            self.dig_out_mapping = None
 
         # Setup electrode and emg mapping
         self._setup_channel_mapping(ports, channels, emg_port,
@@ -1655,7 +1843,29 @@ when prompted</dd>
         self.CAR_electrodes = group_electrodes
         self.electrode_mapping = em.copy()
 
-    def _setup_din_mapping(self, dig_in_names=None, shell=False):
+    @Logger(&#39;Re-labelling CAR group areas&#39;)
+    def set_electrode_areas(self, areas):
+        &#39;&#39;&#39;sets the electrode area for each CAR group.
+
+        Parameters
+        ----------
+        areas : list of str
+            number of elements must match number of CAR groups
+
+        Throws
+        ------
+        ValueError
+        &#39;&#39;&#39;
+        em = self.electrode_mapping.copy()
+        if len(em[&#39;CAR_group&#39;].unique()) != len(areas):
+            raise ValueError(&#39;Number of items in areas must match number of CAR groups&#39;)
+
+        em[&#39;areas&#39;] = em[&#39;CAR_group&#39;].apply(lambda x: areas[int(x)])
+        self.electrode_mapping = em.copy()
+        dio.h5io.write_electrode_map_to_h5(self.h5_file, self.electrode_mapping)
+        self.save()
+
+    def _setup_digital_mapping(self, dig_type, dig_in_names=None, shell=False):
         &#39;&#39;&#39;sets up dig_in_mapping dataframe  and queries user to fill in columns
 
         Parameters
@@ -1667,7 +1877,7 @@ when prompted</dd>
         &#39;&#39;&#39;
         rec_info = self.rec_info
         df = pd.DataFrame()
-        df[&#39;channel&#39;] = rec_info.get(&#39;dig_in&#39;)
+        df[&#39;channel&#39;] = rec_info.get(&#39;dig_%s&#39; % dig_type)
         n_dig_in = len(df)
         # Names
         if dig_in_names:
@@ -1676,25 +1886,34 @@ when prompted</dd>
             df[&#39;name&#39;] = &#39;&#39;
 
         # Parameters to query
-        df[&#39;palatability_rank&#39;] = 0
-        df[&#39;laser&#39;] = False
-        df[&#39;spike_array&#39;] = True
+        if dig_type == &#39;in&#39;:
+            df[&#39;palatability_rank&#39;] = 0
+            df[&#39;laser&#39;] = False
+            df[&#39;spike_array&#39;] = True
+
         df[&#39;exclude&#39;] = False
         # Re-format for query
         idx = df.index
-        df.index = [&#39;dig_in_%i&#39; % x for x in df.channel]
+        df.index = [&#39;dig_%s_%i&#39; % (dig_type, x) for x in df.channel]
+        dig_str = dig_type + &#39;put&#39;
         # Query for user input
-        prompt = (&#39;Digital Input Parameters\nSet palatability ranks from 1 to %i&#39;
-                  &#39;\nor blank to exclude from pal_id analysis&#39;) % len(df)
+        prompt = (&#39;Digital %s Parameters\nSet palatability ranks from 1 to %i&#39;
+                  &#39;\nor blank to exclude from pal_id analysis&#39;) % (dig_str, len(df))
         tmp = userIO.fill_dict(df.to_dict(), prompt=prompt, shell=shell)
         # Reformat for storage
         df2 = pd.DataFrame.from_dict(tmp)
         df2 = df2.sort_values(by=[&#39;channel&#39;])
         df2.index = idx
-        df2[&#39;palatability_rank&#39;] = df2[&#39;palatability_rank&#39;].fillna(-1).astype(&#39;int&#39;)
-        self.dig_in_mapping = df2.copy()
+        if dig_type == &#39;in&#39;:
+            df2[&#39;palatability_rank&#39;] = df2[&#39;palatability_rank&#39;].fillna(-1).astype(&#39;int&#39;)
+
+        if dig_type == &#39;in&#39;:
+            self.dig_in_mapping = df2.copy()
+        else:
+            self.dig_out_mapping = df2.copy()
+
         if os.path.isfile(self.h5_file):
-            dio.h5io.write_digital_map_to_h5(self.h5_file, self.dig_in_mapping, &#39;in&#39;)
+            dio.h5io.write_digital_map_to_h5(self.h5_file, self.dig_in_mapping, dig_type)
 
     def _setup_channel_mapping(self, ports, channels, emg_port, emg_channels, shell=False):
         &#39;&#39;&#39;Creates electrode_mapping and emg_mapping DataFrames with columns:
@@ -1965,6 +2184,9 @@ when prompted</dd>
         if self.dig_in_mapping is not None:
             dio.h5io.write_digital_map_to_h5(self.h5_file, self.dig_in_mapping, &#39;in&#39;)
 
+        if self.dig_out_mapping is not None:
+            dio.h5io.write_digital_map_to_h5(self.h5_file, self.dig_in_mapping, &#39;out&#39;)
+
         # update status
         self.h5_file = filename
         self.process_status[&#39;extract_data&#39;] = True
@@ -2023,7 +2245,7 @@ when prompted</dd>
             userIO.tell_user(&#39;Making traces figure for dead channel detection...&#39;,
                              shell=True)
             save_file = os.path.join(self.root_dir, &#39;Electrode_Traces.png&#39;)
-            fig, ax = datplt.plot_traces_and_outliers(self.h5_filei, save_file=save_file)
+            fig, ax = datplt.plot_traces_and_outliers(self.h5_file, save_file=save_file)
             if not shell:
                 # Better to open figure outside of python since its a lot of
                 # data on figure and matplotlib is slow
@@ -2093,10 +2315,11 @@ when prompted</dd>
         self.process_status[&#39;common_average_reference&#39;] = True
         self.save()
 
-    @Logger(&#39;Running Blech Clust&#39;)
-    def blech_clust_run(self, data_quality=None, n_cores=None):
-        &#39;&#39;&#39;Write clustering parameters to file and
-        Run blech_process on each electrode using GNU parallel
+    @Logger(&#39;Running Spike Detection&#39;)
+    def detect_spikes(self, data_quality=None, multi_process=True, n_cores=None):
+        &#39;&#39;&#39;Run spike detection on each electrode. Prepares for clustering with
+        BlechClust. Works for both single recording clustering or
+        multi-recording clustering
 
         Parameters
         ----------
@@ -2104,42 +2327,25 @@ when prompted</dd>
             set if you want to change the data quality parameters for cutoff
             and spike detection before running clustering. These parameters are
             automatically set as &#34;clean&#34; during initial parameter setup
-        accept_params : bool, False (default)
-            set to True in order to skip popup confirmation of parameters when
-            running
+        n_cores : int (optional)
+            number of cores to use for parallel processing. default is max-1.
         &#39;&#39;&#39;
         if data_quality:
             tmp = dio.params.load_params(&#39;clustering_params&#39;, self.root_dir,
                                          default_keyword=data_quality)
             if tmp:
                 self.clustering_params = tmp
+                wt.write_params_to_json(&#39;clustering_params&#39;, self.root_dir, tmp)
             else:
                 raise ValueError(&#39;%s is not a valid data_quality preset. Must &#39;
                                  &#39;be &#34;clean&#34; or &#34;noisy&#34; or None.&#39;)
 
-        print(&#39;\nRunning Blech Clust\n-------------------&#39;)
+        print(&#39;\nRunning Spike Detection\n-------------------&#39;)
         print(&#39;Parameters\n%s&#39; % pt.print_dict(self.clustering_params))
 
         # Create folders for saving things within recording dir
         data_dir = self.root_dir
-        directories = [&#39;spike_waveforms&#39;, &#39;spike_times&#39;,
-                       &#39;clustering_results&#39;,
-                       &#39;Plots&#39;, &#39;memory_monitor_clustering&#39;]
-        for d in directories:
-            tmp_dir = os.path.join(data_dir, d)
-            if os.path.exists(tmp_dir):
-                shutil.rmtree(tmp_dir)
 
-            os.mkdir(tmp_dir)
-
-        # Set file for clusting log
-        self.clustering_log = os.path.join(data_dir, &#39;results.log&#39;)
-        if os.path.exists(self.clustering_log):
-            os.remove(self.clustering_log)
-
-        process_path = os.path.realpath(__file__)
-        process_path = os.path.join(os.path.dirname(process_path),
-                                    &#39;blech_process.py&#39;)
         em = self.electrode_mapping
         if &#39;dead&#39; in em.columns:
             electrodes = em.Electrode[em[&#39;dead&#39;] == False].tolist()
@@ -2149,7 +2355,6 @@ when prompted</dd>
 
         pbar = tqdm(total = len(electrodes))
         results = [(None, None, None)] * (max(electrodes)+1)
-        clust_errors = [(x, None) for x in electrodes]
         def update_pbar(ans):
             if isinstance(ans, tuple) and ans[0] is not None:
                 results[ans[0]] = ans
@@ -2158,17 +2363,24 @@ when prompted</dd>
 
             pbar.update()
 
-        if cores is None or cores &gt; multiprocessing.cpu_count():
-            cores = multiprocessing.cpu_count() - 1
+        spike_detectors = [clust.SpikeDetection(data_dir, x,
+                                                self.clustering_params)
+                           for x in electrodes]
+        if multi_process:
+            if n_cores is None or n_cores &gt; multiprocessing.cpu_count():
+                n_cores = multiprocessing.cpu_count() - 1
 
-        pool = multiprocessing.Pool(cores)
-        for x in electrodes:
-            pool.apply_async(blech_clust_process,
-                             args=(x, data_dir, self.clustering_params),
-                             callback=update_pbar)
+            pool = multiprocessing.Pool(n_cores)
+            for sd in spike_detectors:
+                pool.apply_async(sd.run, callback=update_pbar)
 
-        pool.close()
-        pool.join()
+            pool.close()
+            pool.join()
+        else:
+            for sd in spike_detectors:
+                res = sd.run()
+                update_pbar(res)
+
         pbar.close()
 
         print(&#39;Electrode    Result    Cutoff (s)&#39;)
@@ -2190,12 +2402,80 @@ when prompted</dd>
         em[&#39;cutoff_time&#39;] = em[&#39;Electrode&#39;].map(cutoffs)
         em[&#39;clustering_result&#39;] = em[&#39;Electrode&#39;].map(clust_res)
         self.electrode_mapping = em.copy()
-        self.process_status[&#39;blech_clust_run&#39;] = True
+        self.process_status[&#39;spike_detection&#39;] = True
+        dio.h5io.write_electrode_map_to_h5(self.h5_file, em)
+        self.save()
+        print(&#39;Spike Detection Complete\n------------------&#39;)
+        return results
+
+    @Logger(&#39;Running Blech Clust&#39;)
+    def blech_clust_run(self, data_quality=None, multi_process=True, n_cores=None):
+        &#39;&#39;&#39;Write clustering parameters to file and
+        Run blech_process on each electrode using GNU parallel
+
+        Parameters
+        ----------
+        data_quality : {&#39;clean&#39;, &#39;noisy&#39;, None (default)}
+            set if you want to change the data quality parameters for cutoff
+            and spike detection before running clustering. These parameters are
+            automatically set as &#34;clean&#34; during initial parameter setup
+        accept_params : bool, False (default)
+            set to True in order to skip popup confirmation of parameters when
+            running
+        &#39;&#39;&#39;
+        if self.process_status[&#39;spike_detection&#39;] == False:
+            raise FileNotFoundError(&#39;Must run spike detection before clustering.&#39;)
+
+        if data_quality:
+            tmp = dio.params.load_params(&#39;clustering_params&#39;, self.root_dir,
+                                         default_keyword=data_quality)
+            if tmp:
+                self.clustering_params = tmp
+                wt.write_params_to_json(&#39;clustering_params&#39;, self.root_dir, tmp)
+            else:
+                raise ValueError(&#39;%s is not a valid data_quality preset. Must &#39;
+                                 &#39;be &#34;clean&#34; or &#34;noisy&#34; or None.&#39;)
+
+        print(&#39;\nRunning Blech Clust\n-------------------&#39;)
+        print(&#39;Parameters\n%s&#39; % pt.print_dict(self.clustering_params))
+
+        # Get electrodes, throw out &#39;dead&#39; electrodes
+        em = self.electrode_mapping
+        if &#39;dead&#39; in em.columns:
+            electrodes = em.Electrode[em[&#39;dead&#39;] == False].tolist()
+        else:
+            electrodes = em.Electrode.tolist()
+
+
+        pbar = tqdm(total = len(electrodes))
+        def update_pbar(ans):
+            pbar.update()
+
+        clust_objs = [clust.BlechClust(self.root_dir,
+                                       x, params=self.clustering_params)
+                      for x in electrodes]
+        if multi_process:
+            if n_cores is None or n_cores &gt; multiprocessing.cpu_count():
+                n_cores = multiprocessing.cpu_count() - 1
+
+            pool = multiprocessing.Pool(n_cores)
+            for x in clust_objs:
+                pool.apply_async(x.run, callback=update_pbar)
+
+            pool.close()
+            pool.join()
+        else:
+            for x in clust_objs:
+                res = x.run()
+                update_pbar(res)
+
+        pbar.close()
+
+        self.process_status[&#39;spike_clustering&#39;] = True
         self.process_status[&#39;cleanup_clustering&#39;] = False
         dio.h5io.write_electrode_map_to_h5(self.h5_file, em)
         self.save()
         print(&#39;Clustering Complete\n------------------&#39;)
-        return results
 
     @Logger(&#39;Cleaning up clustering memory logs. Removing raw data and setting&#39;
             &#39;up hdf5 for unit sorting&#39;)
@@ -2203,23 +2483,39 @@ when prompted</dd>
         &#39;&#39;&#39;Consolidates memory monitor files, removes raw and referenced data
         and setups up hdf5 store for sorted units data
         &#39;&#39;&#39;
+        if self.process_status[&#39;cleanup_clustering&#39;]:
+            return
+
         h5_file = dio.h5io.cleanup_clustering(self.root_dir)
         self.h5_file = h5_file
         self.process_status[&#39;cleanup_clustering&#39;] = True
         self.save()
 
-    def sort_units(self, shell=False):
-        &#39;&#39;&#39;Begins processes to allow labelling of clusters as sorted units
+    def sort_spikes(self, electrode=None, shell=False):
+        if electrode is None:
+            electrode = userIO.get_user_input(&#39;Electrode #: &#39;, shell=shell)
+            if electrode is None or not electrode.isnumeric():
+                return
 
-        Parameters
-        ----------
-        shell : bool
-            True if command-line interfaced desired, False for GUI (default)
-        &#39;&#39;&#39;
-        fs = self.sampling_rate
-        ss.sort_units(self.root_dir, fs, shell)
+            electrode = int(electrode)
+
+        if not self.process_status[&#39;spike_clustering&#39;]:
+            raise ValueError(&#39;Must run spike clustering first.&#39;)
+
+        if not self.process_status[&#39;cleanup_clustering&#39;]:
+            self.cleanup_clustering()
+
+        sorter = clust.SpikeSorter(self.root_dir, electrode=electrode, shell=shell)
+        if not shell:
+            root, sorting_GUI = ssg.SpikeSorterGUI(sorter)
+            return root, sorting_GUI
+        else:
+            # TODO: Make shell UI
+            # TODO: Make sort by table
+            print(&#39;No shell UI yet&#39;)
+            return
+
         self.process_status[&#39;sort_units&#39;] = True
-        self.save()
 
     @Logger(&#39;Calculating Units Similarity&#39;)
     def units_similarity(self, similarity_cutoff=50, shell=False):
@@ -2256,7 +2552,7 @@ when prompted</dd>
         return violations, sim
 
     @Logger(&#39;Deleting Unit&#39;)
-    def delete_unit(self, unit_num, shell=False):
+    def delete_unit(self, unit_num, confirm=False, shell=False):
         if isinstance(unit_num, str):
             unit_num = dio.h5io.parse_unit_number(unit_num)
 
@@ -2264,14 +2560,17 @@ when prompted</dd>
             print(&#39;No unit deleted&#39;)
             return
 
-        q = userIO.ask_user(&#39;Are you sure you want to delete unit%03i?&#39; % unit_num,
-                            choices = [&#39;No&#39;,&#39;Yes&#39;], shell=shell)
+        if not confirm:
+            q = userIO.ask_user(&#39;Are you sure you want to delete unit%03i?&#39; % unit_num,
+                                choices = [&#39;No&#39;,&#39;Yes&#39;], shell=shell)
+        else:
+            q = 1
+
         if q == 0:
             print(&#39;No unit deleted&#39;)
             return
-
         else:
-            tmp = ss.delete_unit(self.root_dir, unit_num)
+            tmp = dio.h5io.delete_unit(self.root_dir, unit_num)
             if tmp is False:
                 userIO.tell_user(&#39;Unit %i not found in dataset. No unit deleted&#39;
                                  % unit_num, shell=shell)
@@ -2338,6 +2637,26 @@ when prompted</dd>
         self.process_status[&#39;palatability_plot&#39;] = True
         self.save()
 
+    @Logger(&#39;Removing low-spiking units&#39;)
+    def cleanup_lowSpiking_units(self, min_spikes=100):
+        unit_table = self.get_unit_table()
+        remove = []
+        spike_count = []
+        for unit in unit_table[&#39;unit_num&#39;]:
+            waves, descrip, fs = dio.h5io.get_unit_waveforms(self.root_dir, unit)
+            if waves.shape[0] &lt; min_spikes:
+                spike_count.append(waves.shape[0])
+                remove.append(unit)
+
+        for unit, count in zip(reversed(remove), reversed(spike_count)):
+            print(&#39;Removing unit %i. Only %i spikes.&#39; % (unit, count))
+            userIO.tell_user(&#39;Removing unit %i. Only %i spikes.&#39;
+                             % (unit, count), shell=True)
+            self.delete_unit(unit, confirm=True, shell=True)
+
+        userIO.tell_user(&#39;Removed %i units for having less than %i spikes.&#39;
+                         % (len(remove), min_spikes), shell=True)
+
     def get_unit_table(self):
         &#39;&#39;&#39;Returns a pandas dataframe with sorted unit information
 
@@ -2350,8 +2669,47 @@ when prompted</dd>
         unit_table = dio.h5io.get_unit_table(self.root_dir)
         return unit_table
 
-    def extract_and_cluster(self, shell=False):
-        pass
+    def circus_clust_run(self, shell=False):
+        circ.prep_for_circus(self.root_dir, self.electrode_mapping,
+                             self.data_name, self.sampling_rate)
+        circ.start_the_show()
+
+    def pre_process_for_clustering(self, shell=False, dead_channels=None):
+        status = self.process_status
+        if not status[&#39;initialize parameters&#39;]:
+            self.initParams(shell=shell)
+
+        if not status[&#39;extract_data&#39;]:
+            self.extract_data(shell=True)
+
+        if not status[&#39;create_trial_list&#39;]:
+            self.create_trial_list()
+
+        if not status[&#39;mark_dead_channels&#39;] and dead_channels != False:
+            self.mark_dead_channels(dead_channels=dead_channels, shell=shell)
+
+        if not status[&#39;common_average_reference&#39;]:
+            self.common_average_reference()
+
+        if not status[&#39;spike_detection&#39;]:
+            self.detect_spikes()
+
+    def extract_and_circus_cluster(self, dead_channels=None, shell=True):
+        print(&#39;Extracting Data...&#39;)
+        self.extract_data()
+        print(&#39;Marking dead channels...&#39;)
+        self.mark_dead_channels(dead_channels, shell=shell)
+        print(&#39;Common average referencing...&#39;)
+        self.common_average_reference()
+        print(&#39;Initiating circus clustering...&#39;)
+        circus = circ.circus_clust(self.root_dir, self.data_name,
+                                   self.sampling_rate, self.electrode_mapping)
+        print(&#39;Preparing for circus...&#39;)
+        circus.prep_for_circus()
+        print(&#39;Starting circus clustering...&#39;)
+        circus.start_the_show()
+        print(&#39;Plotting cluster waveforms...&#39;)
+        circus.plot_cluster_waveforms()
 
     def post_sorting(self):
         self.make_unit_plots()
@@ -2366,7 +2724,7 @@ when prompted</dd>
 <h3>Methods</h3>
 <dl>
 <dt id="blechpy.datastructures.dataset.dataset.blech_clust_run"><code class="name flex">
-<span>def <span class="ident">blech_clust_run</span></span>(<span>self, data_quality=None, n_cores=None)</span>
+<span>def <span class="ident">blech_clust_run</span></span>(<span>self, data_quality=None, multi_process=True, n_cores=None)</span>
 </code></dt>
 <dd>
 <section class="desc"><p>Write clustering parameters to file and
@@ -2386,7 +2744,7 @@ running</dd>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@Logger(&#39;Running Blech Clust&#39;)
-def blech_clust_run(self, data_quality=None, n_cores=None):
+def blech_clust_run(self, data_quality=None, multi_process=True, n_cores=None):
     &#39;&#39;&#39;Write clustering parameters to file and
     Run blech_process on each electrode using GNU parallel
 
@@ -2400,11 +2758,15 @@ def blech_clust_run(self, data_quality=None, n_cores=None):
         set to True in order to skip popup confirmation of parameters when
         running
     &#39;&#39;&#39;
+    if self.process_status[&#39;spike_detection&#39;] == False:
+        raise FileNotFoundError(&#39;Must run spike detection before clustering.&#39;)
+
     if data_quality:
         tmp = dio.params.load_params(&#39;clustering_params&#39;, self.root_dir,
                                      default_keyword=data_quality)
         if tmp:
             self.clustering_params = tmp
+            wt.write_params_to_json(&#39;clustering_params&#39;, self.root_dir, tmp)
         else:
             raise ValueError(&#39;%s is not a valid data_quality preset. Must &#39;
                              &#39;be &#34;clean&#34; or &#34;noisy&#34; or None.&#39;)
@@ -2412,26 +2774,7 @@ def blech_clust_run(self, data_quality=None, n_cores=None):
     print(&#39;\nRunning Blech Clust\n-------------------&#39;)
     print(&#39;Parameters\n%s&#39; % pt.print_dict(self.clustering_params))
 
-    # Create folders for saving things within recording dir
-    data_dir = self.root_dir
-    directories = [&#39;spike_waveforms&#39;, &#39;spike_times&#39;,
-                   &#39;clustering_results&#39;,
-                   &#39;Plots&#39;, &#39;memory_monitor_clustering&#39;]
-    for d in directories:
-        tmp_dir = os.path.join(data_dir, d)
-        if os.path.exists(tmp_dir):
-            shutil.rmtree(tmp_dir)
-
-        os.mkdir(tmp_dir)
-
-    # Set file for clusting log
-    self.clustering_log = os.path.join(data_dir, &#39;results.log&#39;)
-    if os.path.exists(self.clustering_log):
-        os.remove(self.clustering_log)
-
-    process_path = os.path.realpath(__file__)
-    process_path = os.path.join(os.path.dirname(process_path),
-                                &#39;blech_process.py&#39;)
+    # Get electrodes, throw out &#39;dead&#39; electrodes
     em = self.electrode_mapping
     if &#39;dead&#39; in em.columns:
         electrodes = em.Electrode[em[&#39;dead&#39;] == False].tolist()
@@ -2440,54 +2783,49 @@ def blech_clust_run(self, data_quality=None, n_cores=None):
 
 
     pbar = tqdm(total = len(electrodes))
-    results = [(None, None, None)] * (max(electrodes)+1)
-    clust_errors = [(x, None) for x in electrodes]
     def update_pbar(ans):
-        if isinstance(ans, tuple) and ans[0] is not None:
-            results[ans[0]] = ans
-        else:
-            print(&#39;Unexpected error when clustering an electrode&#39;)
-
         pbar.update()
 
-    if cores is None or cores &gt; multiprocessing.cpu_count():
-        cores = multiprocessing.cpu_count() - 1
+    clust_objs = [clust.BlechClust(self.root_dir,
+                                   x, params=self.clustering_params)
+                  for x in electrodes]
+    if multi_process:
+        if n_cores is None or n_cores &gt; multiprocessing.cpu_count():
+            n_cores = multiprocessing.cpu_count() - 1
 
-    pool = multiprocessing.Pool(cores)
-    for x in electrodes:
-        pool.apply_async(blech_clust_process,
-                         args=(x, data_dir, self.clustering_params),
-                         callback=update_pbar)
+        pool = multiprocessing.Pool(n_cores)
+        for x in clust_objs:
+            pool.apply_async(x.run, callback=update_pbar)
 
-    pool.close()
-    pool.join()
+        pool.close()
+        pool.join()
+    else:
+        for x in clust_objs:
+            res = x.run()
+            update_pbar(res)
+
     pbar.close()
 
-    print(&#39;Electrode    Result    Cutoff (s)&#39;)
-    cutoffs = {}
-    clust_res = {}
-    clustered = []
-    for x, y, z in results:
-        if x is None:
-            continue
-
-        clustered.append(x)
-        print(&#39;  {:&lt;13}{:&lt;10}{}&#39;.format(x, y, z))
-        cutoffs[x] = z
-        clust_res[x] = y
-
-    print(&#39;1 - Sucess\n0 - No data or no spikes\n-1 - Error&#39;)
-
-    em = self.electrode_mapping.copy()
-    em[&#39;cutoff_time&#39;] = em[&#39;Electrode&#39;].map(cutoffs)
-    em[&#39;clustering_result&#39;] = em[&#39;Electrode&#39;].map(clust_res)
-    self.electrode_mapping = em.copy()
-    self.process_status[&#39;blech_clust_run&#39;] = True
+    self.process_status[&#39;spike_clustering&#39;] = True
     self.process_status[&#39;cleanup_clustering&#39;] = False
     dio.h5io.write_electrode_map_to_h5(self.h5_file, em)
     self.save()
-    print(&#39;Clustering Complete\n------------------&#39;)
-    return results</code></pre>
+    print(&#39;Clustering Complete\n------------------&#39;)</code></pre>
+</details>
+</dd>
+<dt id="blechpy.datastructures.dataset.dataset.circus_clust_run"><code class="name flex">
+<span>def <span class="ident">circus_clust_run</span></span>(<span>self, shell=False)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def circus_clust_run(self, shell=False):
+    circ.prep_for_circus(self.root_dir, self.electrode_mapping,
+                         self.data_name, self.sampling_rate)
+    circ.start_the_show()</code></pre>
 </details>
 </dd>
 <dt id="blechpy.datastructures.dataset.dataset.cleanup_clustering"><code class="name flex">
@@ -2506,10 +2844,43 @@ def cleanup_clustering(self):
     &#39;&#39;&#39;Consolidates memory monitor files, removes raw and referenced data
     and setups up hdf5 store for sorted units data
     &#39;&#39;&#39;
+    if self.process_status[&#39;cleanup_clustering&#39;]:
+        return
+
     h5_file = dio.h5io.cleanup_clustering(self.root_dir)
     self.h5_file = h5_file
     self.process_status[&#39;cleanup_clustering&#39;] = True
     self.save()</code></pre>
+</details>
+</dd>
+<dt id="blechpy.datastructures.dataset.dataset.cleanup_lowSpiking_units"><code class="name flex">
+<span>def <span class="ident">cleanup_lowSpiking_units</span></span>(<span>self, min_spikes=100)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@Logger(&#39;Removing low-spiking units&#39;)
+def cleanup_lowSpiking_units(self, min_spikes=100):
+    unit_table = self.get_unit_table()
+    remove = []
+    spike_count = []
+    for unit in unit_table[&#39;unit_num&#39;]:
+        waves, descrip, fs = dio.h5io.get_unit_waveforms(self.root_dir, unit)
+        if waves.shape[0] &lt; min_spikes:
+            spike_count.append(waves.shape[0])
+            remove.append(unit)
+
+    for unit, count in zip(reversed(remove), reversed(spike_count)):
+        print(&#39;Removing unit %i. Only %i spikes.&#39; % (unit, count))
+        userIO.tell_user(&#39;Removing unit %i. Only %i spikes.&#39;
+                         % (unit, count), shell=True)
+        self.delete_unit(unit, confirm=True, shell=True)
+
+    userIO.tell_user(&#39;Removed %i units for having less than %i spikes.&#39;
+                     % (len(remove), min_spikes), shell=True)</code></pre>
 </details>
 </dd>
 <dt id="blechpy.datastructures.dataset.dataset.common_average_reference"><code class="name flex">
@@ -2616,7 +2987,7 @@ def create_trial_list(self):
 </details>
 </dd>
 <dt id="blechpy.datastructures.dataset.dataset.delete_unit"><code class="name flex">
-<span>def <span class="ident">delete_unit</span></span>(<span>self, unit_num, shell=False)</span>
+<span>def <span class="ident">delete_unit</span></span>(<span>self, unit_num, confirm=False, shell=False)</span>
 </code></dt>
 <dd>
 <section class="desc"></section>
@@ -2625,7 +2996,7 @@ def create_trial_list(self):
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">@Logger(&#39;Deleting Unit&#39;)
-def delete_unit(self, unit_num, shell=False):
+def delete_unit(self, unit_num, confirm=False, shell=False):
     if isinstance(unit_num, str):
         unit_num = dio.h5io.parse_unit_number(unit_num)
 
@@ -2633,14 +3004,17 @@ def delete_unit(self, unit_num, shell=False):
         print(&#39;No unit deleted&#39;)
         return
 
-    q = userIO.ask_user(&#39;Are you sure you want to delete unit%03i?&#39; % unit_num,
-                        choices = [&#39;No&#39;,&#39;Yes&#39;], shell=shell)
+    if not confirm:
+        q = userIO.ask_user(&#39;Are you sure you want to delete unit%03i?&#39; % unit_num,
+                            choices = [&#39;No&#39;,&#39;Yes&#39;], shell=shell)
+    else:
+        q = 1
+
     if q == 0:
         print(&#39;No unit deleted&#39;)
         return
-
     else:
-        tmp = ss.delete_unit(self.root_dir, unit_num)
+        tmp = dio.h5io.delete_unit(self.root_dir, unit_num)
         if tmp is False:
             userIO.tell_user(&#39;Unit %i not found in dataset. No unit deleted&#39;
                              % unit_num, shell=shell)
@@ -2649,6 +3023,120 @@ def delete_unit(self, unit_num, shell=False):
                              shell=shell)
 
     self.save()</code></pre>
+</details>
+</dd>
+<dt id="blechpy.datastructures.dataset.dataset.detect_spikes"><code class="name flex">
+<span>def <span class="ident">detect_spikes</span></span>(<span>self, data_quality=None, multi_process=True, n_cores=None)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>Run spike detection on each electrode. Prepares for clustering with
+BlechClust. Works for both single recording clustering or
+multi-recording clustering</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>data_quality</code></strong> :&ensp;{<code>'clean'</code>, <code>'noisy'</code>, <code>None</code> (default)}</dt>
+<dd>set if you want to change the data quality parameters for cutoff
+and spike detection before running clustering. These parameters are
+automatically set as "clean" during initial parameter setup</dd>
+<dt><strong><code>n_cores</code></strong> :&ensp;<code>int</code> (optional)</dt>
+<dd>number of cores to use for parallel processing. default is max-1.</dd>
+</dl></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@Logger(&#39;Running Spike Detection&#39;)
+def detect_spikes(self, data_quality=None, multi_process=True, n_cores=None):
+    &#39;&#39;&#39;Run spike detection on each electrode. Prepares for clustering with
+    BlechClust. Works for both single recording clustering or
+    multi-recording clustering
+
+    Parameters
+    ----------
+    data_quality : {&#39;clean&#39;, &#39;noisy&#39;, None (default)}
+        set if you want to change the data quality parameters for cutoff
+        and spike detection before running clustering. These parameters are
+        automatically set as &#34;clean&#34; during initial parameter setup
+    n_cores : int (optional)
+        number of cores to use for parallel processing. default is max-1.
+    &#39;&#39;&#39;
+    if data_quality:
+        tmp = dio.params.load_params(&#39;clustering_params&#39;, self.root_dir,
+                                     default_keyword=data_quality)
+        if tmp:
+            self.clustering_params = tmp
+            wt.write_params_to_json(&#39;clustering_params&#39;, self.root_dir, tmp)
+        else:
+            raise ValueError(&#39;%s is not a valid data_quality preset. Must &#39;
+                             &#39;be &#34;clean&#34; or &#34;noisy&#34; or None.&#39;)
+
+    print(&#39;\nRunning Spike Detection\n-------------------&#39;)
+    print(&#39;Parameters\n%s&#39; % pt.print_dict(self.clustering_params))
+
+    # Create folders for saving things within recording dir
+    data_dir = self.root_dir
+
+    em = self.electrode_mapping
+    if &#39;dead&#39; in em.columns:
+        electrodes = em.Electrode[em[&#39;dead&#39;] == False].tolist()
+    else:
+        electrodes = em.Electrode.tolist()
+
+
+    pbar = tqdm(total = len(electrodes))
+    results = [(None, None, None)] * (max(electrodes)+1)
+    def update_pbar(ans):
+        if isinstance(ans, tuple) and ans[0] is not None:
+            results[ans[0]] = ans
+        else:
+            print(&#39;Unexpected error when clustering an electrode&#39;)
+
+        pbar.update()
+
+    spike_detectors = [clust.SpikeDetection(data_dir, x,
+                                            self.clustering_params)
+                       for x in electrodes]
+    if multi_process:
+        if n_cores is None or n_cores &gt; multiprocessing.cpu_count():
+            n_cores = multiprocessing.cpu_count() - 1
+
+        pool = multiprocessing.Pool(n_cores)
+        for sd in spike_detectors:
+            pool.apply_async(sd.run, callback=update_pbar)
+
+        pool.close()
+        pool.join()
+    else:
+        for sd in spike_detectors:
+            res = sd.run()
+            update_pbar(res)
+
+    pbar.close()
+
+    print(&#39;Electrode    Result    Cutoff (s)&#39;)
+    cutoffs = {}
+    clust_res = {}
+    clustered = []
+    for x, y, z in results:
+        if x is None:
+            continue
+
+        clustered.append(x)
+        print(&#39;  {:&lt;13}{:&lt;10}{}&#39;.format(x, y, z))
+        cutoffs[x] = z
+        clust_res[x] = y
+
+    print(&#39;1 - Sucess\n0 - No data or no spikes\n-1 - Error&#39;)
+
+    em = self.electrode_mapping.copy()
+    em[&#39;cutoff_time&#39;] = em[&#39;Electrode&#39;].map(cutoffs)
+    em[&#39;clustering_result&#39;] = em[&#39;Electrode&#39;].map(clust_res)
+    self.electrode_mapping = em.copy()
+    self.process_status[&#39;spike_detection&#39;] = True
+    dio.h5io.write_electrode_map_to_h5(self.h5_file, em)
+    self.save()
+    print(&#39;Spike Detection Complete\n------------------&#39;)
+    return results</code></pre>
 </details>
 </dd>
 <dt id="blechpy.datastructures.dataset.dataset.edit_clustering_params"><code class="name flex">
@@ -2790,8 +3278,8 @@ def delete_unit(self, unit_num, shell=False):
                             self.root_dir, tmp)</code></pre>
 </details>
 </dd>
-<dt id="blechpy.datastructures.dataset.dataset.extract_and_cluster"><code class="name flex">
-<span>def <span class="ident">extract_and_cluster</span></span>(<span>self, shell=False)</span>
+<dt id="blechpy.datastructures.dataset.dataset.extract_and_circus_cluster"><code class="name flex">
+<span>def <span class="ident">extract_and_circus_cluster</span></span>(<span>self, dead_channels=None, shell=True)</span>
 </code></dt>
 <dd>
 <section class="desc"></section>
@@ -2799,8 +3287,22 @@ def delete_unit(self, unit_num, shell=False):
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def extract_and_cluster(self, shell=False):
-    pass</code></pre>
+<pre><code class="python">def extract_and_circus_cluster(self, dead_channels=None, shell=True):
+    print(&#39;Extracting Data...&#39;)
+    self.extract_data()
+    print(&#39;Marking dead channels...&#39;)
+    self.mark_dead_channels(dead_channels, shell=shell)
+    print(&#39;Common average referencing...&#39;)
+    self.common_average_reference()
+    print(&#39;Initiating circus clustering...&#39;)
+    circus = circ.circus_clust(self.root_dir, self.data_name,
+                               self.sampling_rate, self.electrode_mapping)
+    print(&#39;Preparing for circus...&#39;)
+    circus.prep_for_circus()
+    print(&#39;Starting circus clustering...&#39;)
+    circus.start_the_show()
+    print(&#39;Plotting cluster waveforms...&#39;)
+    circus.plot_cluster_waveforms()</code></pre>
 </details>
 </dd>
 <dt id="blechpy.datastructures.dataset.dataset.extract_data"><code class="name flex">
@@ -2861,6 +3363,9 @@ def extract_data(self, filename=None, shell=False):
     dio.h5io.write_electrode_map_to_h5(self.h5_file, self.electrode_mapping)
     if self.dig_in_mapping is not None:
         dio.h5io.write_digital_map_to_h5(self.h5_file, self.dig_in_mapping, &#39;in&#39;)
+
+    if self.dig_out_mapping is not None:
+        dio.h5io.write_digital_map_to_h5(self.h5_file, self.dig_in_mapping, &#39;out&#39;)
 
     # update status
     self.h5_file = filename
@@ -3007,14 +3512,19 @@ def initParams(self, data_quality=&#39;clean&#39;, emg_port=None,
     clustering_params[&#39;sampling_rate&#39;] = sampling_rate
 
     # Setup digital input mapping
-    #TODO: Setup digital output mapping...ignoring for now
     if rec_info.get(&#39;dig_in&#39;):
-        self._setup_din_mapping(dig_in_names, shell)
+        self._setup_digital_mapping(&#39;in&#39;, dig_in_names, shell)
         dim = self.dig_in_mapping.copy()
         spike_array_params[&#39;laser_channels&#39;] = dim.channel[dim[&#39;laser&#39;]].to_list()
         spike_array_params[&#39;dig_ins_to_use&#39;] = dim.channel[dim[&#39;spike_array&#39;]].to_list()
     else:
         self.dig_in_mapping = None
+
+    if rec_info.get(&#39;dig_out&#39;):
+        self._setup_digital_mapping(&#39;out&#39;, dig_out_names, shell)
+        dom = self.dig_out_mapping.copy()
+    else:
+        self.dig_out_mapping = None
 
     # Setup electrode and emg mapping
     self._setup_channel_mapping(ports, channels, emg_port,
@@ -3159,7 +3669,7 @@ def mark_dead_channels(self, dead_channels=None, shell=False):
         userIO.tell_user(&#39;Making traces figure for dead channel detection...&#39;,
                          shell=True)
         save_file = os.path.join(self.root_dir, &#39;Electrode_Traces.png&#39;)
-        fig, ax = datplt.plot_traces_and_outliers(self.h5_filei, save_file=save_file)
+        fig, ax = datplt.plot_traces_and_outliers(self.h5_file, save_file=save_file)
         if not shell:
             # Better to open figure outside of python since its a lot of
             # data on figure and matplotlib is slow
@@ -3238,32 +3748,112 @@ def palatability_plot(self, shell=False):
     self.make_psth_arrays()</code></pre>
 </details>
 </dd>
-<dt id="blechpy.datastructures.dataset.dataset.sort_units"><code class="name flex">
-<span>def <span class="ident">sort_units</span></span>(<span>self, shell=False)</span>
+<dt id="blechpy.datastructures.dataset.dataset.pre_process_for_clustering"><code class="name flex">
+<span>def <span class="ident">pre_process_for_clustering</span></span>(<span>self, shell=False, dead_channels=None)</span>
 </code></dt>
 <dd>
-<section class="desc"><p>Begins processes to allow labelling of clusters as sorted units</p>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def pre_process_for_clustering(self, shell=False, dead_channels=None):
+    status = self.process_status
+    if not status[&#39;initialize parameters&#39;]:
+        self.initParams(shell=shell)
+
+    if not status[&#39;extract_data&#39;]:
+        self.extract_data(shell=True)
+
+    if not status[&#39;create_trial_list&#39;]:
+        self.create_trial_list()
+
+    if not status[&#39;mark_dead_channels&#39;] and dead_channels != False:
+        self.mark_dead_channels(dead_channels=dead_channels, shell=shell)
+
+    if not status[&#39;common_average_reference&#39;]:
+        self.common_average_reference()
+
+    if not status[&#39;spike_detection&#39;]:
+        self.detect_spikes()</code></pre>
+</details>
+</dd>
+<dt id="blechpy.datastructures.dataset.dataset.set_electrode_areas"><code class="name flex">
+<span>def <span class="ident">set_electrode_areas</span></span>(<span>self, areas)</span>
+</code></dt>
+<dd>
+<section class="desc"><p>sets the electrode area for each CAR group.</p>
 <h2 id="parameters">Parameters</h2>
 <dl>
-<dt><strong><code>shell</code></strong> :&ensp;<code>bool</code></dt>
-<dd>True if command-line interfaced desired, False for GUI (default)</dd>
+<dt><strong><code>areas</code></strong> :&ensp;<code>list</code> of <code>str</code></dt>
+<dd>number of elements must match number of CAR groups</dd>
+</dl>
+<h2 id="throws">Throws</h2>
+<dl>
+<dt><strong><code>ValueError</code></strong></dt>
+<dd>&nbsp;</dd>
 </dl></section>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def sort_units(self, shell=False):
-    &#39;&#39;&#39;Begins processes to allow labelling of clusters as sorted units
+<pre><code class="python">@Logger(&#39;Re-labelling CAR group areas&#39;)
+def set_electrode_areas(self, areas):
+    &#39;&#39;&#39;sets the electrode area for each CAR group.
 
     Parameters
     ----------
-    shell : bool
-        True if command-line interfaced desired, False for GUI (default)
+    areas : list of str
+        number of elements must match number of CAR groups
+
+    Throws
+    ------
+    ValueError
     &#39;&#39;&#39;
-    fs = self.sampling_rate
-    ss.sort_units(self.root_dir, fs, shell)
-    self.process_status[&#39;sort_units&#39;] = True
+    em = self.electrode_mapping.copy()
+    if len(em[&#39;CAR_group&#39;].unique()) != len(areas):
+        raise ValueError(&#39;Number of items in areas must match number of CAR groups&#39;)
+
+    em[&#39;areas&#39;] = em[&#39;CAR_group&#39;].apply(lambda x: areas[int(x)])
+    self.electrode_mapping = em.copy()
+    dio.h5io.write_electrode_map_to_h5(self.h5_file, self.electrode_mapping)
     self.save()</code></pre>
+</details>
+</dd>
+<dt id="blechpy.datastructures.dataset.dataset.sort_spikes"><code class="name flex">
+<span>def <span class="ident">sort_spikes</span></span>(<span>self, electrode=None, shell=False)</span>
+</code></dt>
+<dd>
+<section class="desc"></section>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def sort_spikes(self, electrode=None, shell=False):
+    if electrode is None:
+        electrode = userIO.get_user_input(&#39;Electrode #: &#39;, shell=shell)
+        if electrode is None or not electrode.isnumeric():
+            return
+
+        electrode = int(electrode)
+
+    if not self.process_status[&#39;spike_clustering&#39;]:
+        raise ValueError(&#39;Must run spike clustering first.&#39;)
+
+    if not self.process_status[&#39;cleanup_clustering&#39;]:
+        self.cleanup_clustering()
+
+    sorter = clust.SpikeSorter(self.root_dir, electrode=electrode, shell=shell)
+    if not shell:
+        root, sorting_GUI = ssg.SpikeSorterGUI(sorter)
+        return root, sorting_GUI
+    else:
+        # TODO: Make shell UI
+        # TODO: Make sort by table
+        print(&#39;No shell UI yet&#39;)
+        return
+
+    self.process_status[&#39;sort_units&#39;] = True</code></pre>
 </details>
 </dd>
 <dt id="blechpy.datastructures.dataset.dataset.units_similarity"><code class="name flex">
@@ -3338,15 +3928,18 @@ def units_similarity(self, similarity_cutoff=50, shell=False):
 <h4><code><a title="blechpy.datastructures.dataset.dataset" href="#blechpy.datastructures.dataset.dataset">dataset</a></code></h4>
 <ul class="">
 <li><code><a title="blechpy.datastructures.dataset.dataset.blech_clust_run" href="#blechpy.datastructures.dataset.dataset.blech_clust_run">blech_clust_run</a></code></li>
+<li><code><a title="blechpy.datastructures.dataset.dataset.circus_clust_run" href="#blechpy.datastructures.dataset.dataset.circus_clust_run">circus_clust_run</a></code></li>
 <li><code><a title="blechpy.datastructures.dataset.dataset.cleanup_clustering" href="#blechpy.datastructures.dataset.dataset.cleanup_clustering">cleanup_clustering</a></code></li>
+<li><code><a title="blechpy.datastructures.dataset.dataset.cleanup_lowSpiking_units" href="#blechpy.datastructures.dataset.dataset.cleanup_lowSpiking_units">cleanup_lowSpiking_units</a></code></li>
 <li><code><a title="blechpy.datastructures.dataset.dataset.common_average_reference" href="#blechpy.datastructures.dataset.dataset.common_average_reference">common_average_reference</a></code></li>
 <li><code><a title="blechpy.datastructures.dataset.dataset.create_trial_list" href="#blechpy.datastructures.dataset.dataset.create_trial_list">create_trial_list</a></code></li>
 <li><code><a title="blechpy.datastructures.dataset.dataset.delete_unit" href="#blechpy.datastructures.dataset.dataset.delete_unit">delete_unit</a></code></li>
+<li><code><a title="blechpy.datastructures.dataset.dataset.detect_spikes" href="#blechpy.datastructures.dataset.dataset.detect_spikes">detect_spikes</a></code></li>
 <li><code><a title="blechpy.datastructures.dataset.dataset.edit_clustering_params" href="#blechpy.datastructures.dataset.dataset.edit_clustering_params">edit_clustering_params</a></code></li>
 <li><code><a title="blechpy.datastructures.dataset.dataset.edit_pal_id_params" href="#blechpy.datastructures.dataset.dataset.edit_pal_id_params">edit_pal_id_params</a></code></li>
 <li><code><a title="blechpy.datastructures.dataset.dataset.edit_psth_params" href="#blechpy.datastructures.dataset.dataset.edit_psth_params">edit_psth_params</a></code></li>
 <li><code><a title="blechpy.datastructures.dataset.dataset.edit_spike_array_params" href="#blechpy.datastructures.dataset.dataset.edit_spike_array_params">edit_spike_array_params</a></code></li>
-<li><code><a title="blechpy.datastructures.dataset.dataset.extract_and_cluster" href="#blechpy.datastructures.dataset.dataset.extract_and_cluster">extract_and_cluster</a></code></li>
+<li><code><a title="blechpy.datastructures.dataset.dataset.extract_and_circus_cluster" href="#blechpy.datastructures.dataset.dataset.extract_and_circus_cluster">extract_and_circus_cluster</a></code></li>
 <li><code><a title="blechpy.datastructures.dataset.dataset.extract_data" href="#blechpy.datastructures.dataset.dataset.extract_data">extract_data</a></code></li>
 <li><code><a title="blechpy.datastructures.dataset.dataset.get_unit_table" href="#blechpy.datastructures.dataset.dataset.get_unit_table">get_unit_table</a></code></li>
 <li><code><a title="blechpy.datastructures.dataset.dataset.initParams" href="#blechpy.datastructures.dataset.dataset.initParams">initParams</a></code></li>
@@ -3357,7 +3950,9 @@ def units_similarity(self, similarity_cutoff=50, shell=False):
 <li><code><a title="blechpy.datastructures.dataset.dataset.palatability_calculate" href="#blechpy.datastructures.dataset.dataset.palatability_calculate">palatability_calculate</a></code></li>
 <li><code><a title="blechpy.datastructures.dataset.dataset.palatability_plot" href="#blechpy.datastructures.dataset.dataset.palatability_plot">palatability_plot</a></code></li>
 <li><code><a title="blechpy.datastructures.dataset.dataset.post_sorting" href="#blechpy.datastructures.dataset.dataset.post_sorting">post_sorting</a></code></li>
-<li><code><a title="blechpy.datastructures.dataset.dataset.sort_units" href="#blechpy.datastructures.dataset.dataset.sort_units">sort_units</a></code></li>
+<li><code><a title="blechpy.datastructures.dataset.dataset.pre_process_for_clustering" href="#blechpy.datastructures.dataset.dataset.pre_process_for_clustering">pre_process_for_clustering</a></code></li>
+<li><code><a title="blechpy.datastructures.dataset.dataset.set_electrode_areas" href="#blechpy.datastructures.dataset.dataset.set_electrode_areas">set_electrode_areas</a></code></li>
+<li><code><a title="blechpy.datastructures.dataset.dataset.sort_spikes" href="#blechpy.datastructures.dataset.dataset.sort_spikes">sort_spikes</a></code></li>
 <li><code><a title="blechpy.datastructures.dataset.dataset.units_similarity" href="#blechpy.datastructures.dataset.dataset.units_similarity">units_similarity</a></code></li>
 </ul>
 </li>

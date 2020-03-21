@@ -2,6 +2,7 @@ import numpy as np
 import tables
 from scipy.ndimage.filters import gaussian_filter1d
 from scipy.interpolate import interp1d
+from scipy.stats import mannwhitneyu, sem
 
 
 def interpolate_waves(waves, fs, fs_new, axis=1):
@@ -160,6 +161,10 @@ def get_mean_difference(A, B, axis=0):
     SEM : numpy.array, standard error of the mean differences, 1D array
     '''
     shape_ax = int(not axis)
+    if len(A.shape) == 1 and len(B.shape) == 1:
+        shape_ax = 0
+    elif len(A.shape) != len(B.shape):
+        raise ValueError('A and B must have same number of dimensions')
 
     m1 = np.mean(A, axis=axis)
     sd1 = np.std(A, axis=axis)
@@ -168,11 +173,13 @@ def get_mean_difference(A, B, axis=0):
     sd2 = np.std(B, axis=axis)
     n2 = B.shape[shape_ax]
     C = m2 - m1
+    # I don't know where I got this equation, using basic error propgation
+    # equation instead
     SEM = np.sqrt((np.power(sd1, 2)/n1) + (np.power(sd2,2)/n2)) / \
-           np.sqrt(n1+n2)
+            np.sqrt(n1+n2)
+    #SEM = np.sqrt((np.power(sd1, 2)) + (np.power(sd2,2)))
 
     return C, SEM
-
 
 
 def zscore_to_baseline(time, fr):
@@ -215,3 +222,64 @@ def remove_baseline(time, fr):
     baseline = np.mean(fr[:, idx])
     norm_fr = fr - baseline
     return norm_fr
+
+def spike_time_xcorr(X, Y, binsize=1, max_t=20):
+    '''Compute cross-correlation histogram for 2 sets of spike times
+
+    Parameters
+    ----------
+    X : np.array, 1-D array of spike times in ms
+    Y: np.array, 1;D array of spike times in ms
+    binsize: int (optional), size of bins to use in histogram in ms(defualt=1)
+    max_t: int (optional), max time bin for histogram in ms(default=10)
+
+    Returns
+    -------
+    np.array, np.array
+    counts, bin_centers
+    '''
+    bin_edges = np.arange(-max_t, max_t+1, binsize)
+    bin_centers = (bin_edges+binsize/2)[:-1]
+
+    counts = np.zeros(bin_centers.shape)
+    for spike in X:
+        rel_t = spike - Y
+        counts += np.histogram(rel_t, bins=bin_edges)[0]
+
+    # convert to spikes/s and adjust for number of spikes 
+    counts = counts / (len(X) * binsize)
+    return counts, bin_centers, bin_edges
+
+def spike_time_acorr(X, binsize=1, max_t=20):
+    bin_edges = np.arange(-max_t, max_t+1, binsize)
+    bin_centers = (bin_edges+binsize/2)[:-1]
+
+    counts = np.zeros(bin_centers.shape)
+    for i, spike in enumerate(X):
+        Y = np.append(X[:i], X[i+1:-1])  # Exclude current spike
+        rel_t = spike - Y
+        counts += np.histogram(rel_t, bins=bin_edges)[0]
+
+    # convert to spikes/s and adjust for number of spikes 
+    counts = counts / (len(X) * binsize)
+    return counts, bin_centers, bin_edges
+
+
+def check_taste_response(time, spikes, win_size=1500):
+    pre_idx = np.where((time >= -win_size) & (time < 0))[0]
+    post_idx = np.where((time >= 0) & (time < win_size))[0]
+    pre = 1000 * np.sum(spikes[:, pre_idx], axis=1) / win_size
+    post = 1000 * np.sum(spikes[:, post_idx], axis=1) / win_size
+    try:
+        stat, pval = mannwhitneyu(pre, post, alternative='two-sided')
+    except ValueError:
+        pval = 1.0
+        stat = 0.0
+
+
+    mean_delta = get_mean_difference(pre, post)
+
+    stats = {'u-stat': stat, 'p-val': pval, 'baseline': (np.mean(pre), sem(pre)),
+             'response': (np.mean(post), sem(post)), 'delta': mean_delta}
+
+    return pval, stats

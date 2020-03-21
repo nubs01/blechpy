@@ -116,6 +116,7 @@ def read_rec_info(file_dir, shell=True):
     print(pt.print_dict(out))
     return out
 
+
 def read_time_dat(file_dir,sampling_rate=None):
     &#39;&#39;&#39;Reads the time vector out of time.dat and converts to seconds
     
@@ -142,6 +143,7 @@ def read_time_dat(file_dir,sampling_rate=None):
     time = np.fromfile(time_file,dtype=np.dtype(&#39;int32&#39;))
     time = time.astype(&#39;float&#39;)/sampling_rate
     return time
+
 
 def read_amplifier_dat(file_dir,num_channels=None):
     &#39;&#39;&#39;Reads intan amplifier.dat file to get recording channel data from
@@ -178,6 +180,7 @@ def read_amplifier_dat(file_dir,num_channels=None):
     amp_dat = amp_dat.reshape(num_channels,-1,order=&#39;F&#39;)
     return amp_dat
 
+
 def read_digital_dat(file_dir,dig_channels=None,dig_type=&#39;in&#39;):
     &#39;&#39;&#39;Reads digitalin.dat from intan recording with file_type &#39;one file per signal type&#39;
 
@@ -210,6 +213,7 @@ def read_digital_dat(file_dir,dig_channels=None,dig_type=&#39;in&#39;):
     out = np.array(chan_dat)
     return out
 
+
 def read_one_channel_file(file_name):
     &#39;&#39;&#39;Reads a single amp or din channel file created by an intan &#39;one file per
     channel&#39; recording
@@ -231,6 +235,7 @@ def read_one_channel_file(file_name):
 
     chan_dat = np.fromfile(file_name,dtype=np.dtype(&#39;int16&#39;))
     return chan_dat
+
 
 def get_recording_filetype(file_dir):
     &#39;&#39;&#39;Check Intan recording directory to determine type of recording and thus

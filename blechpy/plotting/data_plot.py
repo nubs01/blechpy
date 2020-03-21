@@ -1,16 +1,20 @@
-import pylab as plt
 import pandas as pd
 import numpy as np
 import tables
 import os
+import umap
+import pywt
+import itertools as it
 from blechpy import dio
 from blechpy.analysis import spike_analysis as sas
 from scipy.stats import sem
 from scipy.ndimage.filters import gaussian_filter1d
+from statsmodels.stats.diagnostic import lilliefors
 from sklearn.decomposition import PCA
 from blechpy.plotting import blech_waveforms_datashader
 import matplotlib
 matplotlib.use('TkAgg')
+import pylab as plt
 
 plot_params = {'xtick.labelsize': 14, 'ytick.labelsize': 14,
                'axes.titlesize': 26, 'figure.titlesize': 28,
@@ -394,7 +398,7 @@ def plot_cluster_raster(clusters):
     return fig
 
 
-def plot_cluster_waveforms(cluster, index=None):
+def plot_waveforms(waveforms, title=None, save_file=None):
     '''Plots a cluster with isi and violation info for viewing
 
     Parameters
@@ -402,21 +406,393 @@ def plot_cluster_waveforms(cluster, index=None):
     cluster : dict with cluster info
 
     '''
-    fig, ax = blech_waveforms_datashader.waveforms_datashader(
-        cluster['spike_waveforms'])
+    fig, ax = blech_waveforms_datashader.waveforms_datashader(waveforms)
     ax.set_xlabel('Samples', fontsize=12)
     ax.set_ylabel('Voltage (microvolts)', fontsize=12)
-    title_str = (('Cluster Name: %s\n2ms Violations=%0.1f%%, '
-                  '1ms Violations=%0.1f%%\nNumber of Waveforms'
-                  '=%i') %
-                 (cluster['Cluster Name'],
-                  cluster['2ms_violations'],
-                  cluster['1ms_violations'],
-                  cluster['spike_times'].shape[0]))
-    if index is not None:
-        title_str = 'Index: %i %s, ' % (index, title_str)
-
-    ax.set_title(title_str, fontsize=12)
+    ax.set_title(title, fontsize=12)
     plt.xticks(fontsize=10)
     plt.yticks(fontsize=10)
+
+    if save_file is not None:
+        fig.savefig(save_file)
+        plt.close(fig)
+        return None, None
+    else:
+        return fig, ax
+
+
+def plot_ISIs(ISIs, total_spikes=None, save_file=None):
+    '''Plots a cluster with isi and violation info for viewing
+
+    Parameters
+    ----------
+    ISIs : np.array, list of ISIs in ms
+    save_file : str (optional)
+        path to save figure to. Closes figure after save.
+
+    Returns
+    -------
+    pyplot.Figure, pyplot.Axes
+        if save_file is provided figured is saved and close and None, None is
+        returned
+    '''
+    if total_spikes is None:
+        total_spikes = len(ISIs)+1
+
+    viol_1ms = np.sum(ISIs < 1.0)
+    viol_2ms = np.sum(ISIs < 2.0)
+    fig, ax = plt.subplots(figsize=(15,10))
+    max_bin = max(np.max(ISIs), 11.0)
+    bins = [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, max_bin]
+    histogram, _ = np.histogram(ISIs, bins)
+    histogram = histogram[:-1]
+    ax.hist(ISIs, bins = bins)
+    ax.set_xlim((0.0, 10.0))
+    title_str = ('2ms violations = %0.1f %% (%i/%i)\n'
+                 '1ms violations = %0.1f %% (%i/%i)' % (100*viol_2ms/total_spikes,
+                                                        viol_2ms, total_spikes,
+                                                        100*viol_1ms/total_spikes,
+                                                        viol_1ms, total_spikes))
+    ax.set_ylim((0.0, np.max(histogram)+5))
+    ax.set_title(title_str)
+    ax.set_xlabel('ISIs (ms)')
+    if save_file is not None:
+        fig.savefig(save_file)
+        plt.close(fig)
+        return None, None
+    else:
+        return fig, ax
+
+
+def plot_correlogram(hist_counts, bin_centers, bin_edges, title=None, save_file=None):
+    fig, ax = plt.subplots(figsize=(10,6))
+    ax.hist(bin_centers, bins=bin_edges, weights=hist_counts, color='black')
+    ax.autoscale(axis='both', tight=True)
+    if title:
+        ax.set_title(title)
+    else:
+        ax.set_title('Correlogram')
+
+    ax.set_ylabel('spikes/s')
+    ax.set_xlabel('Lag')
+
+    if save_file:
+        fig.savefig(save_file)
+        fig.close()
+        return None, None
+    else:
+        return fig, ax
+
+
+def plot_spike_raster(spike_times, waveforms,
+                      cluster_ids=None, save_file=None):
+    '''Plot raster view of a cluster from blechpy.analysis.spike_sorting
+
+    Parameters
+    ----------
+    spike_times : list of np.array
+        spike_times for each cluster to be plotted
+    spike_waveforms: list of np.array
+        spike_waveforms for each cluster to be plotted
+    cluster_ids : list
+        names or numbers with which to label each cluster plotted
+    save_file : str (optional)
+        path to save figure to, if provided, figure is saved and closed and
+        this returns None
+
+    Returns
+    -------
+    matplotlib.pyplot.figure
+    '''
+    if cluster_ids is None:
+        cluster_ids = list(range(len(spike_times)))
+
+    fig, ax = plt.subplots(figsize=(15,10))
+
+    all_waves = np.vstack(waveforms)
+    pca = PCA(n_components=1)
+    pca.fit(all_waves)
+    colors = [plt.cm.jet(x) for x in np.linspace(0,1,len(waveforms))]
+    for i, c in enumerate(zip(cluster_ids, spike_times, waveforms)):
+        pcs = pca.transform(c[2])
+        ax.scatter(c[1], pcs[:, 0], s=5,
+                   color=colors[i], label=str(c[0]))
+
+    ax.legend(loc='best')
+    ax.set_title('Spike Raster')
+    ax.set_ylabel('PC1')
+    ax.set_xlabel('Time')
+
+    if save_file:
+        fig.savefig(save_file)
+        plt.close(fig)
+        return None
+    else:
+        return fig, ax
+
+
+def plot_waveforms_pca(waveforms, cluster_ids=None, save_file=None):
+    '''Plot PCA view of clusters from spike_sorting
+
+    Parameters
+    ----------
+    waveforms : list of np.array
+        list of np.arrays containing waveforms for each cluster
+    cluster_ids : list
+        names or numbers with which to label each cluster plotted
+    save_file : str (optional)
+        path to save figure to, if provided, figure is saved and closed and
+        this returns None
+
+    Returns
+    -------
+    matplotlib.pyplot.figure, matplotlib.pyplot.Axes
+    '''
+    if cluster_ids is None:
+        cluster_ids = list(range(len(waveforms)))
+
+    fig, axs = plt.subplots(2, 2, sharex=False, sharey=False, figsize=(20,15))
+
+    pca = PCA(n_components=3)
+    all_waves = np.vstack(waveforms)
+    pca.fit(all_waves)
+
+    colors = [plt.cm.jet(x) for x in np.linspace(0,1,len(waveforms))]
+    for i, c in enumerate(zip(cluster_ids, waveforms)):
+        pcs = pca.transform(c[1])
+
+        axs[0, 0].scatter(pcs[:, 0], pcs[:, 1], alpha=0.4, s=5,
+                          color=colors[i], label=str(c[0]))
+        axs[0, 1].scatter(pcs[:, 0], pcs[:, 2], alpha=0.4, s=5,
+                          color=colors[i], label=str(c[0]))
+        axs[1, 0].scatter(pcs[:, 1], pcs[:, 2], alpha=0.4, s=5,
+                          color=colors[i], label=str(c[0]))
+
+    handles, labels = axs[0, 0].get_legend_handles_labels()
+    axs[1, 1].set_axis_off()
+    axs[1, 1].legend(handles, labels, loc='center')
+
+    axs[0, 0].set_xlabel('PC1')
+    axs[0, 0].set_ylabel('PC2')
+    axs[0, 1].set_xlabel('PC1')
+    axs[0, 1].set_ylabel('PC3')
+    axs[1, 0].set_xlabel('PC2')
+    axs[1, 0].set_ylabel('PC3')
+
+    if save_file:
+        fig.savefig(save_file)
+        plt.close(fig)
+        return None
+    else:
+        return fig
+
+
+def plot_waveforms_umap(waveforms, cluster_ids=None, save_file=None,
+                        n_neighbors=30, min_dist=0.0, embedding=None):
+    '''Plot UMAP view of clusters from spike_sorting
+
+    Parameters
+    ----------
+    waveforms : list of np.array
+        list of np.arrays containing waveforms for each cluster
+    cluster_ids : list
+        names or numbers with which to label each cluster plotted
+    save_file : str (optional)
+        path to save figure to, if provided, figure is saved and closed and
+        this returns None
+    n_neighbors : int (optional)
+        parameters for UMAP, default = 20, lower preferences local structure
+        and higher preferences global structure
+    min_dist : float [0,1] (optional)
+        minimum distance between points in 2D represenation. (default = 0.1)
+
+    Returns
+    -------
+    matplotlib.pyplot.figure, matplotlib.pyplot.Axes
+    '''
+    if cluster_ids is None:
+        cluster_ids = list(range(len(waveforms)))
+
+    if embedding is None:
+        reducer = umap.UMAP(n_neighbors=n_neighbors, min_dist=min_dist, n_components=2)
+        embedding = reducer.fit(np.vstack(waveforms))
+
+    colors = [plt.cm.rainbow(x) for x in np.linspace(0, 1, len(waveforms))]
+    fig, ax = plt.subplots(figsize=(15,10))
+    for x, y, z in zip(waveforms, cluster_ids, colors):
+        u = embedding.transform(x)
+        ax.scatter(u[:, 0],  u[:, 1], s=3, color=z, marker='o', label=y)
+
+    ax.legend()
+    ax.set_title('Waveforms UMAP\nmin_dist=%f, n_neighbors=%i'
+                 % (min_dist, n_neighbors))
+
+    if save_file:
+        fig.savefig(save_file)
+        fig.close()
+        return None
+    else:
+        return fig
+
+
+def plot_waveforms_wavelet_tranform(waveforms, cluster_ids=None,
+                                    save_file=None, n_pc=4):
+    all_waves = np.vstack(waveforms)
+    coeffs = pywt.wavedec(all_waves, 'haar', axis=1)
+    all_coeffs = np.column_stack(coeffs)
+    k_stats = np.zeros((all_coeffs.shape[1],))
+    p_vals = np.ones((all_coeffs.shape[1],))
+    for i, coef in enumerate(all_coeffs.T):
+        if len(np.unique(coef)) == 1:  # to avoid nans
+            continue
+
+        try:
+            k_stats[i], p_vals[i] = lilliefors(coef, dist='norm')
+        except ValueError:
+            continue
+
+    # pick best coefficients as ones that are least normally distributed
+    # that is lowest p-values from Lilliefors K-S test
+    idx = np.argsort(p_vals)
+    best_coeffs = all_coeffs[:, idx[:n_pc]]
+    data = []
+    for i, w in enumerate(waveforms):
+        tmp = best_coeffs[:w.shape[0]]
+        best_coeffs = best_coeffs[w.shape[0]:]
+        data.append(tmp)
+
+    if cluster_ids is None:
+        cluster_ids = list(range(len(waveforms)))
+
+    colors = [plt.cm.jet(x) for x in np.linspace(0,1,len(waveforms))]
+    pairs = list(it.combinations(range(n_pc), 2))
+    n_cols = 1
+    while np.power(n_cols, 2) < len(pairs):
+        n_cols += 1
+
+    n_rows = int(np.ceil(len(pairs)/n_cols))
+    fig, ax = plt.subplots(nrows=n_rows, ncols=n_cols,
+                           figsize=(5*(n_cols+1), 5*n_rows))
+    ax = ax.reshape(ax.size)
+    for i, p in enumerate(pairs):
+        for x, y, z in zip(data, cluster_ids, colors):
+            ax[i].scatter(x[:, p[0]], x[:, p[1]], s=3, alpha=0.5,
+                          color=z, label=y, marker='o')
+
+        ax[i].set_xlabel('Coefficient %i' % p[0])
+        ax[i].set_ylabel('Coefficient %i' % p[1])
+
+    handles, labels = ax[0].get_legend_handles_labels()
+    if n_rows * n_cols > len(pairs):
+        ax[-1].set_axis_off()
+        ax[-1].legend(handles, labels, loc='center', shadow=True)
+    else:
+        idx = int(((n_cols * (n_rows-1)) -1) + np.ceil(n_cols/2))
+        ax[idx].legend(handles, labels, ncol=len(pairs), loc='upper center',
+                       bbox_to_anchor=(0.5, -0.05), shadow=True)
+
+    fig.suptitle('Wavelet transform coefficients')
+    if save_file:
+        fig.savefig(save_file)
+        return None, None
+    else:
+        return fig, ax.reshape((n_rows, n_cols))
+
+
+def plot_recording_cutoff(filt_el, fs, cutoff, out_file=None):
+    fig, ax = plt.subplots(figsize=(15,10))
+    test_el = np.reshape(filt_el[:int(fs)*int(len(filt_el)/fs)], (-1, int(fs)))
+    ax.plot(np.arange(test_el.shape[0]), np.mean(test_el, axis = 1))
+    ax.axvline(cutoff, color='black', linewidth=4.0)
+    ax.set_xlabel('Recording time (secs)', fontsize=18)
+    ax.set_ylabel('Average voltage recorded\nper sec (microvolts)', fontsize=18)
+    ax.set_title('Recording cutoff time\n(indicated by the black horizontal line)', fontsize=18)
+
+    if out_file is not None:
+        fig.savefig(out_file, bbox_inches='tight')
+        plt.close(fig)
+        return None, None
+
     return fig, ax
+
+
+def plot_explained_pca_variance(explained_variance_ratio, out_file=None):
+    fig, ax = plt.subplots(figsize=(15,10))
+    x = np.arange(len(explained_variance_ratio))
+    ax.plot(x, explained_variance_ratio)
+    ax.set_title('Variance ratios explained by PCs',fontsize=26)
+    ax.set_xlabel('PC #',fontsize=24)
+    ax.set_ylabel('Explained variance ratio',fontsize=24)
+    if out_file is not None:
+        fig.savefig(out_file, bbox_inches='tight')
+        plt.close(fig)
+        return None, None
+
+    return fig, ax
+
+
+def plot_cluster_features(data, clusters, x_label='X', y_label='Y', save_file=None):
+    '''Plot scatter of feature1 vs feature2 for each cluster
+
+    Parameters
+    ----------
+    data : np.array
+        2-column data array of where columns are features and rows are points
+    clusters : np.array
+        1-d array corresponding to each row of data, labels each data point as
+        part of a cluster
+    x_label : str (optional), x-label of plot, default is X
+    y_label : str (optional), y-label of plot, default is Y
+    save_file : str (optional)
+        if given, figure will be saved and closed
+        otherwise, figure and axis handles will be returned
+
+    Returns
+    -------
+    pyplot.figure, pyplot.axes
+        if no save_file is given, otherwise returns None, None
+    '''
+    unique_clusters = np.unique(clusters)
+    unique_clusters = unique_clusters[unique_clusters >= 0]
+    colors = matplotlib.cm.rainbow(np.linspace(0,1,len(unique_clusters)))
+    fig, ax = plt.subplots(figsize=(15,10))
+    for i, clust in enumerate(unique_clusters):
+        idx = np.where(clusters == clust)[0]
+        tmp = ax.scatter(data[idx, 0], data[idx, 1],
+                         color=colors[i], s=0.8)
+        tmp.set_label('Cluster %i' % clust)
+
+    ax.set_xlabel(x_label)
+    ax.set_ylabel(y_label)
+    ax.legend(scatterpoints = 1, loc = 'best', ncol = 3, fontsize = 8, shadow=True)
+    ax.set_title("Feature plot for %i cluster solution" % len(unique_clusters))
+
+    if save_file is not None:
+        fig.savefig(save_file)
+        plt.close(fig)
+        return None, None
+    else:
+        return fig, ax
+
+
+def plot_mahalanobis_to_cluster(distances, title=None, save_file=None):
+    unique_clusters = sorted(list(distances.keys()))
+    colors = matplotlib.cm.rainbow(np.linspace(0,1,len(unique_clusters)))
+    fig, ax = plt.subplots(figsize=(15,10))
+    for clust, dists in distances.items():
+        y, binEdges = np.histogram(dists)
+        bincenters = 0.5*(binEdges[1:] + binEdges[:-1])
+        ax.plot(bincenters, y, label = 'Dist from cluster %i' % clust)
+
+    ax.set_xlabel('Mahalanobis distance')
+    ax.set_ylabel('Frequency')
+    ax.legend(loc = 'upper right', fontsize = 8)
+    if title:
+        ax.set_title(title)
+
+    if save_file is not None:
+        fig.savefig(save_file)
+        plt.close(fig)
+        return None, None
+    else:
+        return fig, ax
