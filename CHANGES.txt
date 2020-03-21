@@ -1,3 +1,8 @@
+v2.0.19 (2020-3-21)
+-------------------
+- Fix to make_psth_arrays
+- Re-factor and optimize HMM fitting and data storage
+
 v2.0.18 (2020-3-11)
 -------------------
 - Add HMMHandler to plan and distribute fitting of HMMs over multiple parameter sets and tastes
