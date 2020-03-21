@@ -1,0 +1,199 @@
+v2.0.18 (2020-3-11)
+-------------------
+- Add HMMHandler to plan and distribute fitting of HMMs over multiple parameter sets and tastes
+- Convert to using joblib to fit HMMs in parallel
+
+v2.0.17 (2020-3-2)
+-------------------
+- Store both BIC and Cost on each iteration of fitting HMM in history
+- Critical Bug Fix:
+    - Remove use of tempfile when waveform plotting
+    - Prevents errors while clustering
+
+v2.0.16 (2020-3-2)
+-------------------
+- Minor debugging
+- Fix to blech clustering, data loading
+- Adding functions to plot hmm output
+
+v2.0.15 (2020-2-28)
+-------------------
+- Trying to get BlechClust object to adpat if experiment root dir has changed
+- Updated requirements
+
+v2.0.14 (2020-2-03)
+-------------------
+- Correction to how spike time autocrrelation and xcorr are computed (from counts -> spike/s)
+- Add wavelet transform view and split by rec to spike sorting
+- Add umap clustering option to dataset object
+- Unfinished module for Poisson HMM decoding of spike data
+- Expanded functionality of h5io.get_spike_data to provide data for multiple neurons and digital inputs at once
+- Fix adding and removing experiments from project datastructure
+- Spike sorting no longer saves 0 spike clusters
+- Fix experiment _change_root to update rec_labels
+
+
+v2.0.13 (2020-2-02)
+-------------------
+- Minor fix to project
+- Fix imports for project
+
+v2.0.12 (2020-2-02)
+-------------------
+- Minor fix to project
+- Fix imports for project
+
+v2.0.11 (2020-2-02)
+-------------------
+- Actually import project in blechpy init
+
+v2.0.10 (2020-2-02)
+-------------------
+- Fix held_unit_analysis to not error when no held units are found
+
+v2.0.9 (2020-1-24)
+-------------------
+- Fix held_unit_analysis to save J3 as float instead of str
+- Fix critical error in held unit lettering
+- Add autocorrelation and cross correlation plots to spike sorting and GUI
+
+v2.0.8 (2020-1-23)
+-------------------
+- Add general undo function to SpikeSorter and button to GUI
+
+v2.0.7 (2020-1-21)
+-------------------
+- Actually fix views_waves_by_rec to show correct ISI violations
+
+v2.0.6 (2020-1-21)
+-------------------
+- Fix views_waves_by_rec to show correct ISI violations
+
+v2.0.5 (2020-1-21)
+-------------------
+- Fix error launching spike sorter gui from dataset
+- setup to run blech clust using UMAP instead of PCA is desired
+
+v2.0.4 (2020-1-17)
+-------------------
+- Change multiprocessing context to spawn to hopefully resolve freezing on many core machines
+- Minor edits to spike sorting GUI
+
+v2.0.3 (2020-1-16)
+-------------------
+- Fix implment_umap typo in blech_clustering
+- Lauching sort_spikes now returns handle to GUI for command-line manipulation
+- Can now run spike detection and clustering without multiprocessing
+
+v2.0.2 (2020-1-16)
+-------------------
+- Add pre_process_for_clustering to dataset, to run all steps prior to clustering
+- Fix error from re-factoring spike_sorting.py
+- Fix error in delete unit for renaming unit plots
+- Add UMAP visualization and cluster splitting to spike sorting
+
+v2.0.1 (2020-1-16)
+-------------------
+- Fix typo in dataset.py
+
+v2.0.0 (2020-1-15)
+-------------------
+- Fix spike sorting to re-compute pca after splitting or merging clusters
+- Fix held unit analysis to handle multiple matches for single  units by
+  choosing units with lowest J3
+* Big Changes:
+    - Seperate spike detection and spike clustering
+    - Make objects to handle spike detection, spike clustering, and spike sorting
+    - Make GUI for spike sorting
+    - Can now cluster and sort over multiple recordings at once
+    - Change file structure occurring from clustering
+
+v1.1.14 (2019-11-23)
+--------------------
+- Make blech clust use less than all cores, or user specified number of cores
+
+v1.1.13 (2019-11-23)
+--------------------
+- typo fix
+
+v1.1.12 (2019-11-23)
+--------------------
+- typo fix
+
+v1.1.11 (2019-11-23)
+--------------------
+- Add support for digital outputs
+
+v1.1.10, (2010-11-20)
+---------------------
+- Fix h5io.get_unit_waveforms
+- Add initial slope of spike to GMM clustering variables
+- make blech_clust use max - 1 cores to help prevent system freeze
+    - Allow for user specification of cores to use
+
+v1.1.9, (2019-11-08)
+--------------------
+- Fix typo in spike_sorting units_similarity
+- Critcal Bug Fix:
+    - Fix bug with CAR group assignment via GUI 
+
+
+v1.1.8, (2019-10-28)
+--------------------
+- Fix typo is experiment creation
+- Slight improvement to spike sorting UI
+- Fix process status update when no units similarity violations found
+- Critical Bug Fix:
+    - Was applying voltage scaling twice during clustering, now fixed. 
+    - Use tmp file when repacking. Resolves error when compressing and repacking to same filename
+
+
+
+v1.1.7, (2019-10-10)
+-------------------
+- Fix imports for data_plot module
+
+v1.1.6, (2019-10-09)
+-------------------
+- Consolidate plotting into single sub-package and minimize matplotlib imports
+- Try to use TkAgg backend to resolve plt.show hang during spike_sorting
+
+v1.1.5, (2019-10-07)
+-------------------
+- Included pyqt5 in requirements, necessary for plotting since I like the pyqt5 matplotlib backend
+- Fixed blechpy.h5io.common_average_reference to handle uneven raw trace lengths (for a cutoff recording)
+    - now truncates data to match shortest trace
+    - Can mark channels as dead to exclude them and try and save good channels
+
+v1.1.4, (2019-10-07) -- Actually saves dataset after clustering
+
+v1.1.3, (2019-10-07)
+-------------------
+-Critical bug fix:
+    - Clustering now actually works and reports problems
+    - Clustering now excludes clustering of channels marked as dead
+
+v1.1.2, (2019-10-07)
+-------------------
+- Critical bug fix:
+    - blechpy.dio.h5io now properly importing referenced traces
+    - blechpy.analysis.blech_clust_process now properly choosing raw data only
+      if referenced data is not available
+
+v1.1.1, (2019-10-06)
+-------------------
+- Fixed critical bugs in new dataset creation:
+    - Indentation error causing CAR groups to not be assigned properly
+    - info.rhd corruption checking
+
+- Can run from setup through clustering with only a single prompt if desired 
+    - Allows you to programmatically setup, extract and cluster many recordings without staying near the keyboard
+
+
+v1.1.0, (2019-10-05)
+-------------------
+- Fixed requirments and setup.py so that project properly installs via pip.
+- Fix default parameter loading
+- Change deprecated scipy.misc.imread to imageio.imread in blech_waveforms_datashader
+
+v1.0.0, October 5, 2019 -- Initial release
