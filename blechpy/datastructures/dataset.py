@@ -1031,7 +1031,7 @@ class dataset(data_object):
         hdf5 store
         '''
         params = self.psth_params
-        dig_ins = self.dig_in_mapping
+        dig_ins = self.dig_in_mapping.query('spike_array == True')
         for idx, row in dig_ins.iterrows():
             spike_analysis.make_psths_for_tastant(self.h5_file,
                                                   params['window_size'],
