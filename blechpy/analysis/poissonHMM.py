@@ -416,7 +416,7 @@ def get_hmm_spike_data(rec_dir, unit_type, channel, time_start=None, time_end=No
     else:
         dt = curr_dt
 
-    if time_start and time_end:
+    if time_start is not None and time_end is not None:
         print('%s: Trimming spike array' % os.getpid())
         idx = np.where((time >= time_start) & (time < time_end))[0]
         time = time[idx]

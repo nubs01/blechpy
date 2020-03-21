@@ -526,7 +526,7 @@ def plot_hmm_figures(hmm, spikes, dt, time, hmm_id=None, save_dir=None):
 
     # Plot sequences
     print('Plotting Viterbi Decoded Paths...')
-    plot_viterbi_paths(hmm, spikes, colors=colors,
+    plot_viterbi_paths(hmm, spikes, time=time, colors=colors,
                        hmm_id=hmm_id, save_file=files['sequences'])
 
     # Plot alphas
