@@ -716,7 +716,12 @@ class BlechClust(object):
         # Check is clustering has already been done, load results
         if file_check['clustering_results']:
             self.results = wt.read_pandas_from_table(self._files['clustering_results'])
-            self.clustered = True
+            expected_results = np.arange(2, self.params['max_clusters'] + 1)
+            if not all([x in self.results['clusters'] for x in expected_results]):
+                self.clustered = False
+            else:
+                self.clustered = True
+
         else:
             self.results = None
             self.clustered = False
@@ -777,7 +782,7 @@ class BlechClust(object):
             bic_file = os.path.join(data_dir, 'bic.npy')
             pred_file = os.path.join(data_dir, 'predictions.npy')
 
-            if os.path.isfile(bic_file) and os.path.isfile(pred_file):
+            if os.path.isfile(bic_file) and os.path.isfile(pred_file) and not overwrite:
                 bic = np.load(bic_file)
                 predictions = np.load(pred_file)
                 spikes_per_clust = [len(np.where(predictions == c)[0])
@@ -912,6 +917,7 @@ class BlechClust(object):
                 continue
 
             tmp_clust = SpikeCluster('Cluster_%i' % c,
+                                     self.electrode,
                                      solution_num,
                                      c,
                                      1,
@@ -1160,6 +1166,7 @@ class SpikeSorter(object):
                             'clusters. This is sub-cluster %i'
                             % (cluster['Cluster_Name'], n_clust, i))
                 tmp_clust = SpikeCluster(cluster['Cluster_Name'] + '-%i' % i,
+                                         cluster['electrode_num'],
                                          cluster['solution_num'],
                                          cluster['cluster_num'],
                                          cluster['cluster_id']*10+i,
@@ -1481,7 +1488,7 @@ class SpikeSorter(object):
 
 
 class SpikeCluster(dict):
-    def __init__(self, name, solution, cluster, cluster_id, waves, times,
+    def __init__(self, name, electrode, solution, cluster, cluster_id, waves, times,
                  spike_map, rec_key, fs={0: 30000}, offsets={0:0}, manipulations=''):
         # Confirm spike_map, rec_key, fs and offsets are all in sync
         rec_nums = np.unique(spike_map)
@@ -1496,6 +1503,7 @@ class SpikeCluster(dict):
             raise ValueError('Must have same number of waves, times and map entries')
 
         super(SpikeCluster, self).__init__(Cluster_Name=name,
+                                           electrode_num=electrode,
                                            solution_num=solution,
                                            cluster_num = cluster,
                                            cluster_id=cluster_id,
@@ -1506,6 +1514,15 @@ class SpikeCluster(dict):
                                            fs=fs,
                                            offsets=offsets,
                                            manipulations=manipulations)
+
+    def delete_spikes(self, idx, msg=None):
+        self['spike_waveforms'] = np.delete(self['spike_waveforms'],
+                                               idx, axis=0)
+        self['spike_times'] = np.delete(self['spike_times'], idx)
+        self['spike_map'] = np.delete(self['spike_map'], idx)
+        print('deleted %i spikes.' % len(idx))
+        if msg is not None:
+            self['manipulations'] += '/n' + msg + '\n-Removed %i spikes' % len(idx)
 
     def get_spike_time_vector(self, units='samples'):
         '''Return vector of all spike times with offsets added if multiple
@@ -1555,4 +1572,27 @@ class SpikeCluster(dict):
         std_wave = np.std(self['spike_waveforms'], axis=0)
         n_waves = self['spike_waveforms'].shape[0]
         return mean_wave, std_wave, n_waves
+
+    def _dist(self, other=None):
+        if other is None:
+            other = self
+
+        pass
+
+    def _add(self, other):
+        pass
+
+    def _subtract(self, other):
+        pass
+
+    def _divide(self, N, method='pca'):
+        pass
+
+    def _is_subcluster(self, other):
+        '''less than?'''
+        pass
+
+    def _is_supercluster(self, other):
+        ''' greater than?'''
+        pass
 
