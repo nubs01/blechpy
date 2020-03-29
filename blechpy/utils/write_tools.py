@@ -52,7 +52,7 @@ def read_dict_from_json(save_file):
 
 def write_pandas_to_table(df, save_file, overwrite=False, shell=True):
     if os.path.isfile(save_file) and not overwrite:
-        q = userIO.ask_user('File already exists. Do you want to overwrite it?', shell=shell)
+        q = userIO.ask_user('File already exists: %s\nDo you want to overwrite it?' % save_file, shell=shell)
         if q == 0:
             return
 

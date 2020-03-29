@@ -864,7 +864,9 @@ class BlechClust(object):
 
         # Save results table
         self.results = clust_results
-        wt.write_pandas_to_table(clust_results, self._files['clustering_results'])
+        wt.write_pandas_to_table(clust_results,
+                                 self._files['clustering_results'],
+                                 overwrite=True)
         self.clustered = True
         return True
 
