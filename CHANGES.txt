@@ -1,3 +1,7 @@
+v2.0.20 (2020-4-2)
+-------------------
+- Re-structure poissonHMM module to streamline HMM fitting and parameter sweeps
+
 v2.0.19 (2020-3-21)
 -------------------
 - Fix to make_psth_arrays
