@@ -112,3 +112,13 @@ def write_hmm_to_hdf5(h5_file, hmm, time, params):
         hf5.flush()
 
     print('='*80+'\n')
+
+
+def compare_hmm_params(p1, p2):
+    compare_keys = ['taste', 'unit_type', 'dt', 'max_iter', 'time_start',
+                    'time_end', 'n_states']
+    for k in compare_keys:
+        if p1[k] != p2[k]:
+            return False
+
+    return True

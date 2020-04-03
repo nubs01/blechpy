@@ -22,10 +22,12 @@ TEST_PARAMS = {'n_cells': 10, 'n_states': 4, 'state_seq_length': 5,
                'trial_time': 3.5, 'dt': 0.001, 'max_rate': 50, 'n_trials': 15,
                'min_state_dur': 0.05, 'noise': 0.01, 'baseline_dur': 1}
 
+
 HMM_PARAMS = {'hmm_id': None, 'taste': None, 'channel': None,  'unit_type':
               'single', 'dt': 0.001, 'threshold': 1e-4, 'max_iter': 1000,
               'n_cells': None, 'n_trials': None, 'time_start': 0, 'time_end':
-              2000, 'n_repeats': 3, 'n_states': 3}
+              2000, 'n_repeats': 3, 'n_states': 3, 'fitted': False}
+
 
 FACTORIAL_LOOKUP = np.array([math.factorial(x) for x in range(20)])
 
@@ -909,11 +911,10 @@ class HmmHandler(object):
         dim = dat.dig_in_mapping.query('exclude==False')
         tastes = dim['name'].tolist()
         self._orig_params = params
-        if params is None:
-            # Load params and fitted models
-            self.load_params()
-        else:
-            self.init_params(params)
+        self._data_params = []
+        self._fit_params = []
+        self.load_params()
+        self.add_params(params)
 
         if not os.path.isdir(save_dir):
             os.makedirs(save_dir)
@@ -924,47 +925,15 @@ class HmmHandler(object):
 
         hmmIO.setup_hmm_hdf5(self.h5_file)
 
-    def init_params(self, params):
-        dat = self._dataset
-        dim = dat.dig_in_mapping.query('exclude == False')
-        tastes = dim['name'].tolist()
-        dim = dim.set_index('name')
-        if not hasattr(dat, 'dig_in_trials'):
-            dat.create_trial_list()
-
-        trials = dat.dig_in_trials
-        data_params = []
-        fit_params = []
-        hmm_ids = []
-        for i, X in enumerate(it.product(params,tastes)):
-            p = X[0].copy()
-            t = X[1]
-            hmm_ids.append(i)
-            p['hmm_id'] = i
-            p['taste'] = t
-            p['channel'] = dim.loc[t, 'channel']
-            unit_names = query_units(dat, p['unit_type'])
-            p['n_cells'] = len(unit_names)
-            p['n_trials'] = len(trials.query('name == @t'))
-
-            data_params.append(p)
-            for i in range(p['n_repeats']):
-                fit_params.append(p.copy())
-
-        self._data_params = data_params
-        self._fit_params = fit_params
-        self._HMMs_fitted = dict.fromkeys(hmm_ids, False)
-
     def load_params(self):
         h5_file = self.h5_file
         if not os.path.isfile(h5_file):
-            raise ValueError('No params to load')
+            return
 
-        rec_dir = self._dataset.root_dir
-        params = []
-        fit_params = []
-        fitted_models = {}
         with tables.open_file(h5_file, 'r') as hf5:
+            if 'data_overview' not in hf5.root:
+                return
+
             table = hf5.root.data_overview
             col_names = table.colnames
             for row in table[:]:
@@ -980,14 +949,7 @@ class HmmHandler(object):
                 _ = p.pop('n_iterations')
                 _ = p.pop('converged')
                 _ = p.pop('max_log_prob')
-                fitted_models[p['hmm_id']] = p.pop('fitted')
-                params.append(p)
-                for i in range(p['n_repeats']):
-                    fit_params.append(p.copy())
-
-        self._data_params = params
-        self._fit_params = fit_params
-        self._HMMs_fitted = fitted_models
+                self.add_params(p)
 
     def get_parameter_overview(self):
         df = pd.DataFrame(self._data_params)
@@ -1002,11 +964,13 @@ class HmmHandler(object):
 
         return df
 
-    def run(self, parallel=True):
+    def run(self, parallel=True, overwrite=False):
         h5_file = self.h5_file
         rec_dir = self._dataset.root_dir
-        fit_params = self._fit_params
-        HMMs_fitted = {}
+        if overwrite:
+            fit_params = self._fit_params
+        else:
+            fit_params = [x for x in self._fit_params if not x['fitted']]
 
         print('Running fittings')
         if parallel:
@@ -1026,8 +990,6 @@ class HmmHandler(object):
         print('HMMs written to hdf5:')
         for hmm_id, written in results:
             print('%s : %s' % (hmm_id, written))
-            if written:
-                self._HMMs_fitted[hmm_id] = True
 
         self.plot_saved_models()
 
@@ -1048,3 +1010,68 @@ class HmmHandler(object):
 
             print('Plotting HMM %s...' % i)
             hmmplt.plot_hmm_figures(hmm, spikes, dt, time, save_dir=plot_dir)
+
+    def add_params(self, params):
+        if isinstance(params, list):
+            for p in params:
+                self.add_params(p)
+
+        elif not isinstance(params, dict):
+            raise ValueError('Input must  be a dict or list or dicts')
+
+        # Fill in blanks with defaults
+        for k, v in HMM_PARAMS.items():
+            if k not in params:
+                params[k] = v
+                print('Parameter %s not provided. Using default value: %s'
+                      % (k, repr(v)))
+
+        # Grab existing parameters
+        data_params = self._data_params
+        fit_params = self._fit_params
+
+        # Get taste and trial info from dataset
+        dat = self._dataset
+        dim = dat.dig_in_mapping.query('exclude == False')
+        if params['taste'] is None:
+            tastes = dim['name'].tolist()
+        else:
+            tastes = [params['taste']]
+
+        dim = dim.set_index('name')
+        if not hasattr(dat, 'dig_in_trials'):
+            dat.create_trial_list()
+
+        trials = dat.dig_in_trials
+        hmm_ids = [x['hmm_id'] for x in data_params]
+        for t in tastes:
+            p = params.copy()
+            if len(hmm_ids) == 0:
+                hid = 0
+            else:
+                hid = hmm_ids[-1] + 1
+
+            p['taste'] = t
+            # Skip if parameter is already in parameter set
+            if any([hmmIO.compare_hmm_params(p, dp) for dp in data_params]):
+                print('Parameter set already in data_params, '
+                      'to re-fit run with overwrite=True')
+                continue
+
+            hmm_ids.append(hid)
+            p['hmm_id'] = hid
+            p['channel'] = dim.loc[t, 'channel']
+            unit_names = query_units(dat, p['unit_type'])
+            p['n_cells'] = len(unit_names)
+            p['n_trials'] = len(trials.query('name == @t'))
+            p['fitted'] = False
+
+            data_params.append(p)
+            for i in range(p['n_repeats']):
+                fit_params.append(p.copy())
+
+        self._data_params = data_params
+        self._fit_params = fit_params
+
+
+
