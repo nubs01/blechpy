@@ -914,7 +914,8 @@ class HmmHandler(object):
         self._data_params = []
         self._fit_params = []
         self.load_params()
-        self.add_params(params)
+        if params is not None:
+            self.add_params(params)
 
         if not os.path.isdir(save_dir):
             os.makedirs(save_dir)
@@ -1016,6 +1017,7 @@ class HmmHandler(object):
             for p in params:
                 self.add_params(p)
 
+            return
         elif not isinstance(params, dict):
             raise ValueError('Input must  be a dict or list or dicts')
 

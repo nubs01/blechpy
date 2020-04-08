@@ -544,48 +544,39 @@ def create_trial_data_table(h5_file, digital_map, fs, dig_type='in'):
     if dig_type not in ['in', 'out']:
         raise ValueError('Invalid digital type given.')
 
-    with tables.open_file(h5_file, 'r+') as hf5:
-        # Grab relevant digital data from hf5
-        tree = hf5.root['digital_'+dig_type]
-        dig_str = 'dig_'+dig_type
-        trial_map = []
-
-        print('Generating trial list for digital %sputs: %s' %
-              (dig_type, ', '.join([str(x) for x in
-                                    digital_map['channel'].tolist()])))
-
+    rec_dir = os.path.dirname(h5_file)
+    trial_map = []
+    print('Generating trial list for digital %sputs: %s' %
+          (dig_type, ', '.join([str(x) for x in
+                                digital_map['channel'].tolist()])))
+    for i, row in digital_map.iterrows():
         exp_start_idx = 0
         exp_end_idx = 0
-        # Loop through channels and get indices of digital signal onsets
-        for i, row in digital_map.iterrows():
-            println('Grabbing data for digital %sput %i...' %
-                    (dig_type, row['channel']))
-            dig_trace = tree[dig_str+'_'+str(row['channel'])][:]
-            if len(dig_trace) > exp_end_idx:
-                exp_end_idx = len(dig_trace)
+        dig_trace = get_raw_dig_in(rec_dir, 'in', row['channel'])
+        if len(dig_trace) > exp_end_idx:
+            exp_end_idx = len(dig_trace)
 
-            dig_diff = np.diff(dig_trace)
-            on_idx = np.where(dig_diff > 0)[0]
-            off_idx = np.where(dig_diff < 0)[0]
-            trial_map.extend([(x, row['channel'], row['name'], x, y, x/fs, y/fs)
-                              for x, y in zip(on_idx, off_idx)])
-            print('Done!')
+        dig_diff = np.diff(dig_trace)
+        on_idx = np.where(dig_diff > 0)[0]
+        off_idx = np.where(dig_diff < 0)[0]
+        trial_map.extend([(x, row['channel'], row['name'], x, y, x/fs, y/fs)
+                          for x, y in zip(on_idx, off_idx)])
 
-        # Add one more row for experiment start and end time
-        trial_map.extend([(0, -1, 'Experiment', exp_start_idx, exp_end_idx,
-                            exp_start_idx/fs, exp_end_idx/fs)])
+    # Add one more row for experiment start and end time
+    trial_map.extend([(0, -1, 'Experiment', exp_start_idx, exp_end_idx,
+                        exp_start_idx/fs, exp_end_idx/fs)])
 
-        # Make dataframe and assign trial numbers
-        println('Constructing DataFrame...')
-        trial_df = pd.DataFrame(trial_map, columns=['idx', 'channel', 'name',
-                                                    'on_index', 'off_index',
-                                                    'on_time', 'off_time'])
-        trial_df = trial_df.sort_values(by=['idx']).reset_index(drop=True)
-        trial_df = trial_df.reset_index(drop=False).rename(
-            columns={'index': 'trial_num'})
-        trial_df = trial_df.drop(columns=['idx'])
-        print('Done!')
-
+    # Make dataframe and assign trial numbers
+    println('Constructing DataFrame...')
+    trial_df = pd.DataFrame(trial_map, columns=['idx', 'channel', 'name',
+                                                'on_index', 'off_index',
+                                                'on_time', 'off_time'])
+    trial_df = trial_df.sort_values(by=['idx']).reset_index(drop=True)
+    trial_df = trial_df.reset_index(drop=False).rename(
+        columns={'index': 'trial_num'})
+    trial_df = trial_df.drop(columns=['idx'])
+    print('Done!')
+    with tables.open_file(h5_file, 'r+') as hf5:
         # Make hf5 group and table
         println('Writing data to h5 file...')
         if '/trial_info' not in hf5:
@@ -813,6 +804,30 @@ def get_spike_data(rec_dir, units=None, din=None):
         out = out.popitem()[1]
 
     return time, out
+
+
+def get_raw_dig_in(rec_dir, dig_type, channel):
+    h5_file = get_h5_filename(rec_dir)
+    with tables.open_file(h5_file, 'r') as hf5:
+        if ('/digital_%s' % dig_type in hf5 and
+            '/digital_%s/dig_%s_%i' % (dig_type, dig_type, channel) in hf5):
+            out = hf5.root.digital_in['dig_%s_%i' % (dig_type, channel)][:]
+            return out
+
+    file_type = rawIO.get_recording_filetype(rec_dir)
+    if file_type == 'one file per signal type':
+        println('Reading all digital%s data...' % dig_type)
+        all_data = rawIO.read_digital_dat(file_dir, channels, dig_type)
+        return all_data[channel]
+    elif file_type == 'one file per channel':
+        file_name = os.path.join(file_dir, 'board-DIN-%02d.dat' % channel)
+        println('Reading digital_in data from %s...' % os.path.basename(file_name))
+        data = rawIO.read_one_channel_file(file_name)
+        return data[:]
+
+    return None
+
+
 
 
 def get_raw_trace(rec_dir, electrode, el_map=None):

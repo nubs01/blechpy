@@ -30,6 +30,16 @@ class dataset(data_object):
         absolute path to a recording directory, if left empty a filechooser
         will popup
     '''
+    PROCESSING_STEPS = ['initialize parameters',
+                        'extract_data', 'create_trial_list',
+                        'mark_dead_channels',
+                        'common_average_reference', 'spike_detection',
+                        'spike_clustering', 'cleanup_clustering',
+                        'sort_units', 'make_unit_plots',
+                        'units_similarity', 'make_unit_arrays',
+                        'make_psth_arrays', 'plot_psths',
+                        'palatability_calculate', 'palatability_plot',
+                        'overlay_psth']
 
     def __init__(self, file_dir=None, data_name=None, shell=False):
         '''Initialize dataset object from file_dir, grabs basename from name of
@@ -56,16 +66,7 @@ class dataset(data_object):
         self.dataset_creation_date = dt.datetime.today()
 
         # Outline standard processing pipeline and status check
-        self.processing_steps = ['initialize parameters',
-                                 'extract_data', 'create_trial_list',
-                                 'mark_dead_channels',
-                                 'common_average_reference', 'spike_detection',
-                                 'spike_clustering', 'cleanup_clustering',
-                                 'sort_units', 'make_unit_plots',
-                                 'units_similarity', 'make_unit_arrays',
-                                 'make_psth_arrays', 'plot_psths',
-                                 'palatability_calculate', 'palatability_plot',
-                                 'overlay_psth']
+        self.processing_steps = dataset.PROCESSING_STEPS.copy()
         self.process_status = dict.fromkeys(self.processing_steps, False)
 
     def _change_root(self, new_root=None):
@@ -602,10 +603,6 @@ class dataset(data_object):
         to hdf5 store
         Can only be run after data extraction
         '''
-        if not self.process_status['extract_data']:
-            userIO.tell_user('Must extract data before creating trial list',shell=True)
-            return
-
         if self.rec_info.get('dig_in'):
             in_list = dio.h5io.create_trial_data_table(
                 self.h5_file,
