@@ -1,3 +1,7 @@
+v2.0.21 (2020-4-9)
+-------------------
+- Minor fix in PoissonHMM
+
 v2.0.20 (2020-4-2)
 -------------------
 - Re-structure poissonHMM module to streamline HMM fitting and parameter sweeps
