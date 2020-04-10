@@ -594,7 +594,7 @@ class PoissonHMM(object):
             self.cost = None
             self.BIC = None
             self.max_log_prob = None
-            self.bset_sequences = None
+            self.best_sequences = None
         elif PI is not None and A is not None and B is not None:
             spikes = spikes.astype(np.int32)
             self._update_cost(spikes, dt)
