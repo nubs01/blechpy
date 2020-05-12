@@ -552,7 +552,7 @@ def create_trial_data_table(h5_file, digital_map, fs, dig_type='in'):
     for i, row in digital_map.iterrows():
         exp_start_idx = 0
         exp_end_idx = 0
-        dig_trace = get_raw_dig_in(rec_dir, dig_type, row['channel'])
+        dig_trace = get_raw_digital_signal(rec_dir, dig_type, row['channel'])
         if len(dig_trace) > exp_end_idx:
             exp_end_idx = len(dig_trace)
 
@@ -806,12 +806,12 @@ def get_spike_data(rec_dir, units=None, din=None):
     return time, out
 
 
-def get_raw_dig_in(rec_dir, dig_type, channel):
+def get_raw_digital_signal(rec_dir, dig_type, channel):
     h5_file = get_h5_filename(rec_dir)
     with tables.open_file(h5_file, 'r') as hf5:
         if ('/digital_%s' % dig_type in hf5 and
             '/digital_%s/dig_%s_%i' % (dig_type, dig_type, channel) in hf5):
-            out = hf5.root.digital_in['dig_%s_%i' % (dig_type, channel)][:]
+            out = hf5.root['digital_%s' % dig_type]['dig_%s_%i' % (dig_type, channel)][:]
             return out
 
     file_type = rawIO.get_recording_filetype(rec_dir)

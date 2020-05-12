@@ -1,3 +1,7 @@
+v2.0.24 (2020-5-12)
+-------------------
+- Fix error in create_trial_table: support digital out
+
 v2.0.23 (2020-5-12)
 -------------------
 - Fix error in create_trial_table
