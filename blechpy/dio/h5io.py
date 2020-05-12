@@ -817,10 +817,10 @@ def get_raw_dig_in(rec_dir, dig_type, channel):
     file_type = rawIO.get_recording_filetype(rec_dir)
     if file_type == 'one file per signal type':
         println('Reading all digital%s data...' % dig_type)
-        all_data = rawIO.read_digital_dat(file_dir, channels, dig_type)
+        all_data = rawIO.read_digital_dat(rec_dir, channels, dig_type)
         return all_data[channel]
     elif file_type == 'one file per channel':
-        file_name = os.path.join(file_dir, 'board-DIN-%02d.dat' % channel)
+        file_name = os.path.join(rec_dir, 'board-DIN-%02d.dat' % channel)
         println('Reading digital_in data from %s...' % os.path.basename(file_name))
         data = rawIO.read_one_channel_file(file_name)
         return data[:]
