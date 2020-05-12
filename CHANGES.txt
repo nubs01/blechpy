@@ -1,3 +1,7 @@
+v2.0.23 (2020-5-12)
+-------------------
+- Fix error in create_trial_table
+
 v2.0.22 (2020-5-1)
 -------------------
 - Updated requirements

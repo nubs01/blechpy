@@ -552,7 +552,7 @@ def create_trial_data_table(h5_file, digital_map, fs, dig_type='in'):
     for i, row in digital_map.iterrows():
         exp_start_idx = 0
         exp_end_idx = 0
-        dig_trace = get_raw_dig_in(rec_dir, 'in', row['channel'])
+        dig_trace = get_raw_dig_in(rec_dir, dig_type, row['channel'])
         if len(dig_trace) > exp_end_idx:
             exp_end_idx = len(dig_trace)
 
