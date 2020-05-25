@@ -555,7 +555,7 @@ def load_hmm_from_hdf5(h5_file, hmm_id):
     if existing_hmm is None:
         return None, None
 
-    PI, A, B, time, best_paths, params = existing_hmm
+    PI, A, B, time, best_paths, params, cost_hist = existing_hmm
     hmm = PoissonHMM(params['n_states'], PI=PI, A=A, B=B, hmm_id=hmm_id,
                      iteration=params.pop('n_iterations'))
     hmm.BIC = params.pop('BIC')
@@ -564,6 +564,7 @@ def load_hmm_from_hdf5(h5_file, hmm_id):
     hmm.cost = params.pop('cost')
     hmm.best_sequences = best_paths
     hmm.max_log_prob = params.pop('max_log_prob')
+    hmm.cost_hist = cost_hist
     return hmm, params
 
 
@@ -583,6 +584,7 @@ class PoissonHMM(object):
         self.set_params(PI, A, B, iteration, spikes, dt)
         self.converged = False
         self.fitted = False
+        self.cost_hist = None
 
     def set_params(self, PI=None, A=None, B=None, iteration=0, spikes=None, dt=None):
         self.initial_distribution = PI
@@ -692,6 +694,7 @@ class PoissonHMM(object):
         iteration = self.iteration
         max_log_prob = self.max_log_prob
 
+        self.cost_hist.append(cost)
         if self.history is None:
             self.history = {}
             self.history['A'] = [A]
@@ -1034,7 +1037,7 @@ class HmmHandler(object):
 
         # Get taste and trial info from dataset
         dat = self._dataset
-        dim = dat.dig_in_mapping.query('exclude == False')
+        dim = dat.dig_in_mapping.query('exclude == False and spike_array == True')
         if params['taste'] is None:
             tastes = dim['name'].tolist()
         else:
