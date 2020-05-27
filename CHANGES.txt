@@ -1,3 +1,4 @@
+- Change convergence test for poissonHMM fitting
 v2.0.25 (2020-5-25)
 -------------------
 - Fix bug in PoissonHMM, will only try to fit for dig_ins with spike_array
