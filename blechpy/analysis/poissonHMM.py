@@ -565,7 +565,7 @@ def load_hmm_from_hdf5(h5_file, hmm_id):
     hmm.best_sequences = best_paths
     hmm.max_log_prob = params.pop('max_log_prob')
     hmm.cost_hist = cost_hist
-    return hmm, params
+    return hmm, time, params
 
 
 class PoissonHMM(object):
@@ -584,7 +584,7 @@ class PoissonHMM(object):
         self.set_params(PI, A, B, iteration, spikes, dt)
         self.converged = False
         self.fitted = False
-        self.cost_hist = None
+        self.cost_hist = []
 
     def set_params(self, PI=None, A=None, B=None, iteration=0, spikes=None, dt=None):
         self.initial_distribution = PI
@@ -914,8 +914,6 @@ class HmmHandler(object):
         dim = dat.dig_in_mapping.query('exclude==False')
         tastes = dim['name'].tolist()
         self._orig_params = params
-        self._data_params = []
-        self._fit_params = []
         self.load_params()
         if params is not None:
             self.add_params(params)
@@ -930,6 +928,8 @@ class HmmHandler(object):
         hmmIO.setup_hmm_hdf5(self.h5_file)
 
     def load_params(self):
+        self._data_params = []
+        self._fit_params = []
         h5_file = self.h5_file
         if not os.path.isfile(h5_file):
             return
@@ -996,13 +996,14 @@ class HmmHandler(object):
             print('%s : %s' % (hmm_id, written))
 
         self.plot_saved_models()
+        self.load_params()
 
     def plot_saved_models(self):
         print('Plotting saved models')
         data = self.get_data_overview().set_index('hmm_id')
         rec_dir = self._dataset.root_dir
         for i, row in data.iterrows():
-            hmm, params = load_hmm_from_hdf5(self.h5_file, i)
+            hmm, _, params = load_hmm_from_hdf5(self.h5_file, i)
             spikes, dt, time = get_hmm_spike_data(rec_dir, params['unit_type'],
                                                   params['channel'],
                                                   time_start=params['time_start'],
@@ -1069,7 +1070,6 @@ class HmmHandler(object):
             unit_names = query_units(dat, p['unit_type'])
             p['n_cells'] = len(unit_names)
             p['n_trials'] = len(trials.query('name == @t'))
-            p['fitted'] = False
 
             data_params.append(p)
             for i in range(p['n_repeats']):
