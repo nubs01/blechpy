@@ -528,7 +528,7 @@ def fit_hmm_mp(rec_dir, params, h5_file=None):
 
         os.mknod(lock_file)
         try:
-            old_hmm, old_params = load_hmm_from_hdf5(h5_file, hmm_id)
+            old_hmm, _, old_params = load_hmm_from_hdf5(h5_file, hmm_id)
             if old_hmm is None:
                 print('%s: No existing HMM %s. Writing ...' % (pid, hmm_id))
                 hmmIO.write_hmm_to_hdf5(h5_file, hmm, time, params)

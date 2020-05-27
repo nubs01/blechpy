@@ -1,3 +1,4 @@
+- Bug fix in poissonHMM saving
 - Change convergence test for poissonHMM fitting
 v2.0.25 (2020-5-25)
 -------------------
