@@ -743,22 +743,49 @@ class PoissonHMM(object):
         B = self.emission
         cost = self.cost
 
-        dPI = np.sqrt(np.sum(np.power(oldPI - PI, 2)))
-        dA = np.sqrt(np.sum(np.power(oldA - A, 2)))
-        dB = np.sqrt(np.sum(np.power(oldB - B, 2)))
-        dCost = cost-oldCost
-        print('dPI = %f,  dA = %f,  dB = %f, dCost = %f, cost = %f'
-              % (dPI, dA, dB, dCost, cost))
+        # Instead of Euclidean distance, check that the change of EVERY item is less than threshold
+
+        ##################################################
+        # Old Way
+        ##################################################
+        # dPI = np.sqrt(np.sum(np.power(oldPI - PI, 2)))
+        # dA = np.sqrt(np.sum(np.power(oldA - A, 2)))
+        # dB = np.sqrt(np.sum(np.power(oldB - B, 2)))
+        # dCost = cost-oldCost
+        # print('dPI = %f,  dA = %f,  dB = %f, dCost = %f, cost = %f'
+        #       % (dPI, dA, dB, dCost, cost))
 
         # TODO: determine if this is reasonable
         # dB takes waaaaay longer to converge than the rest, i'm going to
         # double the thresh just for that
-        dB = dB/2
+        # dB = dB/2
 
-        if not all([x < thresh for x in [dPI, dA, dB]]):
-            return False
-        else:
+        #if not all([x < thresh for x in [dPI, dA, dB]]):
+        #    return False
+        #else:
+        #    return True
+
+        ##################################################
+        # New Way
+        ##################################################
+        dPI = np.abs(oldPI - PI)
+        dA = np.abs(oldA - A)
+        dB = np.abs(oldB - B)
+        delta = np.concatenate((dPI.ravel(), dA.ravel(), dB.ravel()))
+        dPI = np.sqrt(np.sum(np.power(dPI,2)))
+        dA = np.sqrt(np.sum(np.power(dA,2)))
+        dB = np.sqrt(np.sum(np.power(dB,2)))
+        dCost = cost-oldCost
+        print('dPI = %f,  dA = %f,  dB = %f, dCost = %f, cost = %f'
+              % (dPI, dA, dB, dCost, cost))
+
+        if all(delta <= thresh):
             return True
+        else:
+            return False
+
+
+
 
     def _update_cost(self, spikes, dt):
         spikes = spikes.astype('int32')

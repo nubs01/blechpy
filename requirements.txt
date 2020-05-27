@@ -20,3 +20,5 @@ seaborn
 appdirs>=1.4.3
 joblib>=0.14.1
 prompt-toolkit>=2.0.9
+pywavelets>=1.1.1
+imageio>=2.8.0
