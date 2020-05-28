@@ -553,7 +553,7 @@ def fit_hmm_mp(rec_dir, params, h5_file=None):
 def load_hmm_from_hdf5(h5_file, hmm_id):
     existing_hmm = hmmIO.read_hmm_from_hdf5(h5_file, hmm_id)
     if existing_hmm is None:
-        return None, None
+        return None, None, None
 
     PI, A, B, time, best_paths, params, cost_hist = existing_hmm
     hmm = PoissonHMM(params['n_states'], PI=PI, A=A, B=B, hmm_id=hmm_id,
