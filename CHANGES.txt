@@ -1,5 +1,8 @@
-- Bug fix in poissonHMM saving
+v2.0.26 (2020-5-28)
+-------------------
+- Bug fix in poissonHMM saving and loading
 - Change convergence test for poissonHMM fitting
+
 v2.0.25 (2020-5-25)
 -------------------
 - Fix bug in PoissonHMM, will only try to fit for dig_ins with spike_array
