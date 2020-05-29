@@ -403,9 +403,10 @@ def rebin_spike_array(spikes, dt, time, new_dt):
 
 
 @memory.cache
-def get_hmm_spike_data(rec_dir, unit_type, channel, time_start=None, time_end=None, dt=None):
+def get_hmm_spike_data(rec_dir, unit_type, channel, time_start=None,
+                       time_end=None, dt=None, trials=None):
     units = query_units(rec_dir, unit_type)
-    time, spike_array = h5io.get_spike_data(rec_dir, units, channel)
+    time, spike_array = h5io.get_spike_data(rec_dir, units, channel, trials=trials)
     spike_array = spike_array.astype(np.int32)
     time = time.astype(np.float64)
     curr_dt = np.unique(np.diff(time))[0] / 1000
@@ -512,9 +513,11 @@ def fit_hmm_mp(rec_dir, params, h5_file=None):
     threshold = params['threshold']
     unit_type = params['unit_type']
     channel = params['channel']
+    n_trials = params['n_trials']
     spikes, dt, time = get_hmm_spike_data(rec_dir, unit_type, channel,
                                           time_start=time_start,
-                                          time_end=time_end, dt = dt)
+                                          time_end=time_end, dt=dt,
+                                          trials=n_trials)
     hmm = PoissonHMM(n_states, hmm_id=hmm_id)
     hmm.fit(spikes, dt, max_iter=max_iter, convergence_thresh=threshold)
     print('%s: Done Fitting for hmm %s' % (os.getpid(), hmm_id))
@@ -1035,7 +1038,8 @@ class HmmHandler(object):
                                                   params['channel'],
                                                   time_start=params['time_start'],
                                                   time_end=params['time_end'],
-                                                  dt = params['dt'])
+                                                  dt=params['dt'],
+                                                  trials=params['n_trials'])
             plot_dir = os.path.join(self.plot_dir, 'hmm_%s' % i)
             if not os.path.isdir(plot_dir):
                 os.makedirs(plot_dir)
@@ -1096,7 +1100,8 @@ class HmmHandler(object):
             p['channel'] = dim.loc[t, 'channel']
             unit_names = query_units(dat, p['unit_type'])
             p['n_cells'] = len(unit_names)
-            p['n_trials'] = len(trials.query('name == @t'))
+            if p['n_trials'] is None:
+                p['n_trials'] = len(trials.query('name == @t'))
 
             data_params.append(p)
             for i in range(p['n_repeats']):

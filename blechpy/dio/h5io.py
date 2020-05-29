@@ -747,7 +747,7 @@ def get_next_unit_name(rec_dir):
     return out
 
 
-def get_spike_data(rec_dir, units=None, din=None):
+def get_spike_data(rec_dir, units=None, din=None, trials=None):
     '''Opens hf5 file in rec_dir and returns a Trial x Time spike array and a
     1D time vector
     Parameters
@@ -755,6 +755,10 @@ def get_spike_data(rec_dir, units=None, din=None):
     rec_dir : str, path to recording directory
     unit : str or int, unit name or unit number
     din : int, digital input channel
+    trials: int or list-like
+        if None (default), returns all trials, if int N returns first N-trials
+        for each din, if list-like then returns those indices for each taste
+
     Returns
     -------
     time : numpy.array
@@ -799,6 +803,14 @@ def get_spike_data(rec_dir, units=None, din=None):
 
             spike_array = st['spike_array'][:, unit_nums, :]
             out[dig_str] = spike_array
+
+    if isinstance(trials, int):
+        for k in out.keys():
+            out[k] = out[k][:trials, :, :]
+
+    elif trials is not None:
+        for k in out.keys():
+            out[k] = out[k][trials, :, :]
 
     if len(out) == 1:
         out = out.popitem()[1]
