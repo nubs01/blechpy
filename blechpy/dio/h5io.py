@@ -806,11 +806,11 @@ def get_spike_data(rec_dir, units=None, din=None, trials=None):
 
     if isinstance(trials, int):
         for k in out.keys():
-            out[k] = out[k][:trials, :, :]
+            out[k] = out[k][:trials]
 
     elif trials is not None:
         for k in out.keys():
-            out[k] = out[k][trials, :, :]
+            out[k] = out[k][trials]
 
     if len(out) == 1:
         out = out.popitem()[1]
