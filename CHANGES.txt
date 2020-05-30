@@ -1,3 +1,4 @@
+- minor change to expand functionality of get_spike_data
 - Modified poissonHMM to allow only using a subset of trials in fitting
 v2.0.26 (2020-5-28)
 -------------------
