@@ -788,10 +788,10 @@ def get_spike_data(rec_dir, units=None, din=None, trials=None):
     out = {}
     time = None
     with tables.open_file(h5_file, 'r') as hf5:
-        if din is None:
+        if din[0] is None and len(din) == 1:
             dins = [x._v_name for x in hf5.list_nodes('/spike_trains')]
         else:
-            dins = ['dig_in_%i' % x for x in din]
+            dins = ['dig_in_%i' % x for x in din if x is not None]
 
         for dig_str in dins:
             st = hf5.root.spike_trains[dig_str]
