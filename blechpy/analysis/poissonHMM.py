@@ -558,7 +558,7 @@ def load_hmm_from_hdf5(h5_file, hmm_id):
     if existing_hmm is None:
         return None, None, None
 
-    PI, A, B, time, best_paths, params, cost_hist = existing_hmm
+    PI, A, B, time, best_paths, params, cost_hist, ll_hist = existing_hmm
     hmm = PoissonHMM(params['n_states'], PI=PI, A=A, B=B, hmm_id=hmm_id,
                      iteration=params.pop('n_iterations'))
     hmm.BIC = params.pop('BIC')
@@ -568,6 +568,7 @@ def load_hmm_from_hdf5(h5_file, hmm_id):
     hmm.best_sequences = best_paths
     hmm.max_log_prob = params.pop('max_log_prob')
     hmm.cost_hist = cost_hist
+    hmm.ll_hist = ll_hist
     return hmm, time, params
 
 
@@ -588,6 +589,7 @@ class PoissonHMM(object):
         self.converged = False
         self.fitted = False
         self.cost_hist = []
+        self.ll_hist = []
 
     def set_params(self, PI=None, A=None, B=None, iteration=0, spikes=None, dt=None):
         self.initial_distribution = PI
@@ -698,6 +700,7 @@ class PoissonHMM(object):
         max_log_prob = self.max_log_prob
 
         self.cost_hist.append(cost)
+        self.ll_hist.append(max_log_prob)
         if self.history is None:
             self.history = {}
             self.history['A'] = [A]

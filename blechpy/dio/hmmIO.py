@@ -29,6 +29,11 @@ def read_hmm_from_hdf5(h5_file, hmm_id):
         time = tmp['time'][:]
         best_paths = tmp['state_sequences'][:]
         cost_hist = list(tmp['cost_hist'][:])
+        if 'log_likelihood_hist' in tmp:
+            ll_hist = list(tmp['log_likelihood_hist'][:])
+        else:
+            ll_hist = []
+
         table = hf5.root.data_overview
         for row in table.where('hmm_id == id', condvars={'id':hmm_id}):
             params = {}
@@ -38,7 +43,7 @@ def read_hmm_from_hdf5(h5_file, hmm_id):
                 else:
                     params[k] = row[k]
 
-            return PI, A, B, time, best_paths, params, cost_hist
+            return PI, A, B, time, best_paths, params, cost_hist, ll_hist
         else:
             raise ValueError('Parameters not found for hmm %i' % hmm_id)
 
@@ -84,6 +89,7 @@ def write_hmm_to_hdf5(h5_file, hmm, time, params):
         hf5.create_array('/'+h_str, 'time', time)
         hf5.create_array('/'+h_str, 'state_sequences', hmm.best_sequences)
         hf5.create_array('/'+h_str, 'cost_hist', np.array(hmm.cost_hist))
+        hf5.create_array('/'+h_str, 'log_likelihood_hist', np.array(hmm.ll_hist))
 
         table = hf5.root.data_overview
         for row in table.where('hmm_id == id', condvars={'id': hmm_id}):
