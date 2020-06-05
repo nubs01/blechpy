@@ -1,3 +1,7 @@
+v2.0.28 (2020-06-05)
+-------------------
+- poissonHMM now stores history of log likelihood
+
 v2.0.27 (2020-06-04)
 -------------------
 - fix to get_spike_data when returning data for all dins
