@@ -1,3 +1,11 @@
+v2.0.30 (2020-06-08)
+-------------------
+- minor fix to hmmIO to account for older models lacking newer saved parameters
+
+v2.0.29 (2020-06-06)
+-------------------
+- minor fix to HmmHandler when all parameters are already fit
+
 v2.0.28 (2020-06-05)
 -------------------
 - poissonHMM now stores history of log likelihood

@@ -1009,6 +1009,9 @@ class HmmHandler(object):
         else:
             fit_params = [x for x in self._fit_params if not x['fitted']]
 
+        if len(fit_params) == 0:
+            return
+
         print('Running fittings')
         if parallel:
             n_cpu = np.min((cpu_count()-1, len(fit_params)))

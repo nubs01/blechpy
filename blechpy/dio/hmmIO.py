@@ -28,7 +28,11 @@ def read_hmm_from_hdf5(h5_file, hmm_id):
         B = tmp['emission'][:]
         time = tmp['time'][:]
         best_paths = tmp['state_sequences'][:]
-        cost_hist = list(tmp['cost_hist'][:])
+        if 'cost_hist' in tmp:
+            cost_hist = list(tmp['cost_hist'][:])
+        else:
+            cost_hist = []
+
         if 'log_likelihood_hist' in tmp:
             ll_hist = list(tmp['log_likelihood_hist'][:])
         else:
