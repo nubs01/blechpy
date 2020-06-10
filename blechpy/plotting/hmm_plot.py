@@ -548,3 +548,4 @@ def plot_hmm_figures(hmm, spikes, dt, time, hmm_id=None, save_dir=None):
     plot_hmm_overview(hmm, colors=colors, save_file=files['overview'])
 
     print('Plotting Complete!')
+    plt.close('all')

@@ -532,11 +532,15 @@ def fit_hmm_mp(rec_dir, params, h5_file=None):
         os.mknod(lock_file)
         try:
             old_hmm, _, old_params = load_hmm_from_hdf5(h5_file, hmm_id)
+
             if old_hmm is None:
                 print('%s: No existing HMM %s. Writing ...' % (pid, hmm_id))
                 hmmIO.write_hmm_to_hdf5(h5_file, hmm, time, params)
                 written = True
             else:
+                if np.isnan(old_hmm.max_log_prob):
+                    old_hmm._update_cost(spikes, dt)
+
                 print('%s: Existing HMM %s found. Comparing BIC ...' % (pid, hmm_id))
                 if hmm.BIC < old_hmm.BIC:
                     print('%s: Replacing HMM %s due to lower BIC' % (pid, hmm_id))
@@ -566,7 +570,11 @@ def load_hmm_from_hdf5(h5_file, hmm_id):
     hmm.fitted = params.pop('fitted')
     hmm.cost = params.pop('cost')
     hmm.best_sequences = best_paths
-    hmm.max_log_prob = params.pop('max_log_prob')
+    if 'max_log_prob' in params:
+        hmm.max_log_prob = params.pop('max_log_prob')
+    else:
+        hmm.max_log_prob = np.nan
+
     hmm.cost_hist = cost_hist
     hmm.ll_hist = ll_hist
     return hmm, time, params
@@ -790,9 +798,6 @@ class PoissonHMM(object):
         else:
             return False
 
-
-
-
     def _update_cost(self, spikes, dt):
         spikes = spikes.astype('int32')
         win_size = self._cost_window
@@ -985,7 +990,9 @@ class HmmHandler(object):
                 _ = p.pop('cost')
                 _ = p.pop('n_iterations')
                 _ = p.pop('converged')
-                _ = p.pop('max_log_prob')
+                if 'max_log_prob' in p:
+                    _ = p.pop('max_log_prob')
+
                 self.add_params(p)
 
     def get_parameter_overview(self):
