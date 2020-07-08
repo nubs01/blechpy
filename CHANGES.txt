@@ -1,3 +1,4 @@
+- Add fucntion to HmmHandler to get a specific hmm
 - Add helper function in poissonHMM to get HmmHandler overview directly from hdf5
 
 v2.0.34 (2020-06-09)
