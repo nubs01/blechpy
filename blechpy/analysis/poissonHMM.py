@@ -1123,6 +1123,9 @@ class HmmHandler(object):
         self._data_params = data_params
         self._fit_params = fit_params
 
+    def get_hmm(self, hmm_id):
+        return load_hmm_from_hdf5(self.h5_file, hmm_id)
+
 
 def get_hmm_overview_from_hdf5(h5_file):
     with tables.open_file(h5_file, 'r') as hf5:
