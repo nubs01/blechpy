@@ -1124,4 +1124,13 @@ class HmmHandler(object):
         self._fit_params = fit_params
 
 
+def get_hmm_overview_from_hdf5(h5_file):
+    with tables.open_file(h5_file, 'r') as hf5:
+        table = hf5.root.data_overview
+        df = pd.DataFrame(table[:])
+        df['unit_type'] = df['unit_type'].apply(lambda x: x.decode('utf-8'))
+        df['taste'] = df['taste'].apply(lambda x: x.decode('utf-8'))
+
+    return df
+
 
