@@ -1,3 +1,6 @@
+v2.0.35 (2020-07-22)
+-------------------
+- Also store HMM gamma probabilities in hdf5
 - Add fucntion to HmmHandler to get a specific hmm
 - Add helper function in poissonHMM to get HmmHandler overview directly from hdf5
 
