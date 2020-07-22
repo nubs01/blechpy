@@ -57,7 +57,7 @@ def get_threshold_windows(trace, thresh=0.75):
     return out
 
 
-def get_hmm_plot_colors(n_states, time_window=None):
+def get_hmm_plot_colors(n_states):
     colors = [plt.cm.tab10(x) for x in np.linspace(0, 1, n_states)]
     return colors
 
@@ -119,7 +119,7 @@ def make_hmm_raster(spikes, time=None, save_file=None):
 
         ax.get_yaxis().set_visible(False)
         ax.get_xaxis().set_visible(False)
-        if time[0] != 0:
+        if time[0] < 0:
             ax.axvline(0, color='red', linestyle='--', linewidth=3, alpha=0.8)
 
     axes[-1].get_xaxis().set_visible(True)

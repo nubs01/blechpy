@@ -562,7 +562,7 @@ def load_hmm_from_hdf5(h5_file, hmm_id):
     if existing_hmm is None:
         return None, None, None
 
-    PI, A, B, time, best_paths, params, cost_hist, ll_hist = existing_hmm
+    PI, A, B, time, best_paths, params, cost_hist, ll_hist, gamma_probs = existing_hmm
     hmm = PoissonHMM(params['n_states'], PI=PI, A=A, B=B, hmm_id=hmm_id,
                      iteration=params.pop('n_iterations'))
     hmm.BIC = params.pop('BIC')
@@ -570,6 +570,7 @@ def load_hmm_from_hdf5(h5_file, hmm_id):
     hmm.fitted = params.pop('fitted')
     hmm.cost = params.pop('cost')
     hmm.best_sequences = best_paths
+    hmm.gamma_probs = gamma_probs
     if 'max_log_prob' in params:
         hmm.max_log_prob = params.pop('max_log_prob')
     else:
@@ -598,6 +599,7 @@ class PoissonHMM(object):
         self.fitted = False
         self.cost_hist = []
         self.ll_hist = []
+        self.gamma_probs = []
 
     def set_params(self, PI=None, A=None, B=None, iteration=0, spikes=None, dt=None):
         self.initial_distribution = PI
@@ -666,6 +668,7 @@ class PoissonHMM(object):
 
         self.fitted = True
         self.converged = converged
+        self.gamma_probs = self.get_gamma_probabilities(spikes, dt)
 
     def _step(self, spikes, dt, parallel=False):
         if len(spikes.shape) == 2:
@@ -887,6 +890,15 @@ class PoissonHMM(object):
     def set_to_lowest_BIC(self):
         hist = self.update_history()
         idx = np.argmin(hist['BIC'])
+        iteration = hist['iterations'][idx]
+        self.roll_back(iteration)
+
+    def set_to_highest_likelihood(self, exclude=50):
+        '''Rolls back the HMM to the iteration with the highest log likelihood,
+        excluding the first N trials
+        '''
+        hist = self.update_history()
+        idx = np.argmin(self.ll_hist)
         iteration = hist['iterations'][idx]
         self.roll_back(iteration)
 

@@ -28,6 +28,11 @@ def read_hmm_from_hdf5(h5_file, hmm_id):
         B = tmp['emission'][:]
         time = tmp['time'][:]
         best_paths = tmp['state_sequences'][:]
+        if 'gamma_probabilities' in tmp:
+            gamm_probs = tmp['gamma_probabilities'][:]
+        else:
+            gamma_probs = []
+
         if 'cost_hist' in tmp:
             cost_hist = list(tmp['cost_hist'][:])
         else:
@@ -47,7 +52,7 @@ def read_hmm_from_hdf5(h5_file, hmm_id):
                 else:
                     params[k] = row[k]
 
-            return PI, A, B, time, best_paths, params, cost_hist, ll_hist
+            return PI, A, B, time, best_paths, params, cost_hist, ll_hist, gamma_probs
         else:
             raise ValueError('Parameters not found for hmm %i' % hmm_id)
 
@@ -92,6 +97,7 @@ def write_hmm_to_hdf5(h5_file, hmm, time, params):
         hf5.create_array('/'+h_str, 'emission', hmm.emission)
         hf5.create_array('/'+h_str, 'time', time)
         hf5.create_array('/'+h_str, 'state_sequences', hmm.best_sequences)
+        hf5.create_array('/'+h_str, 'gamma_probabilities', hmm.gamma_probs)
         hf5.create_array('/'+h_str, 'cost_hist', np.array(hmm.cost_hist))
         hf5.create_array('/'+h_str, 'log_likelihood_hist', np.array(hmm.ll_hist))
 
