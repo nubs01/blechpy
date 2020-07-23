@@ -29,7 +29,7 @@ def read_hmm_from_hdf5(h5_file, hmm_id):
         time = tmp['time'][:]
         best_paths = tmp['state_sequences'][:]
         if 'gamma_probabilities' in tmp:
-            gamm_probs = tmp['gamma_probabilities'][:]
+            gamma_probs = tmp['gamma_probabilities'][:]
         else:
             gamma_probs = []
 

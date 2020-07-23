@@ -921,8 +921,8 @@ class PoissonHMM(object):
             raise ValueError('Iteration %i not found in history' % iteration)
 
         dat = {k:v[idx] for k,v in hist.items()}
-        self.set_data(PI=dat['PI'], A=dat['A'], B=dat['B'],
-                      iteration=iteration)
+        self.set_params(PI=dat['PI'], A=dat['A'], B=dat['B'],
+                        iteration=iteration)
         self.BIC = dat['BIC']
         self.cost = dat['cost']
         self.max_log_prob = dat['max_log_prob']

@@ -1,3 +1,7 @@
+v2.0.36 (2020-07-23)
+-------------------
+- minor edits to hmmIO and poissonHMM
+
 v2.0.35 (2020-07-22)
 -------------------
 - Also store HMM gamma probabilities in hdf5
