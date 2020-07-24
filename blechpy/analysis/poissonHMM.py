@@ -671,16 +671,18 @@ class PoissonHMM(object):
         converged = False
         while (not converged and (self.iteration < max_iter)):
             self.update_history()
-            self._step(spikes, dt, parallel=parallel)
-            # Convergence check is replaced by checking LL trend for plateau
-            #converged = isConverged(self, convergence_thresh)
-            print('%s: %s: Iter #%i complete.' % (os.getpid(), self.hmm_id, self.iteration))
             if self.iteration >= 100:
                 trend = check_ll_trend(self, convergence_thresh)
                 if trend == 'decreasing':
                     return False
                 elif trend == 'plateau':
                     converged = True
+                    break
+
+            self._step(spikes, dt, parallel=parallel)
+            # Convergence check is replaced by checking LL trend for plateau
+            #converged = isConverged(self, convergence_thresh)
+            print('%s: %s: Iter #%i complete.' % (os.getpid(), self.hmm_id, self.iteration))
 
         self.update_history()
         self.fitted = True
@@ -1178,6 +1180,9 @@ def check_ll_trend(hmm, thresh):
     '''
     n_iter = hmm.iteration
     ll_hist = hmm.ll_hist
+    if n_iter == len(ll_hist):
+        n_iter = n_iter-1
+
     filt_ll = gaussian_filter1d(ll_hist, 4)
     diff_ll = np.diff(filt_ll)
 
