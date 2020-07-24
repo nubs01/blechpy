@@ -1,3 +1,7 @@
+v2.0.40 (2020-07-24)
+-------------------
+- Edit poissonHMM convergence criteria
+
 v2.0.39 (2020-07-24)
 -------------------
 - minor bug fix in check_ll_trend

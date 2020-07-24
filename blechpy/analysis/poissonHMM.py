@@ -681,7 +681,7 @@ class PoissonHMM(object):
 
             self._step(spikes, dt, parallel=parallel)
             # Convergence check is replaced by checking LL trend for plateau
-            #converged = isConverged(self, convergence_thresh)
+            converged = self.isConverged(convergence_thresh)
             print('%s: %s: Iter #%i complete.' % (os.getpid(), self.hmm_id, self.iteration))
 
         self.update_history()
