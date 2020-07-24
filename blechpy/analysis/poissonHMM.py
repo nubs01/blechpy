@@ -666,7 +666,7 @@ class PoissonHMM(object):
         if (self.initial_distribution is None or
             self.transition is None or
             self.emission is None):
-            self.randomize(spiks, dt)
+            self.randomize(spikes, dt)
 
         converged = False
         while (not converged and (self.iteration < max_iter)):
