@@ -1179,6 +1179,7 @@ def check_ll_trend(hmm, thresh):
     n_iter = hmm.iteration
     ll_hist = hmm.ll_hist
     filt_ll = gaussian_filter1d(ll_hist, 4)
+    diff_ll = np.diff(filt_ll)
 
     # Linear fit, if overall trend is decreasing, it fails
     z = np.polyfit(range(len(ll_hist)), filt_ll, 1)
