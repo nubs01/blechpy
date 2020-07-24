@@ -1,3 +1,15 @@
+v2.0.37 (2020-07-24)
+-------------------
+- Major change to HMM fitting
+    - Now convergence is checked by looking at the max log likelihood over
+      iterations and determining when the gaussian filtered trace has plateaued
+    - Also implemented HMM rejection if fitting results in decreasing log
+      likelihood when fit with linear regression after 100 iterations
+    - Further HmmHandler, after fitting and hmm, will roll back the HMM to a
+      local maxima in log likelihood within a plateaued region 
+- Added useful function to poissonHMM to check trend of log likelihood trace
+  and help determine if an hmm has plateaued
+
 v2.0.36 (2020-07-23)
 -------------------
 - minor edits to hmmIO and poissonHMM

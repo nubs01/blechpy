@@ -6,6 +6,7 @@ import pandas as pd
 import tables
 import time as sys_time
 from numba import njit
+from scipy.ndimage.filters import gaussian_filter1d
 from blechpy.utils.particles import HMMInfoParticle
 from blechpy import load_dataset
 from blechpy.dio import h5io, hmmIO
@@ -519,7 +520,12 @@ def fit_hmm_mp(rec_dir, params, h5_file=None):
                                           time_end=time_end, dt=dt,
                                           trials=n_trials)
     hmm = PoissonHMM(n_states, hmm_id=hmm_id)
-    hmm.fit(spikes, dt, max_iter=max_iter, convergence_thresh=threshold)
+    success = hmm.fit(spikes, dt, max_iter=max_iter, convergence_thresh=threshold)
+    if not success:
+        print('%s: Fitting Aborted for hmm %s' % (os.getpid(), hmm_id))
+        return hmm_id, False
+
+    hmm = roll_back_hmm_to_best(hmm, spikes, dt, threshold)
     print('%s: Done Fitting for hmm %s' % (os.getpid(), hmm_id))
     written = False
     if h5_file:
@@ -541,9 +547,12 @@ def fit_hmm_mp(rec_dir, params, h5_file=None):
                 if np.isnan(old_hmm.max_log_prob):
                     old_hmm._update_cost(spikes, dt)
 
+                if old_hmm.gamma_probs == []:
+                    old_hmm.gamma_probs = old_hmm.get_gamma_probabilities(spikes, dt)
+
                 print('%s: Existing HMM %s found. Comparing BIC ...' % (pid, hmm_id))
-                if hmm.BIC < old_hmm.BIC:
-                    print('%s: Replacing HMM %s due to lower BIC' % (pid, hmm_id))
+                if hmm.max_log_prob > old_hmm.max_log_prob:
+                    print('%s: Replacing HMM %s due to higher max log likelihood' % (pid, hmm_id))
                     hmmIO.write_hmm_to_hdf5(h5_file, hmm, time, params)
                     written = True
         except Exception as e:
@@ -647,7 +656,7 @@ class PoissonHMM(object):
         self.fitted = False
         self._update_cost(spikes, dt)
 
-    def fit(self, spikes, dt, max_iter = 1000, convergence_thresh = 1e-4,
+    def fit(self, spikes, dt, max_iter = 1000, convergence_thresh = 1e-5,
             parallel=False):
         '''using parallels for processing trials actually seems to slow down
         processing (with 15 trials). Might still be useful if there is a very
@@ -657,18 +666,26 @@ class PoissonHMM(object):
         if (self.initial_distribution is None or
             self.transition is None or
             self.emission is None):
-            self.randomize(spikes, dt)
+            self.randomize(spiks, dt)
 
         converged = False
         while (not converged and (self.iteration < max_iter)):
             self.update_history()
             self._step(spikes, dt, parallel=parallel)
-            converged = self.isConverged(convergence_thresh)
+            # Convergence check is replaced by checking LL trend for plateau
+            #converged = isConverged(self, convergence_thresh)
             print('%s: %s: Iter #%i complete.' % (os.getpid(), self.hmm_id, self.iteration))
+            if self.iteration >= 100:
+                trend = check_ll_trend(self, convergence_thresh)
+                if trend == 'decreasing':
+                    return False
+                elif trend == 'plateau':
+                    converged = True
 
+        self.update_history()
         self.fitted = True
         self.converged = converged
-        self.gamma_probs = self.get_gamma_probabilities(spikes, dt)
+        return True
 
     def _step(self, spikes, dt, parallel=False):
         if len(spikes.shape) == 2:
@@ -698,6 +715,7 @@ class PoissonHMM(object):
         self.transition = A
         self.emission = B
         self.initial_distribution = PI
+        self.gamma_probs = gammas
         self.iteration = self.iteration + 1
         self._update_cost(spikes, dt)
 
@@ -882,13 +900,13 @@ class PoissonHMM(object):
         return np.array(gammas)
 
     def set_to_lowest_cost(self):
-        hist = self.update_history()
+        hist = self.history
         idx = np.argmin(hist['cost'])
         iteration = hist['iterations'][idx]
         self.roll_back(iteration)
 
     def set_to_lowest_BIC(self):
-        hist = self.update_history()
+        hist = self.history
         idx = np.argmin(hist['BIC'])
         iteration = hist['iterations'][idx]
         self.roll_back(iteration)
@@ -897,13 +915,13 @@ class PoissonHMM(object):
         '''Rolls back the HMM to the iteration with the highest log likelihood,
         excluding the first N trials
         '''
-        hist = self.update_history()
-        idx = np.argmin(self.ll_hist)
+        hist = self.history
+        idx = np.argmax(self.ll_hist)
         iteration = hist['iterations'][idx]
         self.roll_back(iteration)
 
     def find_best_in_history(self):
-        hist = self.update_history()
+        hist = self.history
         PIs = hist['PI']
         As = hist['A']
         Bs = hist['B']
@@ -1147,5 +1165,52 @@ def get_hmm_overview_from_hdf5(h5_file):
         df['taste'] = df['taste'].apply(lambda x: x.decode('utf-8'))
 
     return df
+
+
+def isConverged(hmm, thresh):
+    '''Check HMM convergence based on the log-likelihood
+    '''
+    pass
+
+def check_ll_trend(hmm, thresh):
+    '''Check the trend of the log-likelihood to see if it has plateaued, is
+    decreasing or is increasing
+    '''
+    n_iter = hmm.iteration
+    ll_hist = hmm.ll_hist
+    filt_ll = gaussian_filter1d(ll_hist, 4)
+
+    # Linear fit, if overall trend is decreasing, it fails
+    z = np.polyfit(range(len(ll_hist)), filt_ll, 1)
+    if z[0] <= 0:
+        return 'decreasing'
+
+    # Check if it has plateaued
+    if all(np.abs(diff_ll[n_iter-5:n_iter]) <= thresh):
+        return 'plateau'
+
+    # if its a maxima and hasn't plateaued it needs to continue fitting
+    if np.max(filt_ll) == filt_ll[n_iter]:
+        return 'increasing'
+
+    return 'flux'
+
+def roll_back_hmm_to_best(hmm, spikes, dt, thresh):
+    '''Looks at the log likelihood over fitting and determines the best
+    iteration to have stopped at by choosing a local maxima during a period
+    where the smoothed LL trace has plateaued
+    '''
+    ll_hist = np.array(hmm.ll_hist)
+    filt_ll = gaussian_filter1d(ll_hist, 4)
+    diff_ll = np.diff(filt_ll)
+    below = np.where(np.abs(diff_ll) < thresh)[0] + 1 # since diff_ll is 1 smaller than ll_hist
+    # Exclude maxima less than 50 iterations since its pretty spikey early on
+    below = below[below > 50]
+    maxima = np.argmax(ll_hist[below]) # this gives the index in below
+    maxima = below[maxima] # this is the iteration at which the maxima occurred
+    hmm.roll_back(maxima)
+    hmm._update_cost(spikes, dt)
+    hmm.gamma_probs = hmm.get_gamma_probabilities(spikes, dt)
+    return hmm
 
 
