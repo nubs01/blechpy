@@ -1160,8 +1160,11 @@ class HmmHandler(object):
     def get_hmm(self, hmm_id):
         return load_hmm_from_hdf5(self.h5_file, hmm_id)
 
-    def delete_hmm(self, hmm_id):
-        hmmIO.delete_hmm_from_hdf5(self.h5_file, hmm_id)
+    def delete_hmm(self, **kwargs):
+        '''Deletes any HMMs whose parameters match the kwargs. i.e. n_states=2,
+        taste="Saccharin" would delete all 2-state HMMs for Saccharin trials
+        '''
+        hmmIO.delete_hmm_from_hdf5(self.h5_file, **kwargs)
 
 
 def get_hmm_overview_from_hdf5(h5_file):

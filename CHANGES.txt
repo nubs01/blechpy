@@ -1,3 +1,7 @@
+v2.0.44 (2020-07-24)
+-------------------
+- optimized how HMMs are deleted
+
 v2.0.43 (2020-07-24)
 -------------------
 - Made it possible to delete single HMMs, making refitting and organization easier

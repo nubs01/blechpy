@@ -139,23 +139,33 @@ def write_hmm_to_hdf5(h5_file, hmm, time, params):
     print('='*80+'\n')
 
 
-def delete_hmm_from_hdf5(h5_file, hmm_id):
-    print('Deleting HMM %s from hdf5' % hmm_id)
-    h_str = 'hmm_%s' % hmm_id
+def delete_hmm_from_hdf5(h5_file, **kwargs):
     with tables.open_file(h5_file, 'a') as hf5:
-        if h_str in hf5.root:
-            print('Deleting existing data for %s...' % h_str)
-            hf5.remove_node('/', h_str, recursive=True)
-        else:
-            print('HMM %s not found in hdf5.' % hmm_id)
-
         table = hf5.root.data_overview
-        ids = table[:]['hmm_id']
-        if hmm_id in ids:
-            idx = list(ids).index(hmm_id)
-            table.remove_rows(idx, idx+1)
-            table.flush()
+        ids = []
+        rmv = list(np.arange(len(table)))
+        for k,v in kwargs.items():
+            tmp = table[:][k]
+            if v in tmp:
+                idx = np.where(tmp == v)[0]
+                ids.append(idx)
 
+        for x in ids:
+            rmv = np.intersect1d(rmv, x)
+
+        rmv.sort()
+        for x in reversed(rmv):
+            hmm_id = table[x]['hmm_id']
+            h_str = 'hmm_%s' % hmm_id
+            if h_str in hf5.root:
+                print('Deleting existing data for %s...' % h_str)
+                hf5.remove_node('/', h_str, recursive=True)
+            else:
+                print('HMM %s not found in hdf5.' % hmm_id)
+
+            table.remove_rows(x, x+1)
+
+        table.flush()
         hf5.flush()
 
 
