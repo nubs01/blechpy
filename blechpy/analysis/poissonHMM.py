@@ -600,7 +600,7 @@ class PoissonHMM(object):
     Adpated from code by Ben Ballintyn
     '''
     def __init__(self, n_predicted_states, PI=None, A=None, B=None,
-                 cost_window=0.25, max_history=500, hmm_id=None, spikes=None,
+                 cost_window=0.25, max_history=1000, hmm_id=None, spikes=None,
                  dt=None, iteration=0):
         self.n_states = n_predicted_states
         self.hmm_id = hmm_id
@@ -1220,6 +1220,10 @@ def roll_back_hmm_to_best(hmm, spikes, dt, thresh):
     below = np.where(np.abs(diff_ll) < thresh)[0] + 1 # since diff_ll is 1 smaller than ll_hist
     # Exclude maxima less than 50 iterations since its pretty spikey early on
     below = below[below > 50]
+    # Account for the iterations saved
+    iterations = hmm.history['iterations']
+    below = below[below >= np.min(iterations)]
+    below = below[below <= np.max(iterations)]
     maxima = np.argmax(ll_hist[below]) # this gives the index in below
     maxima = below[maxima] # this is the iteration at which the maxima occurred
     hmm.roll_back(maxima)
