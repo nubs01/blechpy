@@ -27,7 +27,7 @@ TEST_PARAMS = {'n_cells': 10, 'n_states': 4, 'state_seq_length': 5,
 HMM_PARAMS = {'hmm_id': None, 'taste': None, 'channel': None,  'unit_type':
               'single', 'dt': 0.001, 'threshold': 1e-4, 'max_iter': 1000,
               'n_cells': None, 'n_trials': None, 'time_start': 0, 'time_end':
-              2000, 'n_repeats': 3, 'n_states': 3, 'fitted': False}
+              2000, 'n_repeats': 25, 'n_states': 3, 'fitted': False}
 
 
 FACTORIAL_LOOKUP = np.array([math.factorial(x) for x in range(20)])
@@ -523,7 +523,10 @@ def fit_hmm_mp(rec_dir, params, h5_file=None):
     success = hmm.fit(spikes, dt, max_iter=max_iter, convergence_thresh=threshold)
     if not success:
         print('%s: Fitting Aborted for hmm %s' % (os.getpid(), hmm_id))
-        return hmm_id, False
+        if h5_file:
+            return hmm_id, False
+        else:
+            return hmm_id, hmm
 
     hmm = roll_back_hmm_to_best(hmm, spikes, dt, threshold)
     print('%s: Done Fitting for hmm %s' % (os.getpid(), hmm_id))
@@ -677,7 +680,9 @@ class PoissonHMM(object):
                     return False
                 elif trend == 'plateau':
                     converged = True
-                    break
+                    self.fitted = True
+                    self.converged = True
+                    return True
 
             self._step(spikes, dt, parallel=parallel)
             # Convergence check is replaced by checking LL trend for plateau
@@ -1128,10 +1133,7 @@ class HmmHandler(object):
         hmm_ids = [x['hmm_id'] for x in data_params]
         for t in tastes:
             p = params.copy()
-            if len(hmm_ids) == 0:
-                hid = 0
-            else:
-                hid = hmm_ids[-1] + 1
+            hid = get_new_id(hmm_ids)
 
             p['taste'] = t
             # Skip if parameter is already in parameter set
@@ -1157,6 +1159,9 @@ class HmmHandler(object):
 
     def get_hmm(self, hmm_id):
         return load_hmm_from_hdf5(self.h5_file, hmm_id)
+
+    def delete_hmm(self, hmm_id):
+        hmmIO.delete_hmm_from_hdf5(self.h5_file, hmm_id)
 
 
 def get_hmm_overview_from_hdf5(h5_file):
@@ -1220,3 +1225,13 @@ def roll_back_hmm_to_best(hmm, spikes, dt, thresh):
     return hmm
 
 
+def get_new_id(ids=None):
+    if ids is None or len(ids) == 0:
+        return 0
+
+    diffs = np.diff(ids)
+    tmp = np.where(diffs > 1)[0]
+    if len(tmp) == 0:
+        return ids[-1]+1
+
+    return ids[tmp[0]]+1

@@ -1,3 +1,12 @@
+v2.0.43 (2020-07-24)
+-------------------
+- Made it possible to delete single HMMs, making refitting and organization easier
+
+v2.0.41 (2020-07-24)
+-------------------
+- adjusted fit_hmm_mp so that if no h5_file is given and the fit fails, the hmm
+  is still returned for inspection
+
 v2.0.40 (2020-07-24)
 -------------------
 - typo fix

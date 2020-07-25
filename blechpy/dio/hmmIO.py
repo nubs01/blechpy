@@ -79,7 +79,14 @@ def write_hmm_to_hdf5(h5_file, hmm, time, params):
     with tables.open_file(h5_file, 'a') as hf5:
         if hmm_id is None:
             ids = hf5.root.data_overview.col('hmm_id')
-            hmm_id = np.max(ids) + 1
+            tmp = np.where(np.diff(ids) > 1)[0]
+            if len(ids) == 0:
+                hmm_id = 0
+            elif len(tmp) == 0:
+                hmm_id = np.max(ids) + 1
+            else:
+                hmm_id = ids[tmp[0]] + 1
+
             hmm.hmm_id = hmm_id
             params['hmm_id'] = hmm_id
             print('HMM assigned id #%i' % hmm_id)
@@ -130,6 +137,26 @@ def write_hmm_to_hdf5(h5_file, hmm, time, params):
         hf5.flush()
 
     print('='*80+'\n')
+
+
+def delete_hmm_from_hdf5(h5_file, hmm_id):
+    print('Deleting HMM %s from hdf5' % hmm_id)
+    h_str = 'hmm_%s' % hmm_id
+    with tables.open_file(h5_file, 'a') as hf5:
+        if h_str in hf5.root:
+            print('Deleting existing data for %s...' % h_str)
+            hf5.remove_node('/', h_str, recursive=True)
+        else:
+            print('HMM %s not found in hdf5.' % hmm_id)
+
+        table = hf5.root.data_overview
+        ids = table[:]['hmm_id']
+        if hmm_id in ids:
+            idx = list(ids).index(hmm_id)
+            table.remove_rows(idx, idx+1)
+            table.flush()
+
+        hf5.flush()
 
 
 def compare_hmm_params(p1, p2):
