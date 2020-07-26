@@ -146,6 +146,10 @@ def delete_hmm_from_hdf5(h5_file, **kwargs):
         rmv = list(np.arange(len(table)))
         for k,v in kwargs.items():
             tmp = table[:][k]
+            if isinstance(v, str):
+                tmp = [x.decode('utf-8') for x in tmp]
+                tmp = np.array(tmp)
+
             if v in tmp:
                 idx = np.where(tmp == v)[0]
                 ids.append(idx)

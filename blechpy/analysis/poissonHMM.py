@@ -1226,7 +1226,7 @@ def roll_back_hmm_to_best(hmm, spikes, dt, thresh):
     # Exclude maxima less than 50 iterations since its pretty spikey early on
     below = below[below > 50]
     # Account for the iterations saved
-    iterations = hmm.history['iterations']
+    iterations = np.array(hmm.history['iterations'])
     below = below[below >= np.min(iterations)]
     below = below[below <= np.max(iterations)]
     # If there are none that fit criteria, just pick best past 50
