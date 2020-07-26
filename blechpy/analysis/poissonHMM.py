@@ -974,7 +974,11 @@ class HmmHandler(object):
             params = [params]
 
         if isinstance(dat, str):
+            fd = dat
             dat = load_dataset(dat)
+            if os.path,realpath(fd) != os.path.realpath(dat.root_dir):
+                dat._change_root(fd)
+
             if dat is None:
                 raise FileNotFoundError('No dataset.p file found given directory')
 
@@ -1224,6 +1228,10 @@ def roll_back_hmm_to_best(hmm, spikes, dt, thresh):
     iterations = hmm.history['iterations']
     below = below[below >= np.min(iterations)]
     below = below[below <= np.max(iterations)]
+    # If there are none that fit criteria, just pick best past 50
+    if len(below) == 0:
+        below = iterations[iterations > 50]
+
     maxima = np.argmax(ll_hist[below]) # this gives the index in below
     maxima = below[maxima] # this is the iteration at which the maxima occurred
     hmm.roll_back(maxima)

@@ -1,3 +1,12 @@
+v2.0.47 (2020-07-26)
+-------------------
+- small change to HmmHandler to automatically change root of dataset if
+  operating on dataset in different location from inital processing
+
+v2.0.46 (2020-07-25)
+-------------------
+- missed an edge case, fixed now
+
 v2.0.45 (2020-07-25)
 -------------------
 - fixed roll_back_to_best_hmm to choose maxima only from the saved iterations
