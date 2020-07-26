@@ -976,7 +976,8 @@ class HmmHandler(object):
         if isinstance(dat, str):
             fd = dat
             dat = load_dataset(dat)
-            if os.path,realpath(fd) != os.path.realpath(dat.root_dir):
+            if os.path.realpath(fd) != os.path.realpath(dat.root_dir):
+                print('Changing dataset root_dir to match local directory')
                 dat._change_root(fd)
 
             if dat is None:

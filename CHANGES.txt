@@ -1,3 +1,7 @@
+v2.0.48 (2020-07-26)
+-------------------
+- typo fix
+
 v2.0.47 (2020-07-26)
 -------------------
 - small change to HmmHandler to automatically change root of dataset if
