@@ -156,7 +156,7 @@ def compute_baum_welch(spikes, dt, A, B, alpha, beta):
                 for sj in range(nStates):
                     probs = np.prod(poisson(B[:,sj], spikes[:, t+1], dt))
                     epsilonNumerator[si, sj] = (alpha[si, t]*A[si, sj]*
-                                                beta[sj, t]*probs)
+                                                beta[sj, t+1]*probs)
 
             epsilons[:, :, t] = epsilonNumerator / np.sum(epsilonNumerator)
 
@@ -1168,8 +1168,11 @@ class HmmHandler(object):
     def delete_hmm(self, **kwargs):
         '''Deletes any HMMs whose parameters match the kwargs. i.e. n_states=2,
         taste="Saccharin" would delete all 2-state HMMs for Saccharin trials
+        also reload parameters from hdf5, so any added but un-fit params will
+        be lost
         '''
         hmmIO.delete_hmm_from_hdf5(self.h5_file, **kwargs)
+        self.load_params()
 
 
 def get_hmm_overview_from_hdf5(h5_file):

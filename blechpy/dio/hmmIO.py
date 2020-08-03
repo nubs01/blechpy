@@ -181,3 +181,11 @@ def compare_hmm_params(p1, p2):
             return False
 
     return True
+
+
+def get_hmm_h5(rec_dir):
+    tmp = glob.glob(rec_dir + os.sep + '**' + os.sep + '*HMM_Analysis.hdf5', recursive=True)
+    if len(tmp)>1:
+        raise ValueError(str(tmp))
+
+    return tmp[0]
