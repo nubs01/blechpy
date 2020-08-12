@@ -48,7 +48,8 @@ class digital_mapping_particle(tables.IsDescription):
 
 class HMMInfoParticle(tables.IsDescription):
     #   HMM_ID, taste, din_channel, n_cells, time_start, time_end, thresh,
-    #   unit_type, n_repeats, dt, n_states, n_iters, BIC, cost, converged
+    #   unit_type, n_repeats, dt, n_states, n_iters, BIC, cost, converged,
+    #   area
     hmm_id = tables.Int16Col()
     taste = tables.StringCol(20)
     channel = tables.Int16Col()
@@ -68,3 +69,4 @@ class HMMInfoParticle(tables.IsDescription):
     converged = tables.BoolCol()
     fitted = tables.BoolCol()
     max_log_prob = tables.Float64Col()
+    area = tables.StringCol(15)

@@ -27,7 +27,7 @@ TEST_PARAMS = {'n_cells': 10, 'n_states': 4, 'state_seq_length': 5,
 HMM_PARAMS = {'hmm_id': None, 'taste': None, 'channel': None,  'unit_type':
               'single', 'dt': 0.001, 'threshold': 1e-4, 'max_iter': 1000,
               'n_cells': None, 'n_trials': None, 'time_start': 0, 'time_end':
-              2000, 'n_repeats': 25, 'n_states': 3, 'fitted': False}
+              2000, 'n_repeats': 25, 'n_states': 3, 'fitted': False, 'area': None}
 
 
 FACTORIAL_LOOKUP = np.array([math.factorial(x) for x in range(20)])
@@ -405,8 +405,13 @@ def rebin_spike_array(spikes, dt, time, new_dt):
 
 @memory.cache
 def get_hmm_spike_data(rec_dir, unit_type, channel, time_start=None,
-                       time_end=None, dt=None, trials=None):
-    units = query_units(rec_dir, unit_type)
+                       time_end=None, dt=None, trials=None, area=None):
+    # unit type can be 'single', 'pyramidal', or 'interneuron', or a list of unit names
+    if isinstance(unit_type, str):
+        units = query_units(rec_dir, unit_type, area=area)
+    elif isinstance(unit_type, list):
+        units = unit_type
+
     time, spike_array = h5io.get_spike_data(rec_dir, units, channel, trials=trials)
     spike_array = spike_array.astype(np.int32)
     time = time.astype(np.float64)
@@ -430,7 +435,7 @@ def get_hmm_spike_data(rec_dir, unit_type, channel, time_start=None,
 
 
 @memory.cache
-def query_units(dat, unit_type):
+def query_units(dat, unit_type, area=None):
     '''Returns the units names of all units in the dataset that match unit_type
 
     Parameters
@@ -442,6 +447,9 @@ def query_units(dat, unit_type):
         determines whether to return 'single' units, 'pyramidal' (regular
         spiking single) units, 'interneuron' (fast spiking single) units, or
         'all' units
+    area : str
+        brain area of cells to return, must match area in
+        dataset.electrode_mapping
 
     Returns
     -------
@@ -449,8 +457,10 @@ def query_units(dat, unit_type):
     '''
     if isinstance(dat, str):
         units = h5io.get_unit_table(dat)
+        el_map = h5io.get_electrode_mapping(dat)
     else:
         units = dat.get_unit_table()
+        el_map = dat.electrode_mapping.copy()
 
     u_str = unit_type.lower()
     q_str = ''
@@ -466,7 +476,19 @@ def query_units(dat, unit_type):
         raise ValueError('Invalid unit_type %s. Must be '
                          'single, pyramidal, interneuron or all' % u_str)
 
-    return units.query(q_str)['unit_name'].tolist()
+    units = units.query(q_str)
+    if area is None or area == '':
+        return units['unit_name'].to_list()
+
+    out = []
+    el_map = el_map.set_index('Electrode')
+    for i, row in units.iterrows():
+        if el_map.loc[row['electrode'], 'area'] == area:
+            out.append(row['unit_name'])
+
+    return out
+
+
 
 
 def pick_best_hmm(HMMs):
@@ -515,10 +537,15 @@ def fit_hmm_mp(rec_dir, params, h5_file=None):
     unit_type = params['unit_type']
     channel = params['channel']
     n_trials = params['n_trials']
+    if 'area' in params.keys():
+        area = params['area']
+    else:
+        area = None
+
     spikes, dt, time = get_hmm_spike_data(rec_dir, unit_type, channel,
                                           time_start=time_start,
                                           time_end=time_end, dt=dt,
-                                          trials=n_trials)
+                                          trials=n_trials, area=area)
     hmm = PoissonHMM(n_states, hmm_id=hmm_id)
     success = hmm.fit(spikes, dt, max_iter=max_iter, convergence_thresh=threshold)
     if not success:
@@ -1006,6 +1033,9 @@ class HmmHandler(object):
             os.makedirs(self.plot_dir)
 
         hmmIO.setup_hmm_hdf5(self.h5_file)
+        # this function can be edited to account for parameters added in the
+        # future
+        hmmIO.fix_hmm_overview(self.h5_file)
 
     def load_params(self):
         self._data_params = []
@@ -1047,6 +1077,7 @@ class HmmHandler(object):
             df = pd.DataFrame(table[:])
             df['unit_type'] = df['unit_type'].apply(lambda x: x.decode('utf-8'))
             df['taste'] = df['taste'].apply(lambda x: x.decode('utf-8'))
+            df['area'] = df['area'].apply(lambda x: x.decode('utf-8'))
 
         return df
 
@@ -1094,7 +1125,8 @@ class HmmHandler(object):
                                                   time_start=params['time_start'],
                                                   time_end=params['time_end'],
                                                   dt=params['dt'],
-                                                  trials=params['n_trials'])
+                                                  trials=params['n_trials'],
+                                                  area=params['area'])
             plot_dir = os.path.join(self.plot_dir, 'hmm_%s' % i)
             if not os.path.isdir(plot_dir):
                 os.makedirs(plot_dir)
@@ -1138,7 +1170,6 @@ class HmmHandler(object):
         hmm_ids = [x['hmm_id'] for x in data_params]
         for t in tastes:
             p = params.copy()
-            hid = get_new_id(hmm_ids)
 
             p['taste'] = t
             # Skip if parameter is already in parameter set
@@ -1147,10 +1178,17 @@ class HmmHandler(object):
                       'to re-fit run with overwrite=True')
                 continue
 
-            hmm_ids.append(hid)
-            p['hmm_id'] = hid
+            if t not in dim.index:
+                print('Taste %s not found in dig_in_mapping or marked to exclude. Skipping...' % t)
+                continue
+
+            if p['hmm_id'] is None:
+                hid = get_new_id(hmm_ids)
+                p['hmm_id'] = hid
+                hmm_ids.append(hid)
+
             p['channel'] = dim.loc[t, 'channel']
-            unit_names = query_units(dat, p['unit_type'])
+            unit_names = query_units(dat, p['unit_type'], area=p['area'])
             p['n_cells'] = len(unit_names)
             if p['n_trials'] is None:
                 p['n_trials'] = len(trials.query('name == @t'))
@@ -1190,11 +1228,13 @@ def isConverged(hmm, thresh):
     '''
     pass
 
-def check_ll_trend(hmm, thresh):
+def check_ll_trend(hmm, thresh, n_iter=None):
     '''Check the trend of the log-likelihood to see if it has plateaued, is
     decreasing or is increasing
     '''
-    n_iter = hmm.iteration
+    if n_iter is None:
+        n_iter = hmm.iteration
+
     ll_hist = hmm.ll_hist
     if n_iter == len(ll_hist):
         n_iter = n_iter-1
@@ -1225,16 +1265,17 @@ def roll_back_hmm_to_best(hmm, spikes, dt, thresh):
     ll_hist = np.array(hmm.ll_hist)
     filt_ll = gaussian_filter1d(ll_hist, 4)
     diff_ll = np.diff(filt_ll)
+    iterations = np.array(hmm.history['iterations'])
     below = np.where(np.abs(diff_ll) < thresh)[0] + 1 # since diff_ll is 1 smaller than ll_hist
     # Exclude maxima less than 50 iterations since its pretty spikey early on
-    below = below[below > 50]
-    # Account for the iterations saved
-    iterations = np.array(hmm.history['iterations'])
-    below = below[below >= np.min(iterations)]
-    below = below[below <= np.max(iterations)]
+    below = [x for x in below if (x in iterations and x > 50)]
     # If there are none that fit criteria, just pick best past 50
     if len(below) == 0:
         below = iterations[iterations > 50]
+
+    tmp = [x for x in below if check_ll_trend(hmm, thresh, x) == 'plateau']
+    if len(tmp) != 0:
+        below = tmp
 
     maxima = np.argmax(ll_hist[below]) # this gives the index in below
     maxima = below[maxima] # this is the iteration at which the maxima occurred
@@ -1248,9 +1289,6 @@ def get_new_id(ids=None):
     if ids is None or len(ids) == 0:
         return 0
 
-    diffs = np.diff(ids)
-    tmp = np.where(diffs > 1)[0]
-    if len(tmp) == 0:
-        return ids[-1]+1
-
-    return ids[tmp[0]]+1
+    nums = np.arange(0, np.max(ids) + 2)
+    diff_nums = [x for x in nums if x not in ids]
+    return np.min(diff_nums)

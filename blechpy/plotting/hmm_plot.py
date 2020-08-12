@@ -353,7 +353,7 @@ def plot_backward_probs(hmm, spikes, dt, time=None, colors=None, axes=None, lege
         return fig, axes
 
 
-def plot_gamma_probs(hmm, spikes, dt, time=None, colors=None, axes=None, legend=True,
+def plot_gamma_probs(hmm, spikes=None, dt=None, time=None, colors=None, axes=None, legend=True,
                      hmm_id=None, thresh=0.75, save_file=None):
     if not axes:
         fig, axes = make_hmm_raster(spikes, time=time)
@@ -363,7 +363,13 @@ def plot_gamma_probs(hmm, spikes, dt, time=None, colors=None, axes=None, legend=
     if legend:
         fig.subplots_adjust(right=0.9)  # To  make room for legend
 
-    gammas = hmm.get_gamma_probabilities(spikes, dt)
+    gammas = hmm.gamma_probs
+    if gammas == []:
+        if spikes is None and dt is None:
+            raise ValueError('Not enough info to compute gamma probabilities')
+
+        gammas = hmm.get_gamma_probabilities(spikes, dt)
+
     n_trials, n_states, n_steps = gammas.shape
     if time is None:
         time = np.arange(0, n_steps)

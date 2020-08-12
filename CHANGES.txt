@@ -1,3 +1,9 @@
+v2.0.51 (2020-08-06)
+-------------------
+- small edit to get_hmm_spike_data so that you can pass it a unit_type keyword
+  or a list of units
+- also added area parameter for HMM handler so cells from other brain areas can be ignored
+
 v2.0.50 (2020-08-03)
 -------------------
 - fix hmm_id assignment for new HMMs after deleting HMMs

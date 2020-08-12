@@ -4,14 +4,48 @@ import numpy as np
 import pandas as pd
 from blechpy.utils.particles import HMMInfoParticle
 
+def fix_hmm_overview(h5_file):
+    '''made to add the area column to the hmm overview
+    '''
+    fix = False
+    if not os.path.isfile(h5_file):
+        return
+
+    with tables.open_file(h5_file, 'r') as hf5:
+        if 'area' not in hf5.root.data_overview.colnames:
+            fix = True
+
+    if not fix:
+        return
+
+    print('Fixing data overview table in %s' % h5_file)
+    with tables.open_file(h5_file, 'a') as hf5:
+        new_table = hf5.create_table('/', 'tmp_overview', HMMInfoParticle,
+                                     'Parameters and goodness-of-fit info for HMMs in file')
+        table = hf5.root.data_overview
+        columns = table.colnames
+        new_row = new_table.row
+        for row in table.iterrows():
+            for x in columns:
+                new_row[x] = row[x]
+
+            new_row.append()
+
+        new_table.flush()
+        hf5.move_node('/tmp_overview', '/', 'data_overview', overwrite=True)
+        hf5.flush()
+
 
 def setup_hmm_hdf5(h5_file):
+    if os.path.isfile(h5_file):
+        return
+
     print('Initializing hdf5 store: %s' % h5_file)
     with tables.open_file(h5_file, 'a') as hf5:
         if 'data_overview' not in hf5.root:
             print('Initializing data_overview table in hdf5 store...')
             table = hf5.create_table('/', 'data_overview', HMMInfoParticle,
-                                     'Basic info for each digital_input')
+                                     'Parameters and goodness-of-fit info for HMMs in file')
             table.flush()
 
 
@@ -21,7 +55,7 @@ def read_hmm_from_hdf5(h5_file, hmm_id):
         if h_str not in hf5.root or len(hf5.list_nodes('/'+h_str)) == 0:
             return None
 
-        print('Loading HMM %i for hdf5' % hmm_id)
+        print('Loading HMM %i from hdf5' % hmm_id)
         tmp = hf5.root[h_str]
         PI = tmp['initial_distribution'][:]
         A = tmp['transition'][:]
