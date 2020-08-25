@@ -174,7 +174,7 @@ def plot_viterbi_paths(hmm, spikes, time=None, colors=None, axes=None, legend=Tr
 
 
     BIC = hmm.BIC
-    paths = hmm.best_sequences
+    paths = hmm.stat_arrays['best_sequences']
     n_trials, n_steps = paths.shape
     n_states = hmm.n_states
     if time is None:
@@ -192,8 +192,8 @@ def plot_viterbi_paths(hmm, spikes, time=None, colors=None, axes=None, legend=Tr
                 handles.append(h)
                 labels.append(l)
 
-    if time[0] != 0:
-        ax.axvline(0, color='red', linestyle='--', linewidth=3, alpha=0.8)
+        if time[0] != 0:
+            ax.axvline(0, color='red', linestyle='--', linewidth=3, alpha=0.8)
 
     if legend:
         mid = int(n_trials/2)
@@ -363,7 +363,7 @@ def plot_gamma_probs(hmm, spikes=None, dt=None, time=None, colors=None, axes=Non
     if legend:
         fig.subplots_adjust(right=0.9)  # To  make room for legend
 
-    gammas = hmm.gamma_probs
+    gammas = hmm.stat_arrays['gamma_probabilities']
     if gammas == []:
         if spikes is None and dt is None:
             raise ValueError('Not enough info to compute gamma probabilities')

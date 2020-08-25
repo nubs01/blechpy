@@ -6,33 +6,40 @@ from blechpy.utils.particles import HMMInfoParticle
 
 def fix_hmm_overview(h5_file):
     '''made to add the area column to the hmm overview
+    now adds the hmm_class column
     '''
     fix = False
     if not os.path.isfile(h5_file):
         return
 
-    with tables.open_file(h5_file, 'r') as hf5:
-        if 'area' not in hf5.root.data_overview.colnames:
-            fix = True
-
-    if not fix:
-        return
+#     with tables.open_file(h5_file, 'r') as hf5:
+#         if 'hmm_class' not in hf5.root.data_overview.colnames:
+#             fix = True
+# 
+#     if not fix:
+#         return
 
     print('Fixing data overview table in %s' % h5_file)
     with tables.open_file(h5_file, 'a') as hf5:
-        new_table = hf5.create_table('/', 'tmp_overview', HMMInfoParticle,
-                                     'Parameters and goodness-of-fit info for HMMs in file')
-        table = hf5.root.data_overview
-        columns = table.colnames
-        new_row = new_table.row
-        for row in table.iterrows():
-            for x in columns:
-                new_row[x] = row[x]
+#         new_table = hf5.create_table('/', 'tmp_overview', HMMInfoParticle,
+#                                      'Parameters and goodness-of-fit info for HMMs in file')
+#         table = hf5.root.data_overview
+#         columns = table.colnames
+#         new_row = new_table.row
+#         for row in table.iterrows():
+#             for x in columns:
+#                 new_row[x] = row[x]
+# 
+#             new_row.append()
+# 
+#         new_table.flush()
+#         hf5.move_node('/tmp_overview', '/', 'data_overview', overwrite=True)
 
-            new_row.append()
+        # Now change state_sequences to best_sequences
+        nodes = [x for x in hf5.walk_nodes('/') if 'log_likelihood_hist' in x._v_pathname]
+        for x in nodes:
+            hf5.move_node(x._v_pathname, x._v_parent._v_pathname, 'max_log_prob')
 
-        new_table.flush()
-        hf5.move_node('/tmp_overview', '/', 'data_overview', overwrite=True)
         hf5.flush()
 
 
@@ -55,27 +62,16 @@ def read_hmm_from_hdf5(h5_file, hmm_id):
         if h_str not in hf5.root or len(hf5.list_nodes('/'+h_str)) == 0:
             return None
 
-        print('Loading HMM %i from hdf5' % hmm_id)
+        # print('Loading HMM %i from hdf5' % hmm_id)
+        nodes = [x._v_name for x in hf5.list_nodes('/'+h_str)]
         tmp = hf5.root[h_str]
-        PI = tmp['initial_distribution'][:]
-        A = tmp['transition'][:]
-        B = tmp['emission'][:]
-        time = tmp['time'][:]
-        best_paths = tmp['state_sequences'][:]
-        if 'gamma_probabilities' in tmp:
-            gamma_probs = tmp['gamma_probabilities'][:]
-        else:
-            gamma_probs = []
+        stat_arrays = {}
+        for k in nodes:
+            stat_arrays[k] = tmp[k][:]
 
-        if 'cost_hist' in tmp:
-            cost_hist = list(tmp['cost_hist'][:])
-        else:
-            cost_hist = []
-
-        if 'log_likelihood_hist' in tmp:
-            ll_hist = list(tmp['log_likelihood_hist'][:])
-        else:
-            ll_hist = []
+        PI = stat_arrays.pop('initial_distribution')
+        A = stat_arrays.pop('transition')
+        B = stat_arrays.pop('emission')
 
         table = hf5.root.data_overview
         for row in table.where('hmm_id == id', condvars={'id':hmm_id}):
@@ -83,15 +79,21 @@ def read_hmm_from_hdf5(h5_file, hmm_id):
             for k in table.colnames:
                 if table.coltypes[k] == 'string':
                     params[k] = row[k].decode('utf-8')
+                    if '..' in params[k]:
+                        params[k] = params[k].split('..')
+
                 else:
                     params[k] = row[k]
 
-            return PI, A, B, time, best_paths, params, cost_hist, ll_hist, gamma_probs
+            if isinstance(params['taste'], list):
+                params['channel'] = list_channel_hash(params['channel'])
+
+            return PI, A, B, stat_arrays, params
         else:
             raise ValueError('Parameters not found for hmm %i' % hmm_id)
 
 
-def write_hmm_to_hdf5(h5_file, hmm, time, params):
+def write_hmm_to_hdf5(h5_file, hmm, params):
     hmm_id = hmm.hmm_id
     if 'hmm_id' in params and hmm_id is None:
         hmm.hmm_id = hmm_id = params['hmm_id']
@@ -136,11 +138,13 @@ def write_hmm_to_hdf5(h5_file, hmm, time, params):
                          hmm.initial_distribution)
         hf5.create_array('/'+h_str, 'transition', hmm.transition)
         hf5.create_array('/'+h_str, 'emission', hmm.emission)
-        hf5.create_array('/'+h_str, 'time', time)
-        hf5.create_array('/'+h_str, 'state_sequences', hmm.best_sequences)
-        hf5.create_array('/'+h_str, 'gamma_probabilities', hmm.gamma_probs)
-        hf5.create_array('/'+h_str, 'cost_hist', np.array(hmm.cost_hist))
-        hf5.create_array('/'+h_str, 'log_likelihood_hist', np.array(hmm.ll_hist))
+        for k, v in hmm.stat_arrays.items():
+            if not isinstance(v, np.ndarray):
+                tmp_v = np.array(v)
+            else:
+                tmp_v = v
+
+            hf5.create_array('/'+h_str, k, tmp_v)
 
         table = hf5.root.data_overview
         for row in table.where('hmm_id == id', condvars={'id': hmm_id}):
@@ -157,7 +161,15 @@ def write_hmm_to_hdf5(h5_file, hmm, time, params):
             print('Creating new row in data_overview for HMM %s' % hmm_id)
             row = table.row
             for k,v in params.items():
-                row[k] = v
+                if table.coltypes[k] == 'string' and isinstance(v, list):
+                    row[k] = '..'.join(v)
+                elif isinstance(v, list) and k == 'channel':
+                    row[k] = hash_channel_list(v)
+                elif not isinstance(v, list):
+                    row[k] = v
+                else:
+                    raise ValueError('Something fucked up')
+
 
             row['BIC'] = hmm.BIC
             row['cost'] = hmm.cost
@@ -189,7 +201,7 @@ def delete_hmm_from_hdf5(h5_file, **kwargs):
                 ids.append(idx)
 
         for x in ids:
-            rmv = np.intersect1d(rmv, x)
+            rmv = [y for y in rmv if y in x]
 
         rmv.sort()
         for x in reversed(rmv):
@@ -209,7 +221,7 @@ def delete_hmm_from_hdf5(h5_file, **kwargs):
 
 def compare_hmm_params(p1, p2):
     compare_keys = ['taste', 'unit_type', 'dt', 'max_iter', 'time_start',
-                    'time_end', 'n_states', 'n_trials']
+                    'time_end', 'n_states', 'n_trials', 'hmm_class', 'area']
     for k in compare_keys:
         if p1[k] != p2[k]:
             return False
@@ -223,3 +235,26 @@ def get_hmm_h5(rec_dir):
         raise ValueError(str(tmp))
 
     return tmp[0]
+
+
+def get_hmm_overview_from_hdf5(h5_file):
+    with tables.open_file(h5_file, 'r') as hf5:
+        table = hf5.root.data_overview
+        ids = table[:]['hmm_id']
+        params = []
+        for i in ids:
+            _, _, _, _, p = read_hmm_from_hdf5(h5_file, i)
+            params.append(p)
+
+        df = pd.DataFrame(params)
+
+    return df
+
+
+def hash_channel_list(channels):
+    channels.insert(0, len(channels)) # gives elements and array and prevent leading 0 from dropping
+    return ''.join([str(x) for x in channels])
+
+def list_channel_hash(num):
+    tmp = [int(x) for x in str(num)]
+    return tmp[1:]

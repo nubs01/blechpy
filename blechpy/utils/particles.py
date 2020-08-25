@@ -51,7 +51,7 @@ class HMMInfoParticle(tables.IsDescription):
     #   unit_type, n_repeats, dt, n_states, n_iters, BIC, cost, converged,
     #   area
     hmm_id = tables.Int16Col()
-    taste = tables.StringCol(20)
+    taste = tables.StringCol(45)
     channel = tables.Int16Col()
     n_cells = tables.Int32Col()
     unit_type = tables.StringCol(15)
@@ -70,3 +70,4 @@ class HMMInfoParticle(tables.IsDescription):
     fitted = tables.BoolCol()
     max_log_prob = tables.Float64Col()
     area = tables.StringCol(15)
+    hmm_class = tables.StringCol(20)

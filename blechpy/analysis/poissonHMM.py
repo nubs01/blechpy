@@ -24,10 +24,12 @@ TEST_PARAMS = {'n_cells': 10, 'n_states': 4, 'state_seq_length': 5,
                'min_state_dur': 0.05, 'noise': 0.01, 'baseline_dur': 1}
 
 
-HMM_PARAMS = {'hmm_id': None, 'taste': None, 'channel': None,  'unit_type':
-              'single', 'dt': 0.001, 'threshold': 1e-4, 'max_iter': 1000,
-              'n_cells': None, 'n_trials': None, 'time_start': 0, 'time_end':
-              2000, 'n_repeats': 25, 'n_states': 3, 'fitted': False, 'area': None}
+HMM_PARAMS = {'hmm_id': None, 'taste': None, 'channel': None,
+              'unit_type': 'single', 'dt': 0.001, 'threshold': 1e-4,
+              'max_iter': 1000, 'n_cells': None, 'n_trials': None,
+              'time_start': 0, 'time_end': 2000, 'n_repeats': 25,
+              'n_states': 3, 'fitted': False, 'area': None,
+              'hmm_class': 'PoissonHMM'}
 
 
 FACTORIAL_LOOKUP = np.array([math.factorial(x) for x in range(20)])
@@ -49,9 +51,41 @@ def fast_factorial(x):
 def poisson(rate, n, dt):
     '''Gives probability of each neurons spike count assuming poisson spiking
     '''
-    tmp = np.power(rate*dt, n) / np.array([fast_factorial(x) for x in n])
-    tmp = tmp * np.exp(-rate*dt)
-    return tmp
+    #tmp = np.power(rate*dt, n) / np.array([fast_factorial(x) for x in n])
+    #tmp = tmp * np.exp(-rate*dt)
+    tmp = n*np.log(rate*dt) - np.array([np.log(fast_factorial(x)) for x in n])
+    tmp = tmp - rate*dt
+    return np.exp(tmp)
+
+@njit
+def log_emission(rate, n , dt):
+    return np.sum(np.log(poisson(rate, n, dt)))
+
+
+@njit
+def fix_arrays(PI,A,B):
+    '''copy and remove zero values so that log probabilities can be computed
+    '''
+    PI = PI.copy()
+    A = A.copy()
+    B = B.copy()
+    nx, ny = A.shape
+    for i in range(nx):
+        for j in range(ny):
+            if A[i,j] == 0.:
+                A[i,j] = 1e-100
+
+    nx, ny = B.shape
+    for i in range(nx):
+        for j in range(ny):
+            if B[i,j] == 0.:
+                B[i,j] = 1e-100
+
+    for i in range(len(PI)):
+        if PI[i] == 0.:
+            PI[i] = 1e-100
+
+    return PI, A, B
 
 
 @njit
@@ -88,22 +122,29 @@ def forward(spikes, dt, PI, A, B):
     '''
     nTimeSteps = spikes.shape[1]
     nStates = A.shape[0]
+    PI, A, B = fix_arrays(PI, A, B)
 
     # For each state, use the the initial state distribution and spike counts
     # to initialize alpha(:,1)
-    row = np.array([PI[i] * np.prod(poisson(B[:,i], spikes[:,0], dt))
-                    for i in range(nStates)])
+    #row = np.array([PI[i] * np.prod(poisson(B[:,i], spikes[:,0], dt))
+    #row = np.array([np.log(PI[i]) + np.sum(np.log(poisson(B[:,i], spikes[:,0], dt)))
+    #                for i in range(nStates)])
+    a0 = [np.exp(np.log(PI[i]) + log_emission(B[:,i], spikes[:,0], dt))
+          for i in range(nStates)]
+    a0 = np.array(a0)
     alpha = np.zeros((nStates, nTimeSteps))
-    norms = [np.sum(row)]
-    alpha[:, 0] = row/norms[0]
+    norms = [np.sum(a0)]
+    alpha[:, 0] = a0/norms[0]
     for t in range(1, nTimeSteps):
-        tmp = np.array([np.prod(poisson(B[:, s], spikes[:, t], dt)) *
-                        np.sum(alpha[:, t-1] * A[:,s])
-                        for s in range(nStates)])
-        tmp_norm = np.sum(tmp)
+        for s in range(nStates):
+            tmp_em = log_emission(B[:,s], spikes[:, t], dt)
+            tmp_a = np.sum(np.exp(np.log(alpha[:, t-1]) + np.log(A[:,s])))
+            tmp = np.exp(tmp_em + np.log(tmp_a))
+            alpha[s,t] = tmp
+
+        tmp_norm = np.sum(alpha[:,t])
         norms.append(tmp_norm)
-        tmp = tmp / tmp_norm
-        alpha[:, t] = tmp
+        alpha[:, t] = alpha[:,t] / tmp_norm
 
     return alpha, norms
 
@@ -126,6 +167,7 @@ def backward(spikes, dt, A, B, norms):
     -------
     beta : np.array, nStates x T matrix of backward probabilities
     '''
+    _, A, B = fix_arrays(np.array([0]), A, B)
     nTimeSteps = spikes.shape[1]
     nStates = A.shape[0]
     beta = np.zeros((nStates, nTimeSteps))
@@ -134,8 +176,9 @@ def backward(spikes, dt, A, B, norms):
     tStep.reverse()
     for t in tStep:
         for s in range(nStates):
-            beta[s,t] = np.sum((beta[:, t+1] * A[s,:]) *
-                               np.prod(poisson(B[:, s], spikes[:, t+1], dt)))
+            tmp_em = log_emission(B[:,s], spikes[:,t+1], dt)
+            tmp_b = np.log(beta[:,t+1]) + np.log(A[s,:]) + tmp_em
+            beta[s,t] = np.sum(np.exp(tmp_b))
 
         beta[:, t] = beta[:, t] / norms[t+1]
 
@@ -144,19 +187,22 @@ def backward(spikes, dt, A, B, norms):
 
 @njit
 def compute_baum_welch(spikes, dt, A, B, alpha, beta):
+    _, A, B = fix_arrays(np.array([0]), A, B)
     nTimeSteps = spikes.shape[1]
     nStates = A.shape[0]
     gamma = np.zeros((nStates, nTimeSteps))
     epsilons = np.zeros((nStates, nStates, nTimeSteps-1))
     for t in range(nTimeSteps):
+        tmp_g = np.exp(np.log(alpha[:, t]) + np.log(beta[:, t]))
+        gamma[:, t] = tmp_g / np.sum(tmp_g)
         if t < nTimeSteps-1:
-            gamma[:, t] = (alpha[:, t] * beta[:, t]) / np.sum(alpha[:,t] * beta[:,t])
             epsilonNumerator = np.zeros((nStates, nStates))
             for si in range(nStates):
                 for sj in range(nStates):
-                    probs = np.prod(poisson(B[:,sj], spikes[:, t+1], dt))
-                    epsilonNumerator[si, sj] = (alpha[si, t]*A[si, sj]*
-                                                beta[sj, t+1]*probs)
+                    probs = log_emission(B[:, sj], spikes[:, t+1], dt)
+                    tmp_en = (np.log(alpha[si, t]) + np.log(A[si, sj]) +
+                              np.log(beta[sj, t+1]) + probs)
+                    epsilonNumerator[si, sj] = np.exp(tmp_en)
 
             epsilons[:, :, t] = epsilonNumerator / np.sum(epsilonNumerator)
 
@@ -168,30 +214,55 @@ def baum_welch(trial_dat, dt, PI, A, B):
     alpha, norms = forward(trial_dat, dt, PI, A, B)
     beta = backward(trial_dat, dt, A, B, norms)
     tmp_gamma, tmp_epsilons = compute_baum_welch(trial_dat, dt, A, B, alpha, beta)
-    return tmp_gamma, tmp_epsilons
+    return tmp_gamma, tmp_epsilons, norms
 
 
 def compute_new_matrices(spikes, dt, gammas, epsilons):
     nTrials, nCells, nTimeSteps = spikes.shape
+    n_states = gammas.shape[1]
     minFR = 1/(nTimeSteps*dt)
 
-    PI = np.sum(gammas, axis=0)[:,1] / nTrials
-    Anumer = np.sum(np.sum(epsilons, axis=3), axis=0)
-    Adenom = np.sum(np.sum(gammas[:,:,:-1], axis=2), axis=0)
-    A = Anumer/Adenom
-    A = A/np.sum(A, axis=1)
-    Bnumer = np.sum(np.array([np.matmul(tmp_y, tmp_g.T)
-                              for tmp_y, tmp_g in zip(spikes, gammas)]),
-                    axis=0)
+    PI = np.mean(gammas[:, :, 0], axis=0)
+    A = np.zeros((n_states, n_states))
+    B = np.zeros((nCells, n_states))
+    for si in range(n_states):
+        for sj in range(n_states):
+            Anumer = np.sum(epsilons[:, si, sj, :])
+            Adenom = np.sum(gammas[:, si, -1])
+            if np.isfinite(Adenom) and Adenom != 0.:
+                A[si, sj] = Anumer / Adenom
+            else:
+                A[si, sj] = 0 # incase of floating point errors resulting in zeros
+
+        #A[si, A[si,:] < 1e-50] = 0
+        row = A[si,:]
+        if np.sum(row) == 0.0:
+            A[si, sj] = 1.0
+        else:
+            A[si, :] = A[si,:] / np.sum(row)
+
+
+    for si in range(n_states):
+        for tri in range(nTrials):
+            for t in range(nTimeSteps-1):
+                for u in range(nCells):
+                    B[u,si] = B[u,si] + gammas[tri, si, t]*spikes[tri, u, t]
+
+    # Convert and really small transition values into zeros
+    #A[A < 1e-50] = 0
+    #sums = np.sum(A, axis=1)
+    #A = A/np.sum(A, axis=1) # This divides columns not rows
+    #Bnumer = np.sum(np.array([np.matmul(tmp_y, tmp_g.T)
+    #                          for tmp_y, tmp_g in zip(spikes, gammas)]),
+    #                axis=0)
     Bdenom =  np.sum(np.sum(gammas, axis=2), axis=0)
-    B = (Bnumer / Bdenom)/dt
-    idx = np.where(B < minFR)[0]
-    B[idx] = minFR
+    B = (B / Bdenom)/dt
+    B[B < minFR] = minFR
 
     return PI, A, B
 
 
-def poisson_viterbi(spikes, dt, PI, A, B):
+def poisson_viterbi_deprecated(spikes, dt, PI, A, B):
     '''
     Parameters
     ----------
@@ -221,9 +292,11 @@ def poisson_viterbi(spikes, dt, PI, A, B):
 
     nStates = A.shape[0]
     nCells, nTimeSteps = spikes.shape
+    # get rid of zeros for computation 
+    A[np.where(A==0)] = 1e-300
     T1 = np.zeros((nStates, nTimeSteps))
     T2 = np.zeros((nStates, nTimeSteps))
-    T1[:,1] = np.array([np.log(PI[i]) +
+    T1[:,0] = np.array([np.log(PI[i]) +
                         np.log(np.prod(poisson(B[:,i], spikes[:, 1], dt)))
                         for i in range(nStates)])
     for t, s in it.product(range(1,nTimeSteps), range(nStates)):
@@ -231,11 +304,11 @@ def poisson_viterbi(spikes, dt, PI, A, B):
         vec2 = T1[:, t-1] + np.log(A[:,s])
         vec1 = vec2 + probs
         T1[s, t] = np.max(vec1)
-        idx = np.argmax(vec2)
+        idx = np.argmax(vec1)
         T2[s, t] = idx
 
     bestPathEndState = np.argmax(T1[:, -1])
-    maxPathLogProb = T1[idx, -1]
+    maxPathLogProb = T1[bestPathEndState, -1]
     bestPath = np.zeros((nTimeSteps,))
     bestPath[-1] = bestPathEndState
     tStep = list(range(nTimeSteps-1))
@@ -244,6 +317,34 @@ def poisson_viterbi(spikes, dt, PI, A, B):
         bestPath[t] = T2[int(bestPath[t+1]), t+1]
 
     return bestPath, maxPathLogProb, T1, T2
+
+
+def poisson_viterbi(spikes, dt, PI, A, B):
+    n_states = A.shape[0]
+    PI, A, B = fix_arrays(PI, A, B)
+    n_cells, n_steps = spikes.shape
+    T1 = np.ones((n_states, n_steps))*1e-300
+    T2 = np.zeros((n_states, n_steps))
+    T1[:, 0] = [np.log(PI[i])+np.sum(np.log(poisson(B[:,i], spikes[:,0], dt)))
+                for i in range(n_states)]
+    #for t,s in it.product(range(1,n_steps), range(n_states)):
+    for t in range(1,n_steps):
+        for s in range(n_states):
+            probs = np.sum(np.log(poisson(B[:,s], spikes[:,t], dt)))
+            vec1 = T1[:,t-1]+np.log(A[:,s])+probs
+            T1[s,t] = np.max(vec1)
+            T2[s,t] = np.argmax(vec1)
+
+    best_end_state = np.argmax(T1[:,-1])
+    max_log_prob = T1[best_end_state, -1]
+    bestPath = np.zeros((n_steps,))
+    bestPath[-1] = best_end_state
+    tStep = list(range(n_steps-1))
+    tStep.reverse()
+    for t in tStep:
+        bestPath[t] = T2[int(bestPath[t+1]), t+1]
+
+    return bestPath, max_log_prob, T1, T2
 
 
 def compute_BIC(PI, A, B, spikes=None, dt=None, maxLogProb=None, n_time_steps=None):
@@ -257,7 +358,7 @@ def compute_BIC(PI, A, B, spikes=None, dt=None, maxLogProb=None, n_time_steps=No
         pass
     else:
         bestPaths, path_probs = compute_best_paths(spikes, dt, PI, A, B)
-        maxLogProb = np.max(path_probs)
+        maxLogProb = np.sum(path_probs)
         n_time_steps = spikes.shape[-1]
 
     BIC = -2 * maxLogProb + nParams * np.log(n_time_steps)
@@ -420,8 +521,8 @@ def get_hmm_spike_data(rec_dir, unit_type, channel, time_start=None,
         print('%s: Rebinning Spike Array' % os.getpid())
         spike_array, time = rebin_spike_array(spike_array, curr_dt, time, dt)
     elif dt is not None and curr_dt > dt:
-        raise ValueError('Cannot upsample spike array from %f ms '
-                         'bins to %f ms bins' % (dt, curr_dt))
+        raise ValueError('Cannot upsample spike array from %f sec '
+                         'bins to %f sec bins' % (dt, curr_dt))
     else:
         dt = curr_dt
 
@@ -489,43 +590,6 @@ def query_units(dat, unit_type, area=None):
     return out
 
 
-
-
-def pick_best_hmm(HMMs):
-    '''For each HMM it searches the history for the HMM with lowest BIC Then it
-    compares HMMs. Those with same # of free parameters are compared by BIC
-    Those with different # of free parameters (namely # of states) are compared
-    by cost Best HMM is returned
-
-    Parameters
-    ----------
-    HMMs : list of PoissonHmm objects
-
-    Returns
-    -------
-    PoissonHmm
-    '''
-    # First optimize each HMMs and sort into groups based on # of states
-    groups = {}
-    for hmm in HMMs:
-        hmm.set_to_lowest_BIC()
-        if hmm.n_states in groups:
-            groups[hmm.n_states].append(hmm)
-        else:
-            groups[hmm.n_states] = [hmm]
-
-    best_per_state = {}
-    for k, v in groups:
-        BICs = np.array([x.get_BIC()[0] for x in v])
-        idx = np.argmin(BICs)
-        best_per_state[k] = v[idx]
-
-    hmm_list = best_per_state.values()
-    costs = np.array([x.get_cost() for x in hmm_list])
-    idx = np.argmin(costs)
-    return hmm_list[idx]
-
-
 def fit_hmm_mp(rec_dir, params, h5_file=None):
     hmm_id = params['hmm_id']
     n_states = params['n_states']
@@ -535,19 +599,42 @@ def fit_hmm_mp(rec_dir, params, h5_file=None):
     max_iter = params['max_iter']
     threshold = params['threshold']
     unit_type = params['unit_type']
-    channel = params['channel']
+    channels = params['channel']
+    tastes = params['taste']
     n_trials = params['n_trials']
     if 'area' in params.keys():
         area = params['area']
     else:
         area = None
 
-    spikes, dt, time = get_hmm_spike_data(rec_dir, unit_type, channel,
-                                          time_start=time_start,
-                                          time_end=time_end, dt=dt,
-                                          trials=n_trials, area=area)
-    hmm = PoissonHMM(n_states, hmm_id=hmm_id)
-    success = hmm.fit(spikes, dt, max_iter=max_iter, convergence_thresh=threshold)
+    if not isinstance(channels, list):
+        channels = [channels]
+
+    if not isinstance(tastes, list):
+        tastes = [tastes]
+
+    spikes = []
+    row_id = []
+    time = None
+    for ch, tst in zip(channels, tastes):
+        tmp_s, _, time = get_hmm_spike_data(rec_dir, unit_type, ch,
+                                             time_start=time_start,
+                                             time_end=time_end, dt=dt,
+                                             trials=n_trials, area=area)
+        tmp_id = np.vstack([(hmm_id, ch, tst, x) for x in range(tmp_s.shape[0])])
+        spikes.append(tmp_s)
+        row_id.append(tmp_id)
+
+    spikes = np.vstack(spikes)
+    row_id = np.vstack(row_id)
+
+    if params['hmm_class'] == 'PoissonHMM':
+        hmm = PoissonHMM(n_states, hmm_id=hmm_id)
+    elif params['hmm_class'] == 'ConstrainedHMM':
+        hmm = ConstrainedHMM(len(channels), hmm_id=hmm_id)
+
+    hmm.randomize(spikes, dt, time, row_id=row_id)
+    success = hmm.fit(spikes, dt, time, max_iter=max_iter, threshold=threshold)
     if not success:
         print('%s: Fitting Aborted for hmm %s' % (os.getpid(), hmm_id))
         if h5_file:
@@ -555,7 +642,7 @@ def fit_hmm_mp(rec_dir, params, h5_file=None):
         else:
             return hmm_id, hmm
 
-    hmm = roll_back_hmm_to_best(hmm, spikes, dt, threshold)
+    # hmm = roll_back_hmm_to_best(hmm, spikes, dt, threshold)
     print('%s: Done Fitting for hmm %s' % (os.getpid(), hmm_id))
     written = False
     if h5_file:
@@ -571,20 +658,18 @@ def fit_hmm_mp(rec_dir, params, h5_file=None):
 
             if old_hmm is None:
                 print('%s: No existing HMM %s. Writing ...' % (pid, hmm_id))
-                hmmIO.write_hmm_to_hdf5(h5_file, hmm, time, params)
+                hmmIO.write_hmm_to_hdf5(h5_file, hmm, params)
                 written = True
             else:
                 if np.isnan(old_hmm.max_log_prob):
-                    old_hmm._update_cost(spikes, dt)
-
-                if old_hmm.gamma_probs == []:
-                    old_hmm.gamma_probs = old_hmm.get_gamma_probabilities(spikes, dt)
+                    old_hmm._update_cost(spikes, dt, time)
 
                 print('%s: Existing HMM %s found. Comparing BIC ...' % (pid, hmm_id))
                 if hmm.max_log_prob > old_hmm.max_log_prob:
                     print('%s: Replacing HMM %s due to higher max log likelihood' % (pid, hmm_id))
-                    hmmIO.write_hmm_to_hdf5(h5_file, hmm, time, params)
+                    hmmIO.write_hmm_to_hdf5(h5_file, hmm, params)
                     written = True
+
         except Exception as e:
             os.remove(lock_file)
             raise Exception(e)
@@ -601,93 +686,215 @@ def load_hmm_from_hdf5(h5_file, hmm_id):
     if existing_hmm is None:
         return None, None, None
 
-    PI, A, B, time, best_paths, params, cost_hist, ll_hist, gamma_probs = existing_hmm
-    hmm = PoissonHMM(params['n_states'], PI=PI, A=A, B=B, hmm_id=hmm_id,
-                     iteration=params.pop('n_iterations'))
+    PI, A, B, stat_arrays, params = existing_hmm
+    hmm = PoissonHMM(params['n_states'], hmm_id=hmm_id)
+    hmm._init_history()
+    hmm.initial_distribution = PI
+    hmm.transition = A
+    hmm.emission = B
+    hmm.iteration = params['n_iterations']
+    for k,v in stat_arrays.items():
+        if k in hmm.stat_arrays.keys() and isinstance(hmm.stat_arrays[k], list):
+            hmm.stat_arrays[k] = list(v)
+        else:
+            hmm.stat_arrays[k] = v
+
     hmm.BIC = params.pop('BIC')
     hmm.converged = params.pop('converged')
     hmm.fitted = params.pop('fitted')
     hmm.cost = params.pop('cost')
-    hmm.best_sequences = best_paths
-    hmm.gamma_probs = gamma_probs
     if 'max_log_prob' in params:
         hmm.max_log_prob = params.pop('max_log_prob')
     else:
         hmm.max_log_prob = np.nan
 
-    hmm.cost_hist = cost_hist
-    hmm.ll_hist = ll_hist
-    return hmm, time, params
+    return hmm, stat_arrays['time'], params
+
+
+def isConverged(hmm, thresh):
+    '''Check HMM convergence based on the log-likelihood
+    NOT WORKING YET
+    '''
+    pass
+
+
+def check_ll_trend(hmm, thresh, n_iter=None):
+    '''Check the trend of the log-likelihood to see if it has plateaued, is
+    decreasing or is increasing
+    '''
+    if n_iter is None:
+        n_iter = hmm.iteration
+
+    ll_hist = np.array(hmm.stat_arrays['max_log_prob'])
+    iterations = np.array(hmm.stat_arrays['iterations'])
+    if n_iter not in iterations:
+        raise ValueError('Iteration %i is not in history' % n_iter)
+
+    idx = np.where(iterations <= n_iter)[0]
+    ll_hist = ll_hist[idx]
+    filt_ll = gaussian_filter1d(ll_hist, 4)
+    diff_ll = np.diff(filt_ll)
+
+    # Linear fit, if overall trend is decreasing, it fails
+    z = np.polyfit(range(len(ll_hist)), filt_ll, 1)
+    if z[0] <= 0:
+        return 'decreasing'
+
+    # Check if it has plateaued
+    if all(np.abs(diff_ll[-5:]) <= thresh):
+        return 'plateau'
+
+    # if its a maxima and hasn't plateaued it needs to continue fitting
+    if np.max(filt_ll) == filt_ll[-1]:
+        return 'increasing'
+
+    return 'flux'
+
+
+def roll_back_hmm_to_best(hmm, spikes, dt, thresh):
+    '''Looks at the log likelihood over fitting and determines the best
+    iteration to have stopped at by choosing a local maxima during a period
+    where the smoothed LL trace has plateaued
+    '''
+    ll_hist = np.array(hmm.stat_arrays['max_log_prob'])
+    idx = np.where(np.isfinite(ll_hist))[0]
+    if len(idx) == 0:
+        return hmm
+
+    iterations = np.array(hmm.stat_arrays['iterations'])
+    ll_hist = ll_hist[idx]
+    iterations = iterations[idx]
+    filt_ll = gaussian_filter1d(ll_hist, 4)
+    diff_ll = np.diff(filt_ll)
+    below = np.where(np.abs(diff_ll) < thresh)[0] + 1 # since diff_ll is 1 smaller than ll_hist
+    # Exclude maxima less than 50 iterations since its pretty spikey early on
+    below = [x for x in below if (iterations[x] > 50)]
+    # If there are none that fit criteria, just pick best past 50
+    if len(below) == 0:
+        below = np.where(iterations > 50)[0]
+
+    if len(below) == 0:
+        below = np.arange(len(iterations))
+
+    below = below[below>2]
+
+    tmp = [x for x in below if check_ll_trend(hmm, thresh, n_iter=iterations[x]) == 'plateau']
+    if len(tmp) != 0:
+        below = tmp
+
+    maxima = np.argmax(ll_hist[below]) # this gives the index in below
+    maxima = iterations[below[maxima]] # this is the iteration at which the maxima occurred
+    hmm.roll_back(maxima, spikes=spikes, dt=dt)
+    return hmm
+
+
+def get_new_id(ids=None):
+    if ids is None or len(ids) == 0:
+        return 0
+
+    nums = np.arange(0, np.max(ids) + 2)
+    diff_nums = [x for x in nums if x not in ids]
+    return np.min(diff_nums)
 
 
 class PoissonHMM(object):
-    '''Poisson implementation of Hidden Markov Model for fitting spike data
-    from a neuronal population
-    Author: Roshan Nanu
-    Adpated from code by Ben Ballintyn
-    '''
-    def __init__(self, n_predicted_states, PI=None, A=None, B=None,
-                 cost_window=0.25, max_history=1000, hmm_id=None, spikes=None,
-                 dt=None, iteration=0):
-        self.n_states = n_predicted_states
+    def __init__(self, n_states, hmm_id=None):
+        self.stat_arrays = {} # dict of cumulative stats to keep while fitting
+                              # iterations, max_log_likelihood, fit log
+                              # likelihood, cost, best_sequences, gamma
+                              # probabilities, time, row_id
+        self.n_states = n_states
         self.hmm_id = hmm_id
-        self._cost_window = cost_window
-        self._max_history = max_history
-        self.set_params(PI, A, B, iteration, spikes, dt)
-        self.converged = False
+
+        self.transition = None
+        self.emission = None
+        self.initial_distribution = None
+
         self.fitted = False
-        self.cost_hist = []
-        self.ll_hist = []
-        self.gamma_probs = []
+        self.converged = False
 
-    def set_params(self, PI=None, A=None, B=None, iteration=0, spikes=None, dt=None):
-        self.initial_distribution = PI
-        self.transition = A
-        self.emission = B
-        self.iteration = iteration
-        self.history = None
-        if spikes is None or dt is None:
-            self.cost = None
-            self.BIC = None
-            self.max_log_prob = None
-            self.best_sequences = None
-        elif PI is not None and A is not None and B is not None:
-            spikes = spikes.astype(np.int32)
-            self._update_cost(spikes, dt)
-        else:
-            spikes = spikes.astype(np.int32)
-            self.randomize(spikes, dt)
-            self._update_cost(spikes, dt)
+        self.cost = None
+        self.BIC = None
+        self.max_log_prob = None
+        self.fit_LL = None
 
-    def randomize(self, spikes, dt):
-        nStates = self.n_states
+    def randomize(self, spikes, dt, time, row_id=None):
+        # setup parameters 
+        # make transition matrix
+        # all baseline states have equal probability of staying or changing
+        # into each other and the early states
+        # each early state has high stay probability and low chance to transition into 
         n_trials, n_cells, n_steps = spikes.shape
-        total_time = n_steps * dt
+        n_states = self.n_states
 
         # Initialize transition matrix with high stay probability
+        # A is prob from going from state row to state column
         print('%s: Randomizing' % os.getpid())
-        diag = np.abs(np.random.normal(.99, .01, nStates))
-        A = np.abs(np.random.normal(0.01/(nStates-1), 0.01, (nStates, nStates)))
-        for i in range(nStates):
+        # Design transition matrix with large diagnonal and small everything else
+        diag = np.abs(np.random.normal(.99, .01, n_states))
+        A = np.abs(np.random.normal(0.01/(n_states-1), 0.01, (n_states, n_states)))
+        for i in range(n_states):
             A[i, i] = diag[i]
-            A[i,:] = A[i,:] / np.sum(A[i,:])
+            A[i,:] = A[i,:] / np.sum(A[i,:]) # normalize row to sum to 1
 
         # Initialize rate matrix ("Emission" matrix)
-        spike_counts = np.sum(spikes, axis=2) / total_time
+        spike_counts = np.sum(spikes, axis=2) / (len(time)*dt)
         mean_rates = np.mean(spike_counts, axis=0)
         std_rates = np.std(spike_counts, axis=0)
-        B = np.vstack([np.abs(np.random.normal(x, y, nStates))
+        B = np.vstack([np.abs(np.random.normal(x, y, n_states))
                        for x,y in zip(mean_rates, std_rates)])
-        # B = np.random.rand(nCells, nStates)
+        PI = np.ones((n_states,)) / n_states
+        # TODO: remove these constraint, 8/24/20
+        PI[0] = 1.0
+        PI[1:] = 0.0
+        A[-1, :-1] = 0.0
+        A[-1, -1] = 1.0
+        # This will make state consecutive
+        if n_states > 2:
+            for i in np.arange(1,n_states-1):
+                A[i, :i] = 0.0
+                A[i,:] = A[i,:]/np.sum(A[i,:])
 
-        PI = np.ones((nStates,)) / nStates
-        self.set_params(PI=PI, A=A, B=B)
-        self.converged = False
+        # RN10 preCTA fit better without constraining initial firing rate
+        # mr = np.mean(np.sum(spikes[:, :, :int(500/dt)], axis=2), axis=0)
+        # sr = np.std(np.sum(spikes[:, :, :int(500/dt)], axis=2), axis=0)
+        # B[:, 0] = [np.abs(np.random.normal(x, y, 1))[0] for x,y in zip(mr, sr)]
+
+        self.transition = A
+        self.emission = B
+        self.initial_distribution = PI
         self.fitted = False
+        self.converged = False
+        self.iteration = 0
+        self.stat_arrays['row_id'] = row_id
+        self._init_history()
+        self.stat_arrays['gamma_probabilities'] = self.get_gamma_probabilities(spikes, dt)
+        self.stat_arrays['time'] = time
         self._update_cost(spikes, dt)
+        self._update_history()
 
-    def fit(self, spikes, dt, max_iter = 1000, convergence_thresh = 1e-5,
-            parallel=False):
+    def _init_history(self):
+        self.stat_arrays['cost'] = []
+        self.stat_arrays['BIC'] = []
+        self.stat_arrays['max_log_prob'] = []
+        self.stat_arrays['fit_LL'] = []
+        self.stat_arrays['iterations'] = []
+        self.history = {'A': [], 'B': [], 'PI': [], 'iterations':[]}
+
+    def _update_history(self):
+        itr = self.iteration
+        self.history['A'].append(self.transition)
+        self.history['B'].append(self.emission)
+        self.history['PI'].append(self.initial_distribution)
+        self.history['iterations'].append(itr)
+
+        self.stat_arrays['cost'].append(self.cost)
+        self.stat_arrays['BIC'].append(self.BIC)
+        self.stat_arrays['max_log_prob'].append(self.max_log_prob)
+        self.stat_arrays['fit_LL'].append(self.fit_LL)
+        self.stat_arrays['iterations'].append(itr)
+
+    def fit(self, spikes, dt, time, max_iter = 500, threshold=1e-5, parallel=False):
         '''using parallels for processing trials actually seems to slow down
         processing (with 15 trials). Might still be useful if there is a very
         large nubmer of trials
@@ -696,27 +903,44 @@ class PoissonHMM(object):
         if (self.initial_distribution is None or
             self.transition is None or
             self.emission is None):
-            self.randomize(spikes, dt)
+            raise ValueError('Must first initialize fit matrices either manually or via randomize')
 
         converged = False
+        last_logl = None
+        self.stat_arrays['time'] = time
         while (not converged and (self.iteration < max_iter)):
-            self.update_history()
-            if self.iteration >= 100:
-                trend = check_ll_trend(self, convergence_thresh)
-                if trend == 'decreasing':
-                    return False
-                elif trend == 'plateau':
-                    converged = True
-                    self.fitted = True
-                    self.converged = True
-                    return True
+            self.fit_LL = self._step(spikes, dt, parallel=parallel)
+            self._update_history()
+            # if self.iteration >= 100:
+            #     trend = check_ll_trend(self, threshold)
+            #     if trend == 'decreasing':
+            #         return False
+            #     elif trend == 'plateau':
+            #         converged = True
 
-            self._step(spikes, dt, parallel=parallel)
+            if last_logl is None:
+                delta_ll = np.abs(self.fit_LL)
+            else:
+                delta_ll = np.abs((last_logl - self.fit_LL)/self.fit_LL)
+
+            if (last_logl is not None and
+                np.isfinite(delta_ll) and
+                delta_ll < threshold and
+                np.isfinite(self.fit_LL) and
+                self.iteration>2):
+                # This log likelihood measure doesn't look right, the change
+                # seems to always be 0
+                # 8/24/20: Fixed, this is now a good measure
+                converged = True
+                print('%s: %s: Change in log likelihood converged' % (os.getpid(), self.hmm_id))
+
+            last_logl = self.fit_LL
+
             # Convergence check is replaced by checking LL trend for plateau
-            converged = self.isConverged(convergence_thresh)
-            print('%s: %s: Iter #%i complete.' % (os.getpid(), self.hmm_id, self.iteration))
+            # converged = self.isConverged(convergence_thresh)
+            print('%s: %s: Iter #%i complete. Log-likelihood is %.2E. Delta is %.2E'
+                  % (os.getpid(), self.hmm_id, self.iteration, self.fit_LL, delta_ll))
 
-        self.update_history()
         self.fitted = True
         self.converged = converged
         return True
@@ -741,143 +965,34 @@ class PoissonHMM(object):
 
         results = Parallel(n_jobs=n_cores)(delayed(baum_welch)(trial, dt, PI, A, B)
                                            for trial in spikes)
-        gammas, epsilons = zip(*results)
+        gammas, epsilons, norms = zip(*results)
         gammas = np.array(gammas)
         epsilons = np.array(epsilons)
+        norms = np.array(norms)
+        #logl = np.sum(norms)
+        logl = np.sum(np.log(norms))
 
         PI, A, B = compute_new_matrices(spikes, dt, gammas, epsilons)
+        # Make sure rates are non-zeros for computations
+        # B[np.where(B==0)] = 1e-300
         self.transition = A
         self.emission = B
         self.initial_distribution = PI
-        self.gamma_probs = gammas
+        self.stat_arrays['gamma_probabilities'] = gammas
         self.iteration = self.iteration + 1
         self._update_cost(spikes, dt)
-
-    def update_history(self):
-        A = self.transition
-        B = self.emission
-        PI = self.initial_distribution
-        BIC = self.BIC
-        cost = self.cost
-        iteration = self.iteration
-        max_log_prob = self.max_log_prob
-
-        self.cost_hist.append(cost)
-        self.ll_hist.append(max_log_prob)
-        if self.history is None:
-            self.history = {}
-            self.history['A'] = [A]
-            self.history['B'] = [B]
-            self.history['PI'] = [PI]
-            self.history['iterations'] = [iteration]
-            self.history['cost'] = [cost]
-            self.history['BIC'] = [BIC]
-            self.history['max_log_prob'] = [max_log_prob]
-        else:
-            if iteration in self.history['iterations']:
-                return self.history
-
-            self.history['A'].append(A)
-            self.history['B'].append(B)
-            self.history['PI'].append(PI)
-            self.history['iterations'].append(iteration)
-            self.history['cost'].append(cost)
-            self.history['BIC'].append(BIC)
-            self.history['max_log_prob'].append(max_log_prob)
-
-        if len(self.history['iterations']) > self._max_history:
-            nmax = self._max_history
-            for k, v in self.history.items():
-                self.history[k] = v[-nmax:]
-
-        return self.history
-
-    def isConverged(self, thresh):
-        if self.history is None:
-            return False
-
-        idx = np.where(self.history['iterations'] == self.iteration-1)[0]
-        if len(idx) == 0:
-            return False
-        else:
-            idx = idx[0]
-
-        oldPI = self.history['PI'][idx]
-        oldA = self.history['A'][idx]
-        oldB = self.history['B'][idx]
-        oldCost = self.history['cost'][idx]
-
-        PI = self.initial_distribution
-        A = self.transition
-        B = self.emission
-        cost = self.cost
-
-        # Instead of Euclidean distance, check that the change of EVERY item is less than threshold
-
-        ##################################################
-        # Old Way
-        ##################################################
-        # dPI = np.sqrt(np.sum(np.power(oldPI - PI, 2)))
-        # dA = np.sqrt(np.sum(np.power(oldA - A, 2)))
-        # dB = np.sqrt(np.sum(np.power(oldB - B, 2)))
-        # dCost = cost-oldCost
-        # print('dPI = %f,  dA = %f,  dB = %f, dCost = %f, cost = %f'
-        #       % (dPI, dA, dB, dCost, cost))
-
-        # TODO: determine if this is reasonable
-        # dB takes waaaaay longer to converge than the rest, i'm going to
-        # double the thresh just for that
-        # dB = dB/2
-
-        #if not all([x < thresh for x in [dPI, dA, dB]]):
-        #    return False
-        #else:
-        #    return True
-
-        ##################################################
-        # New Way
-        ##################################################
-        dPI = np.abs(oldPI - PI)
-        dA = np.abs(oldA - A)
-        dB = np.abs(oldB - B)
-        delta = np.concatenate((dPI.ravel(), dA.ravel(), dB.ravel()))
-        dPI = np.sqrt(np.sum(np.power(dPI,2)))
-        dA = np.sqrt(np.sum(np.power(dA,2)))
-        dB = np.sqrt(np.sum(np.power(dB,2)))
-        dCost = cost-oldCost
-        print('dPI = %f,  dA = %f,  dB = %f, dCost = %f, cost = %f'
-              % (dPI, dA, dB, dCost, cost))
-
-        if all(delta <= thresh):
-            return True
-        else:
-            return False
-
-    def _update_cost(self, spikes, dt):
-        spikes = spikes.astype('int32')
-        win_size = self._cost_window
-        PI = self.initial_distribution
-        A  = self.transition
-        B  = self.emission
-        cost, BIC, bestPaths, maxLogProb = compute_hmm_cost(spikes, dt, PI, A, B,
-                                                            win_size=win_size)
-        self.cost = cost
-        self.BIC = BIC
-        self.best_sequences = bestPaths
-        self.max_log_prob = maxLogProb
+        return logl
 
     def get_best_paths(self, spikes, dt):
-        if self.best_sequences is not None:
-            return self.best_sequences, self.max_log_prob
+        if 'best_sequences' is self.stat_arrays.keys():
+            return self.stat_arrays['best_sequences'], self.max_log_prob
 
         PI = self.initial_distribution
         A = self.transition
         B = self.emission
 
         bestPaths, pathProbs = compute_best_paths(spikes, dt, PI, A, B)
-        self.best_sequences = bestPaths
-        self.max_log_prob = np.max(pathProbs)
-        return bestPaths, self.max_log_prob
+        return bestPaths, np.sum(pathProbs)
 
     def get_forward_probabilities(self, spikes, dt, parallel=False):
         PI = self.initial_distribution
@@ -885,20 +1000,14 @@ class PoissonHMM(object):
         B = self.emission
         if parallel:
             n_cpu = cpu_count() -1
-            a_results = Parallel(n_jobs=n_cpu, verbose=20)(delayed(forward)
-                                                           (trial, dt, PI, A, B)
-                                                           for trial in spikes)
-            alphas, norms = zip(*a_results)
         else:
             n_cpu = 1
-            alphas = []
-            norms = []
-            for trial in spikes:
-                tmp_alpha, tmp_norms = forward(trial, dt, PI, A, B)
-                alphas.append(tmp_alpha)
-                norms.append(tmp_norms)
 
-        return np.array(alphas)
+        a_results = Parallel(n_jobs=n_cpu)(delayed(forward)
+                                           (trial, dt, PI, A, B)
+                                           for trial in spikes)
+        alphas, norms = zip(*a_results)
+        return np.array(alphas), np.array(norms)
 
     def get_backward_probabilities(self, spikes, dt, parallel=False):
         PI = self.initial_distribution
@@ -930,58 +1039,47 @@ class PoissonHMM(object):
 
         results = Parallel(n_jobs=n_cpu)(delayed(baum_welch)(trial, dt, PI, A, B)
                                          for trial in spikes)
-        gammas, _ = zip(*results)
+        gammas, _, _ = zip(*results)
         return np.array(gammas)
 
-    def set_to_lowest_cost(self):
-        hist = self.history
-        idx = np.argmin(hist['cost'])
-        iteration = hist['iterations'][idx]
-        self.roll_back(iteration)
+    def _update_cost(self, spikes, dt):
+        spikes = spikes.astype('int')
+        PI = self.initial_distribution
+        A  = self.transition
+        B  = self.emission
+        cost, BIC, bestPaths, maxLogProb = compute_hmm_cost(spikes, dt, PI, A, B)
+        self.cost = cost
+        self.BIC = BIC
+        self.max_log_prob = maxLogProb
+        self.stat_arrays['best_sequences'] = bestPaths
 
-    def set_to_lowest_BIC(self):
-        hist = self.history
-        idx = np.argmin(hist['BIC'])
-        iteration = hist['iterations'][idx]
-        self.roll_back(iteration)
-
-    def set_to_highest_likelihood(self, exclude=50):
-        '''Rolls back the HMM to the iteration with the highest log likelihood,
-        excluding the first N trials
-        '''
-        hist = self.history
-        idx = np.argmax(self.ll_hist)
-        iteration = hist['iterations'][idx]
-        self.roll_back(iteration)
-
-    def find_best_in_history(self):
-        hist = self.history
-        PIs = hist['PI']
-        As = hist['A']
-        Bs = hist['B']
-        iters = hist['iterations']
-        BICs = hist['BIC']
-        idx = np.argmin(BICs)
-        out = {'PI': PIs[idx], 'A': As[idx], 'B': Bs[idx]}
-        return out, iters[idx], BICs
-
-    def roll_back(self, iteration):
-        hist = self.history
-        try:
-            idx = hist['iterations'].index(iteration)
-        except ValueError:
+    def roll_back(self, iteration, spikes=None, dt=None):
+        itrs = self.history['iterations']
+        idx = np.where(itrs == iteration)[0]
+        if len(idx) == 0:
             raise ValueError('Iteration %i not found in history' % iteration)
 
-        dat = {k:v[idx] for k,v in hist.items()}
-        self.set_params(PI=dat['PI'], A=dat['A'], B=dat['B'],
-                        iteration=iteration)
-        self.BIC = dat['BIC']
-        self.cost = dat['cost']
-        self.max_log_prob = dat['max_log_prob']
+        idx = idx[0]
+        self.emission = self.history['B'][idx]
+        self.transition = self.history['A'][idx]
+        self.initial_distribution = self.history['PI'][idx]
+        self.iteration = iteration
+
+        itrs = self.stat_arrays['iterations']
+        idx = np.where(itrs == iteration)[0][0]
+        self.fit_LL = self.stat_arrays['fit_LL'][idx]
+        self.max_log_prob = self.stat_arrays['max_log_prob'][idx]
+        self.BIC = self.stat_arrays['BIC'][idx]
+        self.cost = self.stat_arrays['cost'][idx]
+        if spikes is not None and dt is not None:
+            self.stat_arrays['gamma_probabilities'] = self.get_gamma_probabilities(spikes, dt)
+            self._update_cost(spikes, dt)
+
+        self._update_history()
 
 
 class HmmHandler(object):
-    def __init__(self, dat, params=None, save_dir=None):
+    def __init__(self, dat, save_dir=None):
         '''Takes a blechpy dataset object and fits HMMs for each tastant
 
         Parameters
@@ -997,9 +1095,6 @@ class HmmHandler(object):
                 bin_size: time bin for spike array when fitting in seconds
                 n_states: predicted number of states to fit
         '''
-        if isinstance(params, dict):
-            params = [params]
-
         if isinstance(dat, str):
             fd = dat
             dat = load_dataset(dat)
@@ -1018,12 +1113,7 @@ class HmmHandler(object):
         self.root_dir = dat.root_dir
         self.save_dir = save_dir
         self.h5_file = os.path.join(save_dir, '%s_HMM_Analysis.hdf5' % dat.data_name)
-        dim = dat.dig_in_mapping.query('exclude==False')
-        tastes = dim['name'].tolist()
-        self._orig_params = params
         self.load_params()
-        if params is not None:
-            self.add_params(params)
 
         if not os.path.isdir(save_dir):
             os.makedirs(save_dir)
@@ -1035,7 +1125,7 @@ class HmmHandler(object):
         hmmIO.setup_hmm_hdf5(self.h5_file)
         # this function can be edited to account for parameters added in the
         # future
-        hmmIO.fix_hmm_overview(self.h5_file)
+        # hmmIO.fix_hmm_overview(self.h5_file)
 
     def load_params(self):
         self._data_params = []
@@ -1044,42 +1134,24 @@ class HmmHandler(object):
         if not os.path.isfile(h5_file):
             return
 
-        with tables.open_file(h5_file, 'r') as hf5:
-            if 'data_overview' not in hf5.root:
-                return
+        overview = self.get_data_overview()
+        if overview.empty:
+            return
 
-            table = hf5.root.data_overview
-            col_names = table.colnames
-            for row in table[:]:
-                p = {}
-                for k in col_names:
-                    if table.coltypes[k] == 'string':
-                        p[k] = row[k].decode('utf-8')
-                    else:
-                        p[k] = row[k]
+        for i in overview.hmm_id:
+            _, _, _, _, p = hmmIO.read_hmm_from_hdf5(h5_file, i)
+            for k in list(p.keys()):
+                if k not in HMM_PARAMS.keys():
+                    _ = p.pop(k)
 
-                _ = p.pop('BIC')
-                _ = p.pop('cost')
-                _ = p.pop('n_iterations')
-                _ = p.pop('converged')
-                if 'max_log_prob' in p:
-                    _ = p.pop('max_log_prob')
-
-                self.add_params(p)
+            self.add_params(p)
 
     def get_parameter_overview(self):
         df = pd.DataFrame(self._data_params)
         return df
 
     def get_data_overview(self):
-        with tables.open_file(self.h5_file, 'r') as hf5:
-            table = hf5.root.data_overview
-            df = pd.DataFrame(table[:])
-            df['unit_type'] = df['unit_type'].apply(lambda x: x.decode('utf-8'))
-            df['taste'] = df['taste'].apply(lambda x: x.decode('utf-8'))
-            df['area'] = df['area'].apply(lambda x: x.decode('utf-8'))
-
-        return df
+        return hmmIO.get_hmm_overview_from_hdf5(self.h5_file)
 
     def run(self, parallel=True, overwrite=False):
         h5_file = self.h5_file
@@ -1145,7 +1217,7 @@ class HmmHandler(object):
 
         # Fill in blanks with defaults
         for k, v in HMM_PARAMS.items():
-            if k not in params:
+            if k not in params.keys():
                 params[k] = v
                 print('Parameter %s not provided. Using default value: %s'
                       % (k, repr(v)))
@@ -1159,8 +1231,16 @@ class HmmHandler(object):
         dim = dat.dig_in_mapping.query('exclude == False and spike_array == True')
         if params['taste'] is None:
             tastes = dim['name'].tolist()
+            single_taste = True
+        elif isinstance(params['taste'], list):
+            tastes = [t for t in params['taste'] if any(dim['name'] == t)]
+            single_taste = False
+        elif params['taste'] == 'all':
+            tastes = dim['name'].tolist()
+            single_taste = False
         else:
             tastes = [params['taste']]
+            single_taste = True
 
         dim = dim.set_index('name')
         if not hasattr(dat, 'dig_in_trials'):
@@ -1168,34 +1248,65 @@ class HmmHandler(object):
 
         trials = dat.dig_in_trials
         hmm_ids = [x['hmm_id'] for x in data_params]
-        for t in tastes:
-            p = params.copy()
+        if single_taste:
+            for t in tastes:
+                p = params.copy()
 
-            p['taste'] = t
-            # Skip if parameter is already in parameter set
+                p['taste'] = t
+                # Skip if parameter is already in parameter set
+                if any([hmmIO.compare_hmm_params(p, dp) for dp in data_params]):
+                    print('Parameter set already in data_params, '
+                          'to re-fit run with overwrite=True')
+                    continue
+
+                if t not in dim.index:
+                    print('Taste %s not found in dig_in_mapping or marked to exclude. Skipping...' % t)
+                    continue
+
+                if p['hmm_id'] is None:
+                    hid = get_new_id(hmm_ids)
+                    p['hmm_id'] = hid
+                    hmm_ids.append(hid)
+
+                p['channel'] = dim.loc[t, 'channel']
+                unit_names = query_units(dat, p['unit_type'], area=p['area'])
+                p['n_cells'] = len(unit_names)
+                if p['n_trials'] is None:
+                    p['n_trials'] = len(trials.query('name == @t'))
+
+                data_params.append(p)
+                for i in range(p['n_repeats']):
+                    fit_params.append(p.copy())
+
+        else:
             if any([hmmIO.compare_hmm_params(p, dp) for dp in data_params]):
                 print('Parameter set already in data_params, '
                       'to re-fit run with overwrite=True')
-                continue
+                return
 
-            if t not in dim.index:
-                print('Taste %s not found in dig_in_mapping or marked to exclude. Skipping...' % t)
-                continue
+            channels = [dim.loc[x,'channel'] for x in tastes]
+            params['taste'] = tastes
+            params['channel'] = channels
 
-            if p['hmm_id'] is None:
+            # this is basically meaningless right now, since this if clause
+            # should only be used with ConstrainedHMM which will fit 5
+            # baseline states and 2 states per taste
+            params['n_states'] = params['n_states']*len(tastes)
+
+            if params['hmm_id'] is None:
                 hid = get_new_id(hmm_ids)
-                p['hmm_id'] = hid
+                params['hmm_id'] = hid
                 hmm_ids.append(hid)
 
-            p['channel'] = dim.loc[t, 'channel']
-            unit_names = query_units(dat, p['unit_type'], area=p['area'])
-            p['n_cells'] = len(unit_names)
-            if p['n_trials'] is None:
-                p['n_trials'] = len(trials.query('name == @t'))
+            unit_names = query_units(dat, params['unit_type'],
+                                     area=params['area'])
+            params['n_cells'] = len(unit_names)
+            if params['n_trials'] is None:
+                params['n_trials'] = len(trials.query('name == @t'))
 
-            data_params.append(p)
-            for i in range(p['n_repeats']):
-                fit_params.append(p.copy())
+            data_params.append(params)
+            for i in range(params['n_repeats']):
+                fit_params.append(params.copy())
 
         self._data_params = data_params
         self._fit_params = fit_params
@@ -1213,82 +1324,141 @@ class HmmHandler(object):
         self.load_params()
 
 
-def get_hmm_overview_from_hdf5(h5_file):
-    with tables.open_file(h5_file, 'r') as hf5:
-        table = hf5.root.data_overview
-        df = pd.DataFrame(table[:])
-        df['unit_type'] = df['unit_type'].apply(lambda x: x.decode('utf-8'))
-        df['taste'] = df['taste'].apply(lambda x: x.decode('utf-8'))
+class ConstrainedHMM(PoissonHMM):
+    def __init__(self, n_tastes, n_baseline=3, hmm_id=None):
+        self.stat_arrays = {} # dict of cumulative stats to keep while fitting
+                              # iterations, max_log_likelihood, fit log
+                              # likelihood, cost, best_sequences, gamma
+                              # probabilities, time, row_id
+        self.n_tastes = n_tastes
+        self.n_baseline = n_baseline
+        n_states = n_baseline + 2*n_tastes
+        super().__init__(n_states, hmm_id=hmm_id)
 
-    return df
+    def randomize(self, spikes, dt, time, row_id=None):
+        # setup parameters 
+        # make transition matrix
+        # all baseline states have equal probability of staying or changing
+        # into each other and the early states
+        # each early state has high stay probability and low chance to transition into 
+        n_trials, n_cells, n_steps = spikes.shape
+        n_tastes = self.n_tastes
+        n_baseline = self.n_baseline
+        n_states = n_baseline + n_tastes*2
 
+        # Transition Matrix: state X state, A[i,j] is prob to go from state i to state j
+        unit = 1/(n_baseline + n_tastes)
+        A0 = np.random.normal(unit, 0.01, (n_baseline, n_baseline)).astype('float64')
+        A1 = np.vstack([[unit, 0]*n_tastes]*n_baseline).astype('float64')
+        A2 = np.zeros((n_tastes*2, n_baseline)).astype('float64')
+        A3 = np.zeros((n_tastes*2, n_tastes*2)).astype('float64')
+        for i in range(n_tastes):
+            j = 2*i
+            A3[j, j] = np.min((0.999, np.random.normal(0.98, 0.01, 1)))
+            A3[j, j+1] = 1-A3[j,j]
+            A3[j+1, j] = 0
+            A3[j+1, j+1] = 1
 
-def isConverged(hmm, thresh):
-    '''Check HMM convergence based on the log-likelihood
-    '''
-    pass
+        A = np.hstack((np.vstack((A0, A2)), np.vstack((A1, A3))))
 
-def check_ll_trend(hmm, thresh, n_iter=None):
-    '''Check the trend of the log-likelihood to see if it has plateaued, is
-    decreasing or is increasing
-    '''
-    if n_iter is None:
-        n_iter = hmm.iteration
+        # Rate Matrix: cells X states, Bij is firing rate of cell i in state j
+        b_idx = np.where(time < 0)[0]
+        e_idx = np.where((time >= 0) & (time < np.max(time)/2))[0]
+        l_idx = np.where(time >= np.max(time)/2)[0]
+        if len(b_idx) == 0:
+            b_idx = np.arange(n_steps)
 
-    ll_hist = hmm.ll_hist
-    if n_iter == len(ll_hist):
-        n_iter = n_iter-1
+        baseline = np.mean(np.sum(spikes[:, :, b_idx], axis=2), axis=0) / (len(b_idx)*dt)
+        b_sd = np.std(np.sum(spikes[:, :, b_idx], axis=2), axis=0) / (len(b_idx)*dt)
+        early = np.mean(np.sum(spikes[:, :, e_idx], axis=2), axis=0) / (len(e_idx)*dt)
+        e_sd = np.std(np.sum(spikes[:, :, e_idx], axis=2), axis=0) / (len(e_idx)*dt)
+        late = np.mean(np.sum(spikes[:, :, l_idx], axis=2), axis=0) / (len(l_idx)*dt)
+        l_sd = np.std(np.sum(spikes[:, :, l_idx], axis=2), axis=0) / (len(l_idx)*dt)
 
-    filt_ll = gaussian_filter1d(ll_hist, 4)
-    diff_ll = np.diff(filt_ll)
+        rates = np.zeros((n_cells, n_states))
+        minFR = 1/n_steps
+        for i in range(n_cells):
+            row = [np.random.normal(baseline[i], b_sd[i], n_baseline)]
+            for j in range(n_tastes):
+                row.append(np.random.normal(early[i], e_sd[i], 1))
+                row.append(np.random.normal(late[i], l_sd[i], 1))
 
-    # Linear fit, if overall trend is decreasing, it fails
-    z = np.polyfit(range(len(ll_hist)), filt_ll, 1)
-    if z[0] <= 0:
-        return 'decreasing'
+            row = np.hstack(row)
+            rates[i, :] = np.array([np.max((x, minFR)) for x in row])
 
-    # Check if it has plateaued
-    if all(np.abs(diff_ll[n_iter-5:n_iter]) <= thresh):
-        return 'plateau'
+        # Initial probabilities
+        # Equal prob of all baseline states
+        unit = 1/n_baseline
+        PI = np.hstack([[np.random.normal(unit, 0.02, 1)[0]
+                         for x in range(n_baseline)],
+                        np.zeros((n_tastes*2,))])
+        PI = PI/np.sum(PI)
 
-    # if its a maxima and hasn't plateaued it needs to continue fitting
-    if np.max(filt_ll) == filt_ll[n_iter]:
-        return 'increasing'
+        self.transition = A
+        self.emission = rates
+        self.initial_distribution = PI
+        self.fitted = False
+        self.converged = False
+        self.iteration = 0
+        self.stat_arrays['row_id'] = row_id
+        self._init_history()
+        self.stat_arrays['gamma_probabilities'] = self.get_gamma_probabilities(spikes, dt)
+        self._update_cost(spikes, dt)
+        self._update_history()
 
-    return 'flux'
+    def fit(self, spikes, dt, time, max_iter = 500, threshold=1e-4, parallel=False):
+        '''using parallels for processing trials actually seems to slow down
+        processing (with 15 trials). Might still be useful if there is a very
+        large nubmer of trials
+        '''
+        spikes = spikes.astype('int32')
+        if (self.initial_distribution is None or
+            self.transition is None or
+            self.emission is None):
+            raise ValueError('Must first initialize fit matrices either manually or via randomize')
 
-def roll_back_hmm_to_best(hmm, spikes, dt, thresh):
-    '''Looks at the log likelihood over fitting and determines the best
-    iteration to have stopped at by choosing a local maxima during a period
-    where the smoothed LL trace has plateaued
-    '''
-    ll_hist = np.array(hmm.ll_hist)
-    filt_ll = gaussian_filter1d(ll_hist, 4)
-    diff_ll = np.diff(filt_ll)
-    iterations = np.array(hmm.history['iterations'])
-    below = np.where(np.abs(diff_ll) < thresh)[0] + 1 # since diff_ll is 1 smaller than ll_hist
-    # Exclude maxima less than 50 iterations since its pretty spikey early on
-    below = [x for x in below if (x in iterations and x > 50)]
-    # If there are none that fit criteria, just pick best past 50
-    if len(below) == 0:
-        below = iterations[iterations > 50]
+        converged = False
+        last_logl = None
+        self.stat_arrays['time'] = time
+        while (not converged and (self.iteration < max_iter)):
+            self.fit_LL = self._step(spikes, dt, parallel=parallel)
+            self._update_history()
+            # if self.iteration >= 100:
+            #     trend = check_ll_trend(self, threshold)
+            #     if trend == 'decreasing':
+            #         return False
+            #     elif trend == 'plateau':
+            #         converged = True
 
-    tmp = [x for x in below if check_ll_trend(hmm, thresh, x) == 'plateau']
-    if len(tmp) != 0:
-        below = tmp
+            if last_logl is None:
+                delta_ll = np.abs(self.fit_LL)
+            else:
+                delta_ll = np.abs((last_logl - self.fit_LL)/self.fit_LL)
 
-    maxima = np.argmax(ll_hist[below]) # this gives the index in below
-    maxima = below[maxima] # this is the iteration at which the maxima occurred
-    hmm.roll_back(maxima)
-    hmm._update_cost(spikes, dt)
-    hmm.gamma_probs = hmm.get_gamma_probabilities(spikes, dt)
-    return hmm
+            if (last_logl is not None and
+                np.isfinite(delta_ll) and
+                delta_ll < threshold and
+                np.isfinite(self.fit_LL) and
+                self.iteration>2):
+                converged = True
+                print('%s: %s: Change in log likelihood converged' % (os.getpid(), self.hmm_id))
 
+            last_logl = self.fit_LL
 
-def get_new_id(ids=None):
-    if ids is None or len(ids) == 0:
-        return 0
+            # Convergence check is replaced by checking LL trend for plateau
+            # converged = self.isConverged(convergence_thresh)
+            print('%s: %s: Iter #%i complete. Log-likelihood is %.2E. Delta is %.2E'
+                  % (os.getpid(), self.hmm_id, self.iteration, self.fit_LL, delta_ll))
 
-    nums = np.arange(0, np.max(ids) + 2)
-    diff_nums = [x for x in nums if x not in ids]
-    return np.min(diff_nums)
+        self.fitted = True
+        self.converged = converged
+        return True
+
+        def get_baseline_states(self):
+            return np.arange(self.n_baseline)
+
+        def get_early_states(self):
+            return np.arange(self.n_baseline, self.n_states, 2)
+
+        def get_late_states(self):
+            return np.arange(self.n_baseline+1, self.n_states, 2)
