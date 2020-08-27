@@ -1,3 +1,7 @@
+v2.0.53 (2020-08-27)
+-------------------
+- Add method of imposing constraints on PoissonHMM both directly and via HmmHandler
+
 v2.0.52 (2020-08-27)
 -------------------
 - MAJOR BUX FIX: fix in HMM EM algorithm. Transition matrix was being improperly normalized

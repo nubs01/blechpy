@@ -590,7 +590,7 @@ def query_units(dat, unit_type, area=None):
     return out
 
 
-def fit_hmm_mp(rec_dir, params, h5_file=None):
+def fit_hmm_mp(rec_dir, params, h5_file=None, constraint_func=None):
     hmm_id = params['hmm_id']
     n_states = params['n_states']
     dt = params['dt']
@@ -633,7 +633,7 @@ def fit_hmm_mp(rec_dir, params, h5_file=None):
     elif params['hmm_class'] == 'ConstrainedHMM':
         hmm = ConstrainedHMM(len(channels), hmm_id=hmm_id)
 
-    hmm.randomize(spikes, dt, time, row_id=row_id)
+    hmm.randomize(spikes, dt, time, row_id=row_id, constraint_func=contraint_func)
     success = hmm.fit(spikes, dt, time, max_iter=max_iter, threshold=threshold)
     if not success:
         print('%s: Fitting Aborted for hmm %s' % (os.getpid(), hmm_id))
@@ -813,7 +813,28 @@ class PoissonHMM(object):
         self.max_log_prob = None
         self.fit_LL = None
 
-    def randomize(self, spikes, dt, time, row_id=None):
+    def randomize(self, spikes, dt, time, row_id=None, constraint_func=None):
+        '''Initialize and randomize HMM matrices: initial_distribution (PI),
+        transition (A) and emission/rates (B)
+        Parameters
+        ----------
+        spikes : np.ndarray, dtype=int
+            matrix of spike counts with dimensions trials x cells x time with binsize dt
+        dt : float
+            time step of spikes matrix in seconds
+        time : np.ndarray
+            1-D time vector corresponding to final dimension of spikes matrix,
+            in milliseconds
+        row_id : np.ndarray
+            array to uniquely identify each row of the spikes array. This will
+            thus identify each row of the best_sequences and gamma_probability
+            matrices that are computed and stored
+            useful when fitting a single HMM to trials with differing stimuli
+        constrain_func : function
+            user can provide a function that is used after randomization to
+            constrain the PI, A and B matrices. The function must take PI, A, B
+            as arguments and return PI, A, B.
+        '''
         # setup parameters 
         # make transition matrix
         # all baseline states have equal probability of staying or changing
@@ -841,20 +862,23 @@ class PoissonHMM(object):
                        for x,y in zip(mean_rates, std_rates)])
         PI = np.ones((n_states,)) / n_states
         # TODO: remove these constraint, 8/24/20
-        #PI[0] = 1.0
-        #PI[1:] = 0.0
-        #A[-1, :-1] = 0.0
-        #A[-1, -1] = 1.0
-        # This will make states consecutive
-        #if n_states > 2:
-        #    for i in np.arange(1,n_states-1):
-        #        A[i, :i] = 0.0
-        #        A[i,:] = A[i,:]/np.sum(A[i,:])
+        PI[0] = 1.0
+        PI[1:] = 0.0
+        A[-1, :-1] = 0.0
+        A[-1, -1] = 1.0
+         This will make states consecutive
+        if n_states > 2:
+            for i in np.arange(1,n_states-1):
+                A[i, :i] = 0.0
+                A[i,:] = A[i,:]/np.sum(A[i,:])
 
         # RN10 preCTA fit better without constraining initial firing rate
         # mr = np.mean(np.sum(spikes[:, :, :int(500/dt)], axis=2), axis=0)
         # sr = np.std(np.sum(spikes[:, :, :int(500/dt)], axis=2), axis=0)
         # B[:, 0] = [np.abs(np.random.normal(x, y, 1))[0] for x,y in zip(mr, sr)]
+
+        if constraint_func is not None:
+            PI, A, B = constraint_func(PI, A, B)
 
         self.transition = A
         self.emission = B
@@ -1150,7 +1174,7 @@ class HmmHandler(object):
     def get_data_overview(self):
         return hmmIO.get_hmm_overview_from_hdf5(self.h5_file)
 
-    def run(self, parallel=True, overwrite=False):
+    def run(self, parallel=True, overwrite=False, constraint_func=None):
         h5_file = self.h5_file
         rec_dir = self._dataset.root_dir
         if overwrite:
@@ -1168,7 +1192,8 @@ class HmmHandler(object):
             n_cpu = 1
 
         results = Parallel(n_jobs=n_cpu, verbose=100)(delayed(fit_hmm_mp)
-                                                     (rec_dir, p, h5_file)
+                                                     (rec_dir, p, h5_file,
+                                                      constraint_func)
                                                      for p in fit_params)
 
 
