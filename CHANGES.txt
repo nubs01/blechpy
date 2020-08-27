@@ -1,3 +1,8 @@
+v2.0.52 (2020-08-27)
+-------------------
+- MAJOR BUX FIX: fix in HMM EM algorithm. Transition matrix was being improperly normalized
+- Now log likelihood is being properly computed and effectively used as a convergence criteria for HMMs
+
 v2.0.51 (2020-08-06)
 -------------------
 - small edit to get_hmm_spike_data so that you can pass it a unit_type keyword
