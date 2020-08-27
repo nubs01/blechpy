@@ -261,7 +261,7 @@ def plot_forward_probs(hmm, spikes, dt, time=None, colors=None, axes=None, legen
     if legend:
         fig.subplots_adjust(right=0.9)  # To  make room for legend
 
-    alphas = hmm.get_forward_probabilities(spikes, dt)
+    alphas, norms = hmm.get_forward_probabilities(spikes, dt)
     n_trials, n_states, n_steps = alphas.shape
     if time is None:
         time = np.arange(0, n_steps)

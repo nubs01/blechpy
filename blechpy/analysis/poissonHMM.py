@@ -661,12 +661,9 @@ def fit_hmm_mp(rec_dir, params, h5_file=None):
                 hmmIO.write_hmm_to_hdf5(h5_file, hmm, params)
                 written = True
             else:
-                if np.isnan(old_hmm.max_log_prob):
-                    old_hmm._update_cost(spikes, dt, time)
-
-                print('%s: Existing HMM %s found. Comparing BIC ...' % (pid, hmm_id))
-                if hmm.max_log_prob > old_hmm.max_log_prob:
-                    print('%s: Replacing HMM %s due to higher max log likelihood' % (pid, hmm_id))
+                print('%s: Existing HMM %s found. Comparing log likelihood ...' % (pid, hmm_id))
+                if hmm.fit_LL > old_hmm.fit_LL:
+                    print('%s: Replacing HMM %s due to higher log likelihood' % (pid, hmm_id))
                     hmmIO.write_hmm_to_hdf5(h5_file, hmm, params)
                     written = True
 
@@ -703,10 +700,8 @@ def load_hmm_from_hdf5(h5_file, hmm_id):
     hmm.converged = params.pop('converged')
     hmm.fitted = params.pop('fitted')
     hmm.cost = params.pop('cost')
-    if 'max_log_prob' in params:
-        hmm.max_log_prob = params.pop('max_log_prob')
-    else:
-        hmm.max_log_prob = np.nan
+    hmm.fit_LL = params.pop('log_likelihood')
+    hmm.max_log_prob = params.pop('max_log_prob')
 
     return hmm, stat_arrays['time'], params
 
@@ -824,6 +819,7 @@ class PoissonHMM(object):
         # all baseline states have equal probability of staying or changing
         # into each other and the early states
         # each early state has high stay probability and low chance to transition into 
+        np.random.seed(None)
         n_trials, n_cells, n_steps = spikes.shape
         n_states = self.n_states
 
@@ -845,15 +841,15 @@ class PoissonHMM(object):
                        for x,y in zip(mean_rates, std_rates)])
         PI = np.ones((n_states,)) / n_states
         # TODO: remove these constraint, 8/24/20
-        PI[0] = 1.0
-        PI[1:] = 0.0
-        A[-1, :-1] = 0.0
-        A[-1, -1] = 1.0
-        # This will make state consecutive
-        if n_states > 2:
-            for i in np.arange(1,n_states-1):
-                A[i, :i] = 0.0
-                A[i,:] = A[i,:]/np.sum(A[i,:])
+        #PI[0] = 1.0
+        #PI[1:] = 0.0
+        #A[-1, :-1] = 0.0
+        #A[-1, -1] = 1.0
+        # This will make states consecutive
+        #if n_states > 2:
+        #    for i in np.arange(1,n_states-1):
+        #        A[i, :i] = 0.0
+        #        A[i,:] = A[i,:]/np.sum(A[i,:])
 
         # RN10 preCTA fit better without constraining initial firing rate
         # mr = np.mean(np.sum(spikes[:, :, :int(500/dt)], axis=2), axis=0)
@@ -871,6 +867,7 @@ class PoissonHMM(object):
         self.stat_arrays['gamma_probabilities'] = self.get_gamma_probabilities(spikes, dt)
         self.stat_arrays['time'] = time
         self._update_cost(spikes, dt)
+        self.fit_LL = self.max_log_prob
         self._update_history()
 
     def _init_history(self):
@@ -1183,7 +1180,7 @@ class HmmHandler(object):
         for hmm_id, written in results:
             print('%s : %s' % (hmm_id, written))
 
-        self.plot_saved_models()
+        #self.plot_saved_models()
         self.load_params()
 
     def plot_saved_models(self):

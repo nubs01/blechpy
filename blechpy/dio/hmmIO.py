@@ -154,6 +154,7 @@ def write_hmm_to_hdf5(h5_file, hmm, params):
             row['converged'] = hmm.converged
             row['fitted'] = hmm.fitted
             row['max_log_prob'] = hmm.max_log_prob
+            row['log_likelihood'] = hmm.fit_LL
             row['n_iterations'] = hmm.iteration
             row.update()
             break

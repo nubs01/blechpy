@@ -69,5 +69,6 @@ class HMMInfoParticle(tables.IsDescription):
     converged = tables.BoolCol()
     fitted = tables.BoolCol()
     max_log_prob = tables.Float64Col()
+    log_likelihood = tables.Float64Col()
     area = tables.StringCol(15)
     hmm_class = tables.StringCol(20)

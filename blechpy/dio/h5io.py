@@ -804,7 +804,7 @@ def get_spike_data(rec_dir, units=None, din=None, trials=None):
             spike_array = st['spike_array'][:, unit_nums, :]
             out[dig_str] = spike_array
 
-    if isinstance(trials, int) or isinstance(trials, np.int32):
+    if isinstance(trials, int) or isinstance(trials, np.int32) or isinstance(trials, np.int64):
         for k in out.keys():
             out[k] = out[k][:trials]
 
