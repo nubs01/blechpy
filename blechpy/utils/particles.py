@@ -72,3 +72,4 @@ class HMMInfoParticle(tables.IsDescription):
     log_likelihood = tables.Float64Col()
     area = tables.StringCol(15)
     hmm_class = tables.StringCol(20)
+    notes = tables.StringCol(25)

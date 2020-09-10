@@ -8,39 +8,54 @@ def fix_hmm_overview(h5_file):
     '''made to add the area column to the hmm overview
     now adds the hmm_class column
     '''
-    fix = False
+    fix = True
     if not os.path.isfile(h5_file):
         return
 
-#     with tables.open_file(h5_file, 'r') as hf5:
-#         if 'hmm_class' not in hf5.root.data_overview.colnames:
-#             fix = True
-# 
-#     if not fix:
-#         return
+    #with tables.open_file(h5_file, 'r') as hf5:
+    #    if 'notes' not in hf5.root.data_overview.colnames:
+    #        fix = True
+ 
+    #if not fix:
+    #    return
 
     print('Fixing data overview table in %s' % h5_file)
     with tables.open_file(h5_file, 'a') as hf5:
-#         new_table = hf5.create_table('/', 'tmp_overview', HMMInfoParticle,
-#                                      'Parameters and goodness-of-fit info for HMMs in file')
-#         table = hf5.root.data_overview
-#         columns = table.colnames
-#         new_row = new_table.row
-#         for row in table.iterrows():
-#             for x in columns:
-#                 new_row[x] = row[x]
-# 
-#             new_row.append()
-# 
-#         new_table.flush()
-#         hf5.move_node('/tmp_overview', '/', 'data_overview', overwrite=True)
+        for row in hf5.root.data_overview.where('log_likelihood == 0.'):
+            hmm_id = row['hmm_id']
+            h_str = 'hmm_%s' % hmm_id
+            fit_LL = hf5.root[h_str]['fit_LL'][-1]
+            row['log_likelihood'] = fit_LL
+            row.update()
 
-        # Now change state_sequences to best_sequences
-        nodes = [x for x in hf5.walk_nodes('/') if 'log_likelihood_hist' in x._v_pathname]
-        for x in nodes:
-            hf5.move_node(x._v_pathname, x._v_parent._v_pathname, 'max_log_prob')
-
+        hf5.root.data_overview.flush()
         hf5.flush()
+
+
+        #if 'tmp_overview' in hf5.root:
+        #    hf5.remove_node('/tmp_overview')
+
+        #new_table = hf5.create_table('/', 'tmp_overview', HMMInfoParticle,
+        #                             'Parameters and goodness-of-fit info for HMMs in file')
+        #table = hf5.root.data_overview
+        #columns = table.colnames
+        #new_row = new_table.row
+        #for row in table.iterrows():
+        #    for x in columns:
+        #        new_row[x] = row[x]
+ 
+        #    new_row['notes'] = 'PI & A constrained'
+        #    new_row.append()
+ 
+        #new_table.flush()
+        #hf5.move_node('/tmp_overview', '/', 'data_overview', overwrite=True)
+
+#       # Now change state_sequences to best_sequences
+#       nodes = [x for x in hf5.walk_nodes('/') if 'log_likelihood_hist' in x._v_pathname]
+#       for x in nodes:
+#           hf5.move_node(x._v_pathname, x._v_parent._v_pathname, 'max_log_prob')
+
+        #hf5.flush()
 
 
 def setup_hmm_hdf5(h5_file):
@@ -72,6 +87,11 @@ def read_hmm_from_hdf5(h5_file, hmm_id):
         PI = stat_arrays.pop('initial_distribution')
         A = stat_arrays.pop('transition')
         B = stat_arrays.pop('emission')
+
+        rs = stat_arrays['row_id'].shape
+        tmp = np.array([x.decode('utf-8') for x in stat_arrays['row_id'].ravel()])
+        stat_arrays['row_id'] = tmp.reshape(rs)
+
 
         table = hf5.root.data_overview
         for row in table.where('hmm_id == id', condvars={'id':hmm_id}):
@@ -177,6 +197,7 @@ def write_hmm_to_hdf5(h5_file, hmm, params):
             row['converged'] = hmm.converged
             row['fitted'] = hmm.fitted
             row['max_log_prob'] = hmm.max_log_prob
+            row['log_likelihood'] = hmm.fit_LL
             row['n_iterations'] = hmm.iteration
             row.append()
 
@@ -222,7 +243,7 @@ def delete_hmm_from_hdf5(h5_file, **kwargs):
 
 def compare_hmm_params(p1, p2):
     compare_keys = ['taste', 'unit_type', 'dt', 'max_iter', 'time_start',
-                    'time_end', 'n_states', 'n_trials', 'hmm_class', 'area']
+                    'time_end', 'n_states', 'n_trials', 'hmm_class', 'area', 'notes']
     for k in compare_keys:
         if p1[k] != p2[k]:
             return False

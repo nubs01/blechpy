@@ -29,7 +29,7 @@ HMM_PARAMS = {'hmm_id': None, 'taste': None, 'channel': None,
               'max_iter': 1000, 'n_cells': None, 'n_trials': None,
               'time_start': 0, 'time_end': 2000, 'n_repeats': 25,
               'n_states': 3, 'fitted': False, 'area': None,
-              'hmm_class': 'PoissonHMM'}
+              'hmm_class': 'PoissonHMM', 'notes': ''}
 
 
 FACTORIAL_LOOKUP = np.array([math.factorial(x) for x in range(20)])
@@ -515,6 +515,9 @@ def get_hmm_spike_data(rec_dir, unit_type, channel, time_start=None,
 
     time, spike_array = h5io.get_spike_data(rec_dir, units, channel, trials=trials)
     spike_array = spike_array.astype(np.int32)
+    if len(units) == 1:
+        spike_array = np.expand_dims(spike_array, 1)
+
     time = time.astype(np.float64)
     curr_dt = np.unique(np.diff(time))[0] / 1000
     if dt is not None and curr_dt < dt:
@@ -633,7 +636,7 @@ def fit_hmm_mp(rec_dir, params, h5_file=None, constraint_func=None):
     elif params['hmm_class'] == 'ConstrainedHMM':
         hmm = ConstrainedHMM(len(channels), hmm_id=hmm_id)
 
-    hmm.randomize(spikes, dt, time, row_id=row_id, constraint_func=contraint_func)
+    hmm.randomize(spikes, dt, time, row_id=row_id, constraint_func=constraint_func)
     success = hmm.fit(spikes, dt, time, max_iter=max_iter, threshold=threshold)
     if not success:
         print('%s: Fitting Aborted for hmm %s' % (os.getpid(), hmm_id))
@@ -650,9 +653,16 @@ def fit_hmm_mp(rec_dir, params, h5_file=None, constraint_func=None):
         lock_file = h5_file + '.lock'
         while os.path.exists(lock_file):
             print('%s: Waiting for file lock' % pid)
-            sys_time.sleep(10)
+            sys_time.sleep(20)
 
-        os.mknod(lock_file)
+        locked = True
+        while locked:
+            try:
+                os.mknod(lock_file)
+                locked=False
+            except:
+                sys_time.sleep(10)
+
         try:
             old_hmm, _, old_params = load_hmm_from_hdf5(h5_file, hmm_id)
 
@@ -662,6 +672,7 @@ def fit_hmm_mp(rec_dir, params, h5_file=None, constraint_func=None):
                 written = True
             else:
                 print('%s: Existing HMM %s found. Comparing log likelihood ...' % (pid, hmm_id))
+                print('New %.3E vs Old %.3E' % (hmm.fit_LL, old_hmm.fit_LL))
                 if hmm.fit_LL > old_hmm.fit_LL:
                     print('%s: Replacing HMM %s due to higher log likelihood' % (pid, hmm_id))
                     hmmIO.write_hmm_to_hdf5(h5_file, hmm, params)
@@ -679,6 +690,7 @@ def fit_hmm_mp(rec_dir, params, h5_file=None, constraint_func=None):
 
 
 def load_hmm_from_hdf5(h5_file, hmm_id):
+    hmm_id = int(hmm_id)
     existing_hmm = hmmIO.read_hmm_from_hdf5(h5_file, hmm_id)
     if existing_hmm is None:
         return None, None, None
@@ -861,16 +873,6 @@ class PoissonHMM(object):
         B = np.vstack([np.abs(np.random.normal(x, y, n_states))
                        for x,y in zip(mean_rates, std_rates)])
         PI = np.ones((n_states,)) / n_states
-        # TODO: remove these constraint, 8/24/20
-        PI[0] = 1.0
-        PI[1:] = 0.0
-        A[-1, :-1] = 0.0
-        A[-1, -1] = 1.0
-         This will make states consecutive
-        if n_states > 2:
-            for i in np.arange(1,n_states-1):
-                A[i, :i] = 0.0
-                A[i,:] = A[i,:]/np.sum(A[i,:])
 
         # RN10 preCTA fit better without constraining initial firing rate
         # mr = np.mean(np.sum(spikes[:, :, :int(500/dt)], axis=2), axis=0)
