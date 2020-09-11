@@ -167,8 +167,11 @@ def write_hmm_to_hdf5(h5_file, hmm, params):
             hf5.create_array('/'+h_str, k, tmp_v)
 
         table = hf5.root.data_overview
+        edited_rows = 0
         for row in table.where('hmm_id == id', condvars={'id': hmm_id}):
             print('Editing existing row in data_overview with new values for HMM %s' % hmm_id)
+            print('New iteration: %i, fit_LL: %.4E, BIC: %.3E' % (hmm.iteration, hmm.fit_LL, hmm.BIC))
+            print('Old iteration: %i, fit_LL: %.4E, BIC: %.3E' % (row['n_iterations'], row['log_likelihood'], row['BIC']))
             row['BIC'] = hmm.BIC
             row['cost'] = hmm.cost
             row['converged'] = hmm.converged
@@ -177,8 +180,9 @@ def write_hmm_to_hdf5(h5_file, hmm, params):
             row['log_likelihood'] = hmm.fit_LL
             row['n_iterations'] = hmm.iteration
             row.update()
-            break
-        else:
+            edited_rows += 1
+
+        if edited_rows == 0:
             print('Creating new row in data_overview for HMM %s' % hmm_id)
             row = table.row
             for k,v in params.items():
