@@ -1,4 +1,7 @@
+v2.0.54 (2020-09-10)
+-------------------
 - fix row updating in hmm hdf5 data_overview
+
 v2.0.53 (2020-08-27)
 -------------------
 - Add method of imposing constraints on PoissonHMM both directly and via HmmHandler
