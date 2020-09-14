@@ -33,6 +33,7 @@ HMM_PARAMS = {'hmm_id': None, 'taste': None, 'channel': None,
 
 
 FACTORIAL_LOOKUP = np.array([math.factorial(x) for x in range(20)])
+MIN_PROB = 1e-100
 
 
 @njit
@@ -73,17 +74,17 @@ def fix_arrays(PI,A,B):
     for i in range(nx):
         for j in range(ny):
             if A[i,j] == 0.:
-                A[i,j] = 1e-100
+                A[i,j] = MIN_PROB
 
     nx, ny = B.shape
     for i in range(nx):
         for j in range(ny):
             if B[i,j] == 0.:
-                B[i,j] = 1e-100
+                B[i,j] = MIN_PROB
 
     for i in range(len(PI)):
         if PI[i] == 0.:
-            PI[i] = 1e-100
+            PI[i] = MIN_PROB
 
     return PI, A, B
 
@@ -258,6 +259,7 @@ def compute_new_matrices(spikes, dt, gammas, epsilons):
     Bdenom =  np.sum(np.sum(gammas, axis=2), axis=0)
     B = (B / Bdenom)/dt
     B[B < minFR] = minFR
+    A[A <= MIN_PROB] = 0.0
 
     return PI, A, B
 

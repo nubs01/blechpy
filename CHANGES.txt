@@ -1,3 +1,7 @@
+v2.0.55 (2020-09-14)
+-------------------
+- Force reset low transition probabilities to 0 when updating HMM, since we convert 0 to 1e-100 for math earlier
+
 v2.0.54 (2020-09-10)
 -------------------
 - fix row updating in hmm hdf5 data_overview
