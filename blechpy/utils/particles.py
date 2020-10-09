@@ -73,3 +73,34 @@ class HMMInfoParticle(tables.IsDescription):
     area = tables.StringCol(15)
     hmm_class = tables.StringCol(20)
     notes = tables.StringCol(30)
+
+class AnonHMMInfoParticle(tables.IsDescription):
+    #   HMM_ID, taste, din_channel, n_cells, time_start, time_end, thresh,
+    #   unit_type, n_repeats, dt, n_states, n_iters, BIC, cost, converged,
+    #   area
+    # info particle for anonymous hmm data, so if hdf5 store isn't tied to a
+    # single recording, adds column for rec_dir
+    hmm_id = tables.Int16Col()
+    taste = tables.StringCol(45)
+    channel = tables.Int32Col()
+    n_cells = tables.Int32Col()
+    unit_type = tables.StringCol(15)
+    n_trials = tables.Int32Col()
+    dt = tables.Float64Col()
+    max_iter = tables.Int32Col()
+    threshold = tables.Float64Col()
+    time_start = tables.Int32Col()
+    time_end = tables.Int32Col()
+    n_repeats = tables.Int16Col()
+    n_states = tables.Int32Col()
+    n_iterations = tables.Int32Col()
+    BIC = tables.Float64Col()
+    cost = tables.Float64Col()
+    converged = tables.BoolCol()
+    fitted = tables.BoolCol()
+    max_log_prob = tables.Float64Col()
+    log_likelihood = tables.Float64Col()
+    area = tables.StringCol(15)
+    hmm_class = tables.StringCol(20)
+    notes = tables.StringCol(30)
+    rec_dir = tables.StringCol(150)

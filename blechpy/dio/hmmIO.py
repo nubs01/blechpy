@@ -3,6 +3,7 @@ import tables
 import numpy as np
 import pandas as pd
 from blechpy.utils.particles import HMMInfoParticle
+from copy import deepcopy
 
 def fix_hmm_overview(h5_file):
     '''made to add the area column to the hmm overview
@@ -58,7 +59,7 @@ def fix_hmm_overview(h5_file):
         #hf5.flush()
 
 
-def setup_hmm_hdf5(h5_file):
+def setup_hmm_hdf5(h5_file, infoParticle=HMMInfoParticle):
     if os.path.isfile(h5_file):
         return
 
@@ -66,7 +67,7 @@ def setup_hmm_hdf5(h5_file):
     with tables.open_file(h5_file, 'a') as hf5:
         if 'data_overview' not in hf5.root:
             print('Initializing data_overview table in hdf5 store...')
-            table = hf5.create_table('/', 'data_overview', HMMInfoParticle,
+            table = hf5.create_table('/', 'data_overview', infoParticle,
                                      'Parameters and goodness-of-fit info for HMMs in file')
             table.flush()
 
@@ -114,6 +115,7 @@ def read_hmm_from_hdf5(h5_file, hmm_id):
 
 
 def write_hmm_to_hdf5(h5_file, hmm, params):
+    params = deepcopy(params)
     hmm_id = hmm.hmm_id
     if 'hmm_id' in params and hmm_id is None:
         hmm.hmm_id = hmm_id = params['hmm_id']
@@ -189,7 +191,9 @@ def write_hmm_to_hdf5(h5_file, hmm, params):
                 if table.coltypes[k] == 'string' and isinstance(v, list):
                     row[k] = '..'.join(v)
                 elif isinstance(v, list) and k == 'channel':
+                    print('channels: %s' % str(v))
                     row[k] = hash_channel_list(v)
+                    print('channel hash: %i' % row[k])
                 elif not isinstance(v, list):
                     row[k] = v
                 else:
@@ -267,12 +271,13 @@ def get_hmm_overview_from_hdf5(h5_file):
     with tables.open_file(h5_file, 'r') as hf5:
         table = hf5.root.data_overview
         ids = table[:]['hmm_id']
-        params = []
-        for i in ids:
-            _, _, _, _, p = read_hmm_from_hdf5(h5_file, i)
-            params.append(p)
 
-        df = pd.DataFrame(params)
+    params = []
+    for i in ids:
+        _, _, _, _, p = read_hmm_from_hdf5(h5_file, i)
+        params.append(p)
+
+    df = pd.DataFrame(params)
 
     return df
 

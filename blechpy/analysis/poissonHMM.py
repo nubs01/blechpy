@@ -1000,6 +1000,10 @@ class PoissonHMM(object):
         PI, A, B = compute_new_matrices(spikes, dt, gammas, epsilons)
         # Make sure rates are non-zeros for computations
         # B[np.where(B==0)] = 1e-300
+        A[A < 1e-50] = 0.0
+        for i in range(self.n_states):
+            A[i,:] = A[i,:] / np.sum(A[i,:])
+
         self.transition = A
         self.emission = B
         self.initial_distribution = PI
@@ -1180,7 +1184,7 @@ class HmmHandler(object):
 
     def run(self, parallel=True, overwrite=False, constraint_func=None):
         h5_file = self.h5_file
-        rec_dir = self._dataset.root_dir
+        rec_dir = self.root_dir
         if overwrite:
             fit_params = self._fit_params
         else:
@@ -1215,7 +1219,7 @@ class HmmHandler(object):
     def plot_saved_models(self):
         print('Plotting saved models')
         data = self.get_data_overview().set_index('hmm_id')
-        rec_dir = self._dataset.root_dir
+        rec_dir = self.root_dir
         for i, row in data.iterrows():
             hmm, _, params = load_hmm_from_hdf5(self.h5_file, i)
             spikes, dt, time = get_hmm_spike_data(rec_dir, params['unit_type'],
@@ -1239,7 +1243,7 @@ class HmmHandler(object):
 
             return
         elif not isinstance(params, dict):
-            raise ValueError('Input must  be a dict or list or dicts')
+            raise ValueError('Input must  be a dict or list of dicts')
 
         # Fill in blanks with defaults
         for k, v in HMM_PARAMS.items():
@@ -1361,7 +1365,7 @@ class ConstrainedHMM(PoissonHMM):
         n_states = n_baseline + 2*n_tastes
         super().__init__(n_states, hmm_id=hmm_id)
 
-    def randomize(self, spikes, dt, time, row_id=None):
+    def randomize(self, spikes, dt, time, row_id=None, constraint_func=None):
         # setup parameters 
         # make transition matrix
         # all baseline states have equal probability of staying or changing
@@ -1429,10 +1433,13 @@ class ConstrainedHMM(PoissonHMM):
         self.stat_arrays['row_id'] = row_id
         self._init_history()
         self.stat_arrays['gamma_probabilities'] = self.get_gamma_probabilities(spikes, dt)
+        self.stat_arrays['time'] = time
         self._update_cost(spikes, dt)
+        self.fit_LL = self.max_log_prob
+        self._update_history()
         self._update_history()
 
-    def fit(self, spikes, dt, time, max_iter = 500, threshold=1e-4, parallel=False):
+    def fit(self, spikes, dt, time, max_iter = 500, threshold=1e-5, parallel=False):
         '''using parallels for processing trials actually seems to slow down
         processing (with 15 trials). Might still be useful if there is a very
         large nubmer of trials
@@ -1480,11 +1487,11 @@ class ConstrainedHMM(PoissonHMM):
         self.converged = converged
         return True
 
-        def get_baseline_states(self):
-            return np.arange(self.n_baseline)
+    def get_baseline_states(self):
+        return np.arange(self.n_baseline)
 
-        def get_early_states(self):
-            return np.arange(self.n_baseline, self.n_states, 2)
+    def get_early_states(self):
+        return np.arange(self.n_baseline, self.n_states, 2)
 
-        def get_late_states(self):
-            return np.arange(self.n_baseline+1, self.n_states, 2)
+    def get_late_states(self):
+        return np.arange(self.n_baseline+1, self.n_states, 2)
