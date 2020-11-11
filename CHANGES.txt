@@ -1,3 +1,7 @@
+v2.0.57 (2020-11-11)
+-------------------
+- fix hmm plotting issue
+
 v2.0.56 (2020-10-20)
 -------------------
 - Add additional hdf5 info particle for HMM hdf5 files with HMMs from multiple recordings

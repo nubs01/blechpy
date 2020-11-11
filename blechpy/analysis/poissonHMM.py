@@ -583,7 +583,7 @@ def query_units(dat, unit_type, area=None):
                          'single, pyramidal, interneuron or all' % u_str)
 
     units = units.query(q_str)
-    if area is None or area == '':
+    if area is None or area == '' or area == 'None':
         return units['unit_name'].to_list()
 
     out = []
