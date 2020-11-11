@@ -1,3 +1,7 @@
+v2.0.56 (2020-10-20)
+-------------------
+- Add additional hdf5 info particle for HMM hdf5 files with HMMs from multiple recordings
+
 v2.0.55 (2020-09-14)
 -------------------
 - Force reset low transition probabilities to 0 when updating HMM, since we convert 0 to 1e-100 for math earlier
