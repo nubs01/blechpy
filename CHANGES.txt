@@ -1,3 +1,8 @@
+v2.0.58 (2020-11-11)
+-------------------
+- fix xlims in HMM rate plot
+- update HMM tutorial
+
 v2.0.57 (2020-11-11)
 -------------------
 - fix hmm plotting issue

@@ -431,6 +431,7 @@ def plot_hmm_rates(rates, axes=None, colors=None):
     df = pd.DataFrame(rates, columns=['state %i' % i for i in range(n_states)])
     df['cell'] = ['cell %i' % i for i in df.index]
     df = pd.melt(df, 'cell', ['state %i' % i for i in range(n_states)], 'state', 'rate')
+    x_max = 0
     for g, ax, col in zip(df.groupby('state'), axes, colors):
         sns.barplot(data=g[1], x='rate', y='cell',
                     color='black', ax=ax)
@@ -441,9 +442,16 @@ def plot_hmm_rates(rates, axes=None, colors=None):
         ax.patch.set_alpha(0.5)
         ax.set_yticklabels([])
         ax.tick_params(left=False)
+        xl = ax.get_xlim()
+        if xl[1] > x_max:
+            x_max = xl[1]
+
         for spine in ax.spines.values():
             spine.set_visible(False)
 
+
+    for ax in axes:
+        ax.set_xlim([0, x_max])
 
     axes[0].set_yticklabels(['Cell %i' % i for i in range(n_cells)])
     mid = int(n_states/2)
