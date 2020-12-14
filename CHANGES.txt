@@ -1,7 +1,9 @@
-v2.0.58 (2020-11-11)
+v2.0.58 (2020-12-13)
 -------------------
 - fix xlims in HMM rate plot
 - update HMM tutorial
+- add sequential_constraint function for poissonHMM
+- update HMM default fitting parameters
 
 v2.0.57 (2020-11-11)
 -------------------

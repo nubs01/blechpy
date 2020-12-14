@@ -25,10 +25,10 @@ TEST_PARAMS = {'n_cells': 10, 'n_states': 4, 'state_seq_length': 5,
 
 
 HMM_PARAMS = {'hmm_id': None, 'taste': None, 'channel': None,
-              'unit_type': 'single', 'dt': 0.001, 'threshold': 1e-4,
-              'max_iter': 1000, 'n_cells': None, 'n_trials': None,
-              'time_start': 0, 'time_end': 2000, 'n_repeats': 25,
-              'n_states': 3, 'fitted': False, 'area': None,
+              'unit_type': 'single', 'dt': 0.001, 'threshold': 1e-7,
+              'max_iter': 200, 'n_cells': None, 'n_trials': None,
+              'time_start': -250, 'time_end': 2000, 'n_repeats': 25,
+              'n_states': 3, 'fitted': False, 'area': 'GC',
               'hmm_class': 'PoissonHMM', 'notes': ''}
 
 
@@ -1352,6 +1352,39 @@ class HmmHandler(object):
         '''
         hmmIO.delete_hmm_from_hdf5(self.h5_file, **kwargs)
         self.load_params()
+
+
+def sequential_constraint(PI, A, B):
+    '''Forces all states to occur sequentially
+    Can be passed to HmmHandler.run() or fit_hmm_mp as the constraint_func
+    argument
+
+    Parameters
+    ----------
+    PI: np.ndarray, initial state probability vector
+    A: np.ndarray, transition matrix
+    B: np.ndarray, emission or rate matrix
+
+    Returns
+    -------
+    np, ndarray, np.ndarray, np.ndarray : PI, A, B
+    '''
+    n_states = len(PI)
+    PI[0] = 1.0
+    PI[1:] = 0.0
+    for i in np.arange(n_states):
+        if i > 0:
+            A[i, :i] = 0.0
+
+        if i < n_states-2:
+            A[i, i+2:] = 0.0
+
+        A[i, :] = A[i,:]/np.sum(A[i,:])
+
+    A[-1, :] = 0.0
+    A[-1, -1] = 1.0
+
+    return PI, A, B
 
 
 class ConstrainedHMM(PoissonHMM):
