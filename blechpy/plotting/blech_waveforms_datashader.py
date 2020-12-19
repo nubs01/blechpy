@@ -16,7 +16,7 @@ from imageio import imread
 import shutil
 
 # A function that accepts a numpy array of waveforms and creates a datashader image from them
-def waveforms_datashader(waveforms):
+def waveforms_datashader(waveforms, threshold=None):
     if waveforms.shape[0]==0:
         return None
     # Make a pandas dataframe with two columns, x and y, holding all the data. The individual waveforms are separated by a row of NaNs
@@ -55,7 +55,11 @@ def waveforms_datashader(waveforms):
     ax.set_xticks(np.linspace(0, 1600, 10))
     ax.set_xticklabels(np.floor(np.linspace(np.min(x_values), np.max(x_values), 10)))
     ax.set_yticks(np.linspace(0, 1200, 10))
-    ax.set_yticklabels(np.floor(np.linspace(df['y'].max() + 10, df['y'].min() - 10, 10)))
+    yticklabels = np.floor(np.linspace(df['y'].max() + 10, df['y'].min() - 10, 10))
+    ax.set_yticklabels(yticklabels)
+    if threshold is not None:
+        scaled_thresh = (threshold - np.min(yticklabels))*(1200/(np.max(yticklabels) - np.min(yticklabels)))
+        ax.axhline(scaled_thresh, linestyle='--', color='r', alpha=0.5)
 
     # Delete the dataframe
     del df, waveforms, new_waveforms

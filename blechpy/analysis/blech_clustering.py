@@ -39,6 +39,8 @@ def detect_spikes(filt_el, spike_snapshot = [0.5, 1.0], fs = 30000.0):
         matrix of de-jittered, spike waveforms, upsampled by 10x, row for each spike
     times : np.array
         array of spike times in samples
+    threshold: float
+        spike detection threshold
     '''
     # get indices of spike snapshot, expand by .1 ms in each direction
     snapshot = np.arange(-(spike_snapshot[0]+0.1)*fs/1000,
@@ -61,7 +63,7 @@ def detect_spikes(filt_el, spike_snapshot = [0.5, 1.0], fs = 30000.0):
         return None, None
 
     waves_dj, times_dj = clustering.dejitter(np.array(waves), np.array(times), spike_snapshot, fs)
-    return waves_dj, times_dj
+    return waves_dj, times_dj, m-th
 
 
 def implement_pca(scaled_slices):
@@ -340,7 +342,8 @@ class SpikeDetection(object):
                        'spike_amplitudes' : os.path.join(self._data_dir, 'spike_amplitudes.npy'),
                        'pca_waveforms' : os.path.join(self._data_dir, 'pca_waveforms.npy'),
                        'slopes' : os.path.join(self._data_dir, 'spike_slopes.npy'),
-                       'recording_cutoff' : os.path.join(self._data_dir, 'cutoff_time.txt')}
+                       'recording_cutoff' : os.path.join(self._data_dir, 'cutoff_time.txt'),
+                       'detection_threshold' : os.path.join(self._data_dir, 'detection_threshold.txt')}
 
         self._status = dict.fromkeys(self._files.keys(), False)
         self._referenced = True
@@ -372,6 +375,12 @@ class SpikeDetection(object):
             self._status['recording_cutoff'] = True
             with open(self._files['recording_cutoff'], 'r') as f:
                 self.recording_cutoff = float(f.read())
+
+        self.detection_threshold = None
+        if os.path.isfile(self._files['detection_threshold']):
+            self._status['detection_threshold'] = True
+            with open(self._files['detection_threshold'], 'r') as f:
+                self.detection_threshold = float(f.read())
 
         # Read in parameters
         # Parameters passed as an argument will overshadow parameters saved in file
@@ -456,7 +465,8 @@ class SpikeDetection(object):
             # Detect spikes and get dejittered times and waveforms
             # detect_spikes returns waveforms upsampled by 10x and times in units
             # of samples
-            waves, times = detect_spikes(filt_el, params['spike_snapshot'], fs)
+            waves, times, threshold = detect_spikes(filt_el, params['spike_snapshot'], fs)
+            self.detection_threshold = threshold
             if waves is None:
                 print('No waveforms detected on electrode %i' % electrode)
                 return electrode, 0, self.recording_cutoff
@@ -464,6 +474,10 @@ class SpikeDetection(object):
             # Save waveforms and times
             np.save(self._files['spike_waveforms'], waves)
             np.save(self._files['spike_times'], times)
+            with open(self._files['detection_threshold'], 'w') as f:
+                f.write(str(threshold))
+
+            status['detection_threshold'] = True
             status['spike_waveforms'] = True
             status['spike_times'] = True
 
@@ -1018,6 +1032,13 @@ class SpikeSorter(object):
         self._last_popped = None  # Dict of indices to clusters
         self._last_added = None  # List of indices
 
+        thresh = []
+        for rd in rec_dirs:
+            sd = SpikeDetection(rd, electrode)
+            thresh.append(sd.detection_threshold)
+
+        self._detection_thresholds = thresh
+
     def undo(self):
         if self._last_action is None:
             return
@@ -1386,6 +1407,26 @@ class SpikeSorter(object):
             fig, ax = dplt.plot_waveforms(waves, title=title)
             fig.show()
 
+    def plot_cluster_waveforms_over_time(self, target_cluster, interval):
+        if isinstance(target_cluster, list) and len(target_cluster) != 1:
+            return
+        elif isinstance(target_cluster, list):
+            target_cluster = target_cluster[0]
+
+        c = self._active[target_cluster]
+        spike_times = c.get_spike_time_vector('s')
+        start_time = spike_times[0]
+        while start_time < spike_times[-1]:
+            idx = np.where((spike_times >= start_time) & (spike_times < start_time+interval))[0]
+            waves = c['spike_waveforms'][idx,:]
+            start_time += interval
+            isi, v1, v2 = get_ISI_and_violations(c['spike_times'][idx], c['fs'][0])
+            title = ('Index : %i, Rec: %i\n1ms violations: %0.1f, 2ms violations: %0.1f'
+                     '\ntotal waveforms: %i'
+                     % (target_cluster, i, v1, v2, len(waves)))
+            fig, ax = dplt.plot_waveforms(waves, title=title)
+            fig.show()
+
     def plot_clusters_pca(self, target_clusters):
         if len(target_clusters) == 0:
             return
@@ -1575,6 +1616,7 @@ class SpikeCluster(dict):
         n_waves = self['spike_waveforms'].shape[0]
         return mean_wave, std_wave, n_waves
 
+    # TODO: Finish this section
     def _dist(self, other=None):
         if other is None:
             other = self

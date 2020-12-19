@@ -398,7 +398,7 @@ def plot_cluster_raster(clusters):
     return fig
 
 
-def plot_waveforms(waveforms, title=None, save_file=None):
+def plot_waveforms(waveforms, title=None, save_file=None, threshold=None):
     '''Plots a cluster with isi and violation info for viewing
 
     Parameters
@@ -406,7 +406,7 @@ def plot_waveforms(waveforms, title=None, save_file=None):
     cluster : dict with cluster info
 
     '''
-    fig, ax = blech_waveforms_datashader.waveforms_datashader(waveforms)
+    fig, ax = blech_waveforms_datashader.waveforms_datashader(waveforms, threshold=threshold)
     ax.set_xlabel('Samples', fontsize=12)
     ax.set_ylabel('Voltage (microvolts)', fontsize=12)
     ax.set_title(title, fontsize=12)

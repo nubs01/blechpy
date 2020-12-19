@@ -1,3 +1,8 @@
+v2.0.59 (2020-12-19)
+-------------------
+- Add plotting and recording of spike detection threshold while clustering
+- Add button to spike sorting GUI to display spikes split up in time intervals
+
 v2.0.58 (2020-12-13)
 -------------------
 - fix xlims in HMM rate plot
