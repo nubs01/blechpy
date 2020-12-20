@@ -58,8 +58,8 @@ def waveforms_datashader(waveforms, threshold=None):
     yticklabels = np.floor(np.linspace(df['y'].max() + 10, df['y'].min() - 10, 10))
     ax.set_yticklabels(yticklabels)
     if threshold is not None:
-        scaled_thresh = (threshold - np.min(yticklabels))*(1200/(np.max(yticklabels) - np.min(yticklabels)))
-        ax.axhline(scaled_thresh, linestyle='--', color='r', alpha=0.5)
+        scaled_thresh = (threshold - np.max(yticklabels))*(1200/(np.min(yticklabels) - np.max(yticklabels)))
+        ax.axhline(scaled_thresh, linestyle='--', color='r', alpha=0.3)
 
     # Delete the dataframe
     del df, waveforms, new_waveforms

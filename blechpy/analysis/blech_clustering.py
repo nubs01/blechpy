@@ -1355,7 +1355,7 @@ class SpikeSorter(object):
                      '\ntotal waveforms: %i'
                      % (i, v1, v2, len(c['spike_waveforms'])))
             fig, ax = dplt.plot_waveforms(c['spike_waveforms'], title=title,
-                                          threshold=self._detection_threshold)
+                                          threshold=self._detection_thresholds[0])
             fig.show()
 
     def split_by_rec(self, target_cluster):
@@ -1416,17 +1416,23 @@ class SpikeSorter(object):
 
         c = self._active[target_cluster]
         spike_times = c.get_spike_time_vector('s')
-        start_time = spike_times[0]
-        while start_time < spike_times[-1]:
+        start_times = np.arange(spike_times[0], spike_times[-1]+1, interval)
+        if len(start_times) > 10:
+            userIO.tell_user('This would open more than 10 figures, choose a larger interval')
+            return
+
+        if len(start_times) == 0:
+            return
+
+        for i, start_time in enumerate(start_times):
             idx = np.where((spike_times >= start_time) & (spike_times < start_time+interval))[0]
             waves = c['spike_waveforms'][idx,:]
-            start_time += interval
             isi, v1, v2 = get_ISI_and_violations(c['spike_times'][idx], c['fs'][0])
             title = ('Index : %i, Rec: %i\n1ms violations: %0.1f, 2ms violations: %0.1f'
                      '\ntotal waveforms: %i'
                      % (target_cluster, i, v1, v2, len(waves)))
             fig, ax = dplt.plot_waveforms(waves, title=title,
-                                          threshold=self._detection_threshold)
+                                          threshold=self._detection_thresholds[0])
             fig.show()
 
     def plot_clusters_pca(self, target_clusters):
