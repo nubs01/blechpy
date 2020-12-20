@@ -1,3 +1,7 @@
+v2.0.60 (2020-12-19)
+-------------------
+- fix bugs
+
 v2.0.59 (2020-12-19)
 -------------------
 - Add plotting and recording of spike detection threshold while clustering

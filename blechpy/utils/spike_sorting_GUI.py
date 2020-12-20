@@ -233,7 +233,7 @@ class SpikeSorterGUI(ttk.Frame):
         if len(chosen) == 0:
             return
 
-        self.sorter.plot_clusters_waveforms(chosen, threshold=self._detection_thresholds[0])
+        self.sorter.plot_clusters_waveforms(chosen, threshold=self.sorter._detection_thresholds[0])
 
     def view_waves_by_rec(self, *args):
         chosen = self._check_bar.get_selected()
