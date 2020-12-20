@@ -1354,7 +1354,8 @@ class SpikeSorter(object):
             title = ('Index : %i\n1ms violations: %0.1f, 2ms violations: %0.1f'
                      '\ntotal waveforms: %i'
                      % (i, v1, v2, len(c['spike_waveforms'])))
-            fig, ax = dplt.plot_waveforms(c['spike_waveforms'], title=title)
+            fig, ax = dplt.plot_waveforms(c['spike_waveforms'], title=title,
+                                          threshold=self._detection_threshold)
             fig.show()
 
     def split_by_rec(self, target_cluster):
@@ -1424,7 +1425,8 @@ class SpikeSorter(object):
             title = ('Index : %i, Rec: %i\n1ms violations: %0.1f, 2ms violations: %0.1f'
                      '\ntotal waveforms: %i'
                      % (target_cluster, i, v1, v2, len(waves)))
-            fig, ax = dplt.plot_waveforms(waves, title=title)
+            fig, ax = dplt.plot_waveforms(waves, title=title,
+                                          threshold=self._detection_threshold)
             fig.show()
 
     def plot_clusters_pca(self, target_clusters):
