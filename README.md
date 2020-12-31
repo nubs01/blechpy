@@ -22,14 +22,18 @@ See the <a href='https://nubs01.github.io/blechpy'>full documentation</a> here.
 This is a package to extract, process and analyze electrophysiology data recorded with Intan or OpenEphys recording systems. This package is customized to store experiment and analysis metadata for the BLECh Lab (Katz lab) @ Brandeis University, but can readily be used and customized for other labs.
 
 # Installation
-If is set this up correctly you can install with pip:
-`pip install blechpy`
+I recommend installing miniconda to handle your virtual environments
+Create a miniconda environment with: 
+```bash
+conda env create --name blechpy python==3.7
+conda activate blechpy
+```
+Now you can install this package simply with pip:
+```bash
+pip install blechpy
+```
 
-If you are setting up from source you can create a compatible conda environment with: 
-`conda env create --name blech -f=conda_environment.yml`
-
-Can  then handle all data from within an ipython terminal
-`conda activate blech`
+Now you can deal with all of your data from within an ipython terminal:
 `ipython`
 
 ```python
@@ -92,16 +96,17 @@ Can provide an overview of basic data extraction and processing steps that need 
 An example data extraction workflow would be:
 ```python
 dat = blechpy.dataset('/path/to/data/dir/')
-dat.initParams()
+dat.initParams()            # See fucntion docstring, lots of optional parameters to eliminate need for user interaction
 dat.extract_data()          # Extracts raw data into HDF5 store
 dat.create_trial_list()     # Creates table of digital input triggers
-dat.mark_dead_channels()    # View traces and label electrodes as dead
+dat.mark_dead_channels()    # View traces and label electrodes as dead, or just pass list of dead channels
 dat.common_average_reference() # Use common average referencing on data. 
                                # Repalces raw with referenced data in HDF5 store
+dat.detect_spikes()
 dat.blech_clust_run()       # Cluster data using GMM
 dat.blech_clust_run(data_quality='noisy') # re-run clustering with less strict parameters
 
-dat.sort_units()        # Split, merge and label clusters as units
+dat.sort_units(electrode_number)        # Split, merge and label clusters as units
 ```
 
 ### Viewing a Dataset
@@ -147,3 +152,7 @@ exp.detect_held_units()
 Uses raw waveforms from sorted units to determine if units can be confidently classified as "held". Results are stored in exp.held_units as a pandas DataFrame.
 This also creates plots and exports data to a created directory:
 /path/to/experiment/experiment-name_analysis
+
+# Analysis
+The `blechpy.analysis` module has a lot of useful tools for analyzing your data.
+Most notable is the `blechpy.analysis.poissonHMM` module which will allow fitting of the HMM models to your data. See tutorials. 
