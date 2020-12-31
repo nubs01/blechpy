@@ -1,0 +1,1936 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+<meta name="generator" content="pdoc 0.9.2" />
+<title>blechpy.utils.userIO API documentation</title>
+<meta name="description" content="" />
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
+<link rel="stylesheet preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/styles/github.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/highlight.min.js" integrity="sha256-Uv3H6lx7dJmRfRvH8TH6kJD1TSK1aFcwgx+mdg3epi8=" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => hljs.initHighlighting())</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>blechpy.utils.userIO</code></h1>
+</header>
+<section id="section-intro">
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">import tkinter as tk
+from tkinter import ttk
+from collections import Mapping
+from copy import deepcopy
+from blechpy.utils import print_tools as pt
+import easygui as eg
+import sys
+import os
+from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
+from prompt_toolkit.history import InMemoryHistory
+from prompt_toolkit.shortcuts import prompt as pt_prompt
+from prompt_toolkit.completion import PathCompleter
+
+
+def center(win):
+    win.update_idletasks()
+    width = win.winfo_width()
+    height = win.winfo_height()
+    x = (win.winfo_screenwidth() // 2) - (width // 2)
+    y = (win.winfo_screenheight() // 2) - (height // 2)
+    win.geometry(&#39;{}x{}+{}+{}&#39;.format(width, height, x, y))
+
+
+def get_dict_shell_input(dat, type_dict=None, tabstop=&#39;&#39;, prompt=None):
+    if prompt:
+        print(&#39;----------\n%s\n----------&#39; % prompt)
+
+    output = deepcopy(dat)
+    if type_dict is None:
+        type_dict = make_type_dict(dat)
+
+    for k, v in dat.items():
+        if isinstance(v, Mapping) and v != {}:
+            print(&#39;%s%s\n%s----------&#39; % (tabstop, k, tabstop))
+            tmp = get_dict_shell_input(v, type_dict[k], tabstop+&#39;    &#39;)
+            output[k] = deepcopy(tmp)
+            continue
+
+        prompt = &#39;%s%s (%s) &#39; % (tabstop, k, type_dict[k].__name__)
+        if type_dict[k] is list:
+            prompt += &#39;(comma-separated)&#39;
+
+        prompt += &#39; : &#39;
+        if any([isinstance(v, x) for x in [str, list, int, float]]):
+            default_val = str(v).replace(&#39;[&#39;,&#39;&#39;).replace(&#39;]&#39;,&#39;&#39;)
+            tmp = pt_prompt(prompt, default=default_val)
+        else:
+            tmp = pt_prompt(prompt)
+
+        if tmp == &#39;abort&#39;:
+            return None
+
+        output[k] = convert_str_to_type(tmp, type_dict[k])
+
+    return output
+
+
+def make_type_dict(dat):
+    type_dict = deepcopy(dat)
+    for k, v in dat.items():
+        if isinstance(v, Mapping) and v != {}:
+            tmp = make_type_dict(v)
+        elif isinstance(v, type):
+            tmp = v
+        elif v is None or v == {}:
+            tmp = str
+        else:
+            tmp = type(v)
+
+        type_dict[k] = tmp
+
+    return type_dict
+
+
+def convert_str_to_type(item, dtype):
+    if dtype is list:
+        tmp = item.split(&#39;,&#39;)
+        out = []
+        hold = &#39;&#39;
+        for x in tmp:
+            if x.endswith(&#39;\\&#39;):
+                hold = x.replace(&#39;\\&#39;, &#39;,&#39;)
+            else:
+                out.append(hold+x)
+                hold = &#39;&#39;
+        return out
+
+    if dtype is bool:
+        if item.isnumeric():
+            item = int(item)
+        else:
+            if item.lower() == &#39;false&#39; or item.lower() == &#39;n&#39;:
+                item = 0
+            elif item.lower() == &#39;true&#39; or item.lower() == &#39;y&#39;:
+                item = 1
+            elif item == &#39;&#39;:
+                return None
+            else:
+                raise ValueError(&#39;Boolean inputs must be true, false, &#39;
+                                 &#39;y, n, 1 or 0&#39;)
+
+    if item == &#39;&#39; and dtype is not str:
+        return None
+
+    return dtype(item)
+
+
+def fill_dict(data, prompt=None, shell=False):
+    if &#39;SSH_CONNECTION&#39; in os.environ:
+        shell = True
+
+    filler = dictIO(data, shell=shell)
+    out= filler.fill_dict(prompt=prompt)
+    return out
+
+
+class dictIO(object):
+    def __init__(self, data, types=None, shell=False):
+        if &#39;SSH_CONNECTION&#39; in os.environ:
+            shell = True
+
+        if not isinstance(data, Mapping):
+            raise TypeError((&#39;%s is invalid data type. Requires extension of&#39;
+                             &#39;Mapping such as dict.&#39;) % type(data))
+        if types is None:
+            self._types = make_type_dict(data)
+        elif len(types.keys()) != len(data.keys()):
+            raise ValueError((&#39;types must be a dict with keys matching data&#39;
+                              &#39; and values as types or be set to None to &#39;
+                              &#39;automatically detect data types&#39;
+                              &#39;or default to string input&#39;))
+        else:
+            self._types = types
+
+        self._storage = deepcopy(data)
+        self._output = deepcopy(data)
+        self._shell = shell
+
+    def fill_dict(self, prompt=None):
+        if self._shell:
+            self.fill_dict_shell(prompt=prompt)
+        else:
+            self.fill_dict_gui(prompt=prompt)
+
+        return self.get_dict()
+
+    def fill_dict_shell(self, prompt=None):
+        original = sys.stdout
+        sys.stdout = sys.__stdout__
+        out = get_dict_shell_input(self._storage, prompt=prompt)
+        self._output = deepcopy(out)
+        sys.stdout = original
+
+    def get_dict(self):
+        return deepcopy(self._output)
+
+    def fill_dict_gui(self, prompt=None):
+        output = deepcopy(self._storage)
+        type_dict = self._types
+        root = tk.Tk()
+        root.style = ttk.Style()
+        root.style.theme_use(&#39;clam&#39;)
+        self.root = root
+
+        if prompt:
+            prompt_label = ttk.Label(root, text=prompt)
+            prompt_label.pack(side=&#39;top&#39;, fill=&#39;x&#39;, expand=&#39;True&#39;)
+            ttk.Separator(root, orient=&#39;horizontal&#39;).pack(side=&#39;top&#39;, fill=&#39;x&#39;,
+                                                          expand=True, pady=10)
+
+        dict_pane = dict_fill_pane(root, output, type_dict)
+        dict_pane.pack(side=&#39;top&#39;, fill=&#39;both&#39;, expand=True)
+        self.dict_pane = dict_pane
+        line = ttk.Frame(root)
+        submit = ttk.Button(line, text=&#39;Submit&#39;, command=self.submit)
+        cancel = ttk.Button(line, text=&#39;Cancel&#39;, command=self.cancel)
+        submit.pack(side=&#39;left&#39;)
+        cancel.pack(side=&#39;right&#39;)
+        line.pack(side=&#39;bottom&#39;, anchor=&#39;e&#39;, pady=5)
+        center(root)
+        root.mainloop()
+
+    def submit(self):
+        self._output = self.dict_pane.get_values()
+        self.root.destroy()
+
+    def cancel(self):
+        self._output = None
+        self.root.destroy()
+
+
+class dict_fill_pane(ttk.Frame):
+    def __init__(self, root, data, type_dict, tabstop=&#39;&#39;, *args, **kwargs):
+        ttk.Frame.__init__(self, root, *args, **kwargs)
+        self.data = deepcopy(data)
+        self.val_dict = deepcopy(type_dict)
+        self.type_dict = deepcopy(type_dict)
+        row = 0
+        for k, v in data.items():
+            t = type_dict[k]
+            if isinstance(v, Mapping) and v != {}:
+                sub_pane = dict_fill_pane(self, v, t, tabstop+&#39;    &#39;)
+                label = ttk.Label(self, text=&#39;%s%s&#39; % (tabstop, k),
+                                  foreground=&#39;red&#39;)
+                self.val_dict[k] = sub_pane
+                label.grid(row=row, column=0, sticky=&#39;w&#39;)
+                sub_pane.grid(row=row+1, column=0, sticky=&#39;nw&#39;)
+                row += 2
+            else:
+                line = ttk.Frame(self)
+                prompt = &#39;%s%s (%s) &#39; % (tabstop, k, t.__name__)
+                if t is list:
+                    prompt += &#39;(comma-separated)&#39;
+                if all([v is not x for x in [None, [], {}, &#39;&#39;]]):
+                    if isinstance(v, type):
+                        if t is bool:
+                            default = False
+                        else:
+                            default = &#39;&#39;
+
+                    elif t is bool:
+                        default = v
+                    else:
+                        default = str(v)
+                        if t is list:
+                            default = default[1:-1]
+                else:
+                    default = &#39;&#39;
+
+                prompt += &#39; : &#39;
+                label = ttk.Label(line, text=prompt)
+                if t is bool:
+                    if isinstance(v, type):
+                        val = False
+                    else:
+                        val = v
+
+                    var = tk.BooleanVar(self, value=val)
+                    entry = ttk.Checkbutton(line, text=&#39;&#39;, variable=var)
+                else:
+                    var = tk.StringVar(self, value=default)
+                    entry = ttk.Entry(line, textvariable=var)
+
+                self.val_dict[k] = var
+                label.pack(side=&#39;left&#39;)
+                entry.pack(side=&#39;right&#39;)
+                line.grid(row=row, column=0, sticky=&#39;ew&#39;)
+                row += 1
+
+    def get_value_vars(self):
+        return self.val_dict
+
+    def get_values(self):
+        output = deepcopy(self.data)
+        vals = self.val_dict
+        types = deepcopy(self.type_dict)
+        for k, v in vals.items():
+            t = types[k]
+            if isinstance(v, ttk.Frame):
+                output[k] = v.get_values()
+            elif isinstance(v, tk.BooleanVar):
+                output[k] = v.get()
+            else:
+                output[k] = convert_str_to_type(v.get(), t)
+
+        return deepcopy(output)
+
+
+def ask_user(msg, choices=[&#39;No&#39;, &#39;Yes&#39;], shell=False):
+    &#39;&#39;&#39;Ask the user a question with certain choices
+
+    Parameters
+    ----------
+    msg : str, message to show user
+    choices : list or tuple with choices (optional)
+        default is (&#39;No&#39;, &#39;Yes&#39;)
+    shell : bool (optional)
+        True is command line interface for input
+        False (default) for GUI
+
+    Returns
+    -------
+    int : index of users choice
+    &#39;&#39;&#39;
+    if &#39;SSH_CONNECTION&#39; in os.environ:
+        shell = True
+
+    if shell:
+        original = sys.stdout
+        sys.stdout = sys.__stdout__
+        print(msg)
+        for i, c in enumerate(choices):
+            print(&#39;%i) %s&#39; % (i, c))
+        idx = input(&#39;Enter number of choice &gt;&gt;  &#39;)
+        if idx == &#39;&#39; or not idx.isnumeric():
+            out = None
+        else:
+            out = int(idx)
+
+        sys.stdout = original
+        return out
+    else:
+        idx = eg.indexbox(msg, choices=choices)
+        return idx
+
+
+def get_user_input(msg, default=None, shell=False):
+    &#39;&#39;&#39;Get single input from user.
+
+    Parameters
+    ----------
+    msg : str, prompt
+    default : str (optional)
+        value returned if user enters nothing.
+        default is None
+    shell : bool (optional)
+        True for CLI, False (default) for GUI
+    &#39;&#39;&#39;
+    if &#39;SSH_CONNECTION&#39; in os.environ:
+        shell = True
+
+    if shell:
+        original = sys.stdout
+        sys.stdout = sys.__stdout__
+        try:
+            prompt = msg + &#39; &#39;
+            #if default is not None:
+            #    prompt += &#39;(default=%s) &#39; % default
+            if default is None:
+                default = &#39;&#39;
+
+            prompt += &#39; : &#39;
+            out = pt_prompt(prompt, default=default)
+            if out == &#39;&#39;:
+                out = default
+
+        except EOFError:
+            out = None
+
+        sys.stdout = original
+        return out
+    else:
+        out = eg.enterbox(msg, default=default)
+
+        return out
+
+
+def select_from_list(prompt, items, title=&#39;&#39;, multi_select=False, shell=False):
+    &#39;&#39;&#39;makes a popup for list selections, can be multichoice or single choice
+    default is single selection
+
+    Parameters
+    ----------
+    prompt : str, prompt for selection dialog
+    item : list, list of items to be selected from
+    title : str (optional), title of selection dialog
+    multi_select : bool (optional)
+        whether multiple selection is permitted,
+        default False
+    shell : bool (optional)
+        True for command-line interface
+        False (default) for GUI
+
+    Returns
+    -------
+    str (if multi_select=False): string of selected choice
+    list (if multi_select=True): list of strings that were selected
+    &#39;&#39;&#39;
+    if &#39;SSH_CONNECION&#39; in os.environ:
+        shell = True
+
+    if not isinstance(items, list):
+        raise TypeError(&#34;Passed %s, but expected &lt;class &#39;list&#39;&gt;&#34; % type(items))
+
+    if shell:
+        original = sys.stdout
+        sys.stdout = sys.__stdout__
+        print(prompt)
+        for i, item in enumerate(items):
+            print(&#39;%i) %s&#39; % (i, item))
+
+        if multi_select:
+            idx = input(&#39;Enter selection numbers comma-separated:\n&gt;&gt;  &#39;)
+            if idx == &#39;&#39;:
+                out = None
+            else:
+                idx = [int(x) for x in idx.split(&#39;,&#39;)]
+                out = [items[x] for x in idx]
+
+        else:
+            idx = input(&#39;Enter selection number:  &#39;)
+            if idx == &#39;&#39;:
+                out = None
+            else:
+                out = items[int(idx)]
+
+        sys.stdout = original
+        return out
+    else:
+        if multi_select is False:
+            choice = eg.choicebox(prompt, title, items)
+        else:
+            choice = eg.multchoicebox(prompt, title, items, None)
+
+        return choice
+
+
+def tell_user(msg, shell=False):
+    &#39;&#39;&#39;Tells users a message, even if top level function is outputing to a
+    loggin file
+
+    Parameters
+    ----------
+    msg : str, message
+    shell : bool (optional)
+        True for command-line, False (default) for GUI
+    &#39;&#39;&#39;
+    if &#39;SHH_CONNECTION&#39; in os.environ:
+        shell = True
+
+    if shell:
+        original = sys.stdout
+        sys.stdout = sys.__stdout__
+        print(msg)
+        sys.stdout = original
+        return True
+    else:
+        eg.msgbox(msg)
+        return True
+
+
+def confirm_parameter_dict(params, prompt, shell=False):
+    &#39;&#39;&#39;Shows user a dictionary and asks them to confirm that the values are
+    correct. If not they have an option to edit the dict.
+
+    Parameters
+    ----------
+    params: dict
+        values in dict can be int, float, str, bool, list, dict or None
+    prompt: str
+        prompt to show user
+    shell : bool (optional)
+        True to use command line interface
+        False (default) for GUI
+
+    Returns
+    -------
+    dict
+       lists are returned as lists of str so other types m ust be cast manually
+       by  user
+    &#39;&#39;&#39;
+    prompt = (&#39;----------\n%s\n----------\n%s\nAre these parameters good?&#39; %
+              (prompt, pt.print_dict(params)))
+    q = ask_user(prompt, choices=[&#39;Yes&#39;, &#39;Edit&#39;, &#39;Cancel&#39;], shell=shell)
+    if q == 2:
+        return None
+    elif q == 0:
+        return params
+    else:
+        new_params = fill_dict(params, &#39;Enter new values:&#39;, shell=shell)
+        return new_params
+
+
+def get_labels(items, prompt=&#39;&#39;, shell=False):
+    &#39;&#39;&#39;Gets user input corresponding to items in items
+
+    Parameters
+    ----------
+    items : list of str
+    prompt: str
+    shell : bool
+        True for command-line interface. False (default) for GUI.
+        Automatically sets to True when connected via ssh
+
+    Returns
+    -------
+    list of str
+    &#39;&#39;&#39;
+    if &#39;SSH_CONNECTION&#39; in os.environ:
+        shell=True
+
+    tmp = dict.fromkeys(items,&#39;&#39;)
+    tmp = fill_dict(tmp, prompt, shell)
+    out = [tmp[x] for x in items]
+    return out
+
+
+def get_filedirs(prompt=&#39;&#39;, root=None, multi=False, shell=False):
+    &#39;&#39;&#39;Queries user for directory or multiple directories
+
+    Parameters
+    ----------
+    prompt : str
+    root : str, where to start file chooser
+    multi : bool, whether to query for multiple directories
+    shell : bool
+        True for command-line interface, False (default) for GUI
+        forced True if ssh
+
+    Returns
+    -------
+    str or list of str
+    &#39;&#39;&#39;
+    if &#39;SSH_CONNECTION&#39; in os.environ:
+        shell=True
+
+    path_completer = PathCompleter(only_directories=True)
+    history = InMemoryHistory()
+
+    go = True
+    out = []
+    if shell:
+        print(prompt)
+        if multi:
+            print(&#39;Leave blank or ctrl-c to terminate collection&#39;)
+
+        print(&#39;----------&#39;)
+
+    while go:
+        if shell:
+            if root is None:
+                root = &#39;&#39;
+
+            try:
+                tmp = pt_prompt(&#39; &gt;&gt; &#39;, completer=path_completer, history=history,
+                                auto_suggest=AutoSuggestFromHistory(), default=root)
+            except KeyboardInterrupt:
+                break
+
+        else:
+            tmp = eg.diropenbox(prompt + &#39; (cancel to stop collection)&#39;, default=root)
+
+        if tmp == &#39;&#39; or tmp is None:
+            go = False
+        elif os.path.isdir(tmp):
+            root = os.path.dirname(tmp)
+            out.append(tmp)
+        else:
+            print(&#39;Must enter a valid path to a directory&#39;)
+
+        if not multi:
+            out = out[0]
+            break
+
+    if out == [] or out == &#39;&#39;:
+        out = None
+
+    return out
+
+
+def get_files(prompt=&#39;&#39;, root=None, filetypes=None, multi=False, shell=False):
+    &#39;&#39;&#39;Queries user for file or multiple files
+
+    Parameters
+    ----------
+    prompt : str
+    root : str, where to start file chooser
+    multi : bool, whether to query for multiple directories
+    filetypes : list of str, list of acceptable file suffixes
+    shell : bool
+        True for command-line interface, False (default) for GUI
+        forced True if ssh
+
+    Returns
+    -------
+    str or list of str
+    &#39;&#39;&#39;
+    if &#39;SSH_CONNECTION&#39; in os.environ:
+        shell=True
+
+    if filetypes is not None:
+        file_filter = lambda x: (any([x.endswith(y) for y in filetypes]) or os.path.isdir(x))
+    else:
+        file_filter = None
+
+    path_completer = PathCompleter(file_filter=file_filter)
+    history = InMemoryHistory()
+
+    go = True
+    out = []
+    if shell:
+        print(prompt)
+        if multi:
+            print(&#39;Leave blank or ctrl-c to terminate collection&#39;)
+
+        print(&#39;----------&#39;)
+
+    while go:
+        if shell:
+            if root is None:
+                root = &#39;&#39;
+
+            try:
+                tmp = pt_prompt(&#39; &gt;&gt; &#39;, completer=path_completer, history=history,
+                                auto_suggest=AutoSuggestFromHistory(), default=root)
+            except KeyboardInterrupt:
+                break
+
+        else:
+            tmp = eg.fileopenbox(prompt + &#39; (cancel to stop collection)&#39;,
+                                 default=root, multiple=multi,
+                                 filetypes=filetypes)
+
+        if tmp == &#39;&#39; or tmp is None:
+            go = False
+        elif isinstance(tmp, list) and all([os.path.isfile(x) for x in tmp]):
+            root = os.path.dirname(tmp[0])
+            out.extend(tmp)
+        elif os.path.isfile(tmp):
+            root = os.path.dirname(tmp)
+            out.append(tmp)
+        else:
+            print(&#39;Must enter a valid path to file&#39;)
+
+        if not multi:
+            out = out[0]
+            break
+
+    if out == [] or out == &#39;&#39;:
+        out = None
+
+    return out
+
+
+class fill_dict_popup(object):
+    def __init__(self, data, master=None, prompt=None):
+        if master:
+            root = self.root = tk.Toplevel(master)
+        else:
+            root = self.root = tk.Tk()
+
+        root.style = ttk.Style()
+        root.style.theme_use(&#39;clam&#39;)
+        self.data = data
+
+        if prompt:
+            prompt_label = ttk.Label(root, text=prompt)
+            prompt_label.pack(side=&#39;top&#39;, fill=&#39;x&#39;, expand=&#39;True&#39;)
+            ttk.Separator(root, orient=&#39;horizontal&#39;).pack(side=&#39;top&#39;, fill=&#39;x&#39;,
+                                                         expand=True, pady=10)
+
+        type_dict = make_type_dict(data)
+        dict_pane = dict_fill_pane(root, data, type_dict)
+        dict_pane.pack(side=&#39;top&#39;, fill=&#39;both&#39;, expand=True)
+        self.dict_pane = dict_pane
+        line = ttk.Frame(root)
+        submit = ttk.Button(line, text=&#39;Submit&#39;, command=self.submit)
+        cancel = ttk.Button(line, text=&#39;Cancel&#39;, command=self.cancel)
+        submit.pack(side=&#39;left&#39;)
+        cancel.pack(side=&#39;right&#39;)
+        line.pack(side=&#39;bottom&#39;, anchor=&#39;e&#39;, pady=5)
+        center(root)
+
+        self.output = deepcopy(data)
+        self.cancelled = False
+
+        if master is None:
+            root.mainloop()
+
+    def submit(self):
+        output = self.dict_pane.get_values()
+        for k,v in output.items():
+            self.output[k] = v
+
+        self.root.destroy()
+
+    def cancel(self):
+        self.cancelled = True
+        self.root.destroy()
+
+
+def new_fill_dict(data, prompt=None, shell=False, gui_root=None):
+    pass</code></pre>
+</details>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="blechpy.utils.userIO.ask_user"><code class="name flex">
+<span>def <span class="ident">ask_user</span></span>(<span>msg, choices=['No', 'Yes'], shell=False)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Ask the user a question with certain choices</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>msg</code></strong> :&ensp;<code>str, message to show user</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>choices</code></strong> :&ensp;<code>list</code> or <code>tuple with choices (optional)</code></dt>
+<dd>default is ('No', 'Yes')</dd>
+<dt><strong><code>shell</code></strong> :&ensp;<code>bool (optional)</code></dt>
+<dd>True is command line interface for input
+False (default) for GUI</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>int</code></strong> :&ensp;<code>index</code> of <code>users choice</code></dt>
+<dd>&nbsp;</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def ask_user(msg, choices=[&#39;No&#39;, &#39;Yes&#39;], shell=False):
+    &#39;&#39;&#39;Ask the user a question with certain choices
+
+    Parameters
+    ----------
+    msg : str, message to show user
+    choices : list or tuple with choices (optional)
+        default is (&#39;No&#39;, &#39;Yes&#39;)
+    shell : bool (optional)
+        True is command line interface for input
+        False (default) for GUI
+
+    Returns
+    -------
+    int : index of users choice
+    &#39;&#39;&#39;
+    if &#39;SSH_CONNECTION&#39; in os.environ:
+        shell = True
+
+    if shell:
+        original = sys.stdout
+        sys.stdout = sys.__stdout__
+        print(msg)
+        for i, c in enumerate(choices):
+            print(&#39;%i) %s&#39; % (i, c))
+        idx = input(&#39;Enter number of choice &gt;&gt;  &#39;)
+        if idx == &#39;&#39; or not idx.isnumeric():
+            out = None
+        else:
+            out = int(idx)
+
+        sys.stdout = original
+        return out
+    else:
+        idx = eg.indexbox(msg, choices=choices)
+        return idx</code></pre>
+</details>
+</dd>
+<dt id="blechpy.utils.userIO.center"><code class="name flex">
+<span>def <span class="ident">center</span></span>(<span>win)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def center(win):
+    win.update_idletasks()
+    width = win.winfo_width()
+    height = win.winfo_height()
+    x = (win.winfo_screenwidth() // 2) - (width // 2)
+    y = (win.winfo_screenheight() // 2) - (height // 2)
+    win.geometry(&#39;{}x{}+{}+{}&#39;.format(width, height, x, y))</code></pre>
+</details>
+</dd>
+<dt id="blechpy.utils.userIO.confirm_parameter_dict"><code class="name flex">
+<span>def <span class="ident">confirm_parameter_dict</span></span>(<span>params, prompt, shell=False)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Shows user a dictionary and asks them to confirm that the values are
+correct. If not they have an option to edit the dict.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>params</code></strong> :&ensp;<code>dict</code></dt>
+<dd>values in dict can be int, float, str, bool, list, dict or None</dd>
+<dt><strong><code>prompt</code></strong> :&ensp;<code>str</code></dt>
+<dd>prompt to show user</dd>
+<dt><strong><code>shell</code></strong> :&ensp;<code>bool (optional)</code></dt>
+<dd>True to use command line interface
+False (default) for GUI</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>dict</code></dt>
+<dd>&nbsp;</dd>
+</dl>
+<p>lists are returned as lists of str so other types m ust be cast manually
+by
+user</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def confirm_parameter_dict(params, prompt, shell=False):
+    &#39;&#39;&#39;Shows user a dictionary and asks them to confirm that the values are
+    correct. If not they have an option to edit the dict.
+
+    Parameters
+    ----------
+    params: dict
+        values in dict can be int, float, str, bool, list, dict or None
+    prompt: str
+        prompt to show user
+    shell : bool (optional)
+        True to use command line interface
+        False (default) for GUI
+
+    Returns
+    -------
+    dict
+       lists are returned as lists of str so other types m ust be cast manually
+       by  user
+    &#39;&#39;&#39;
+    prompt = (&#39;----------\n%s\n----------\n%s\nAre these parameters good?&#39; %
+              (prompt, pt.print_dict(params)))
+    q = ask_user(prompt, choices=[&#39;Yes&#39;, &#39;Edit&#39;, &#39;Cancel&#39;], shell=shell)
+    if q == 2:
+        return None
+    elif q == 0:
+        return params
+    else:
+        new_params = fill_dict(params, &#39;Enter new values:&#39;, shell=shell)
+        return new_params</code></pre>
+</details>
+</dd>
+<dt id="blechpy.utils.userIO.convert_str_to_type"><code class="name flex">
+<span>def <span class="ident">convert_str_to_type</span></span>(<span>item, dtype)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def convert_str_to_type(item, dtype):
+    if dtype is list:
+        tmp = item.split(&#39;,&#39;)
+        out = []
+        hold = &#39;&#39;
+        for x in tmp:
+            if x.endswith(&#39;\\&#39;):
+                hold = x.replace(&#39;\\&#39;, &#39;,&#39;)
+            else:
+                out.append(hold+x)
+                hold = &#39;&#39;
+        return out
+
+    if dtype is bool:
+        if item.isnumeric():
+            item = int(item)
+        else:
+            if item.lower() == &#39;false&#39; or item.lower() == &#39;n&#39;:
+                item = 0
+            elif item.lower() == &#39;true&#39; or item.lower() == &#39;y&#39;:
+                item = 1
+            elif item == &#39;&#39;:
+                return None
+            else:
+                raise ValueError(&#39;Boolean inputs must be true, false, &#39;
+                                 &#39;y, n, 1 or 0&#39;)
+
+    if item == &#39;&#39; and dtype is not str:
+        return None
+
+    return dtype(item)</code></pre>
+</details>
+</dd>
+<dt id="blechpy.utils.userIO.fill_dict"><code class="name flex">
+<span>def <span class="ident">fill_dict</span></span>(<span>data, prompt=None, shell=False)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def fill_dict(data, prompt=None, shell=False):
+    if &#39;SSH_CONNECTION&#39; in os.environ:
+        shell = True
+
+    filler = dictIO(data, shell=shell)
+    out= filler.fill_dict(prompt=prompt)
+    return out</code></pre>
+</details>
+</dd>
+<dt id="blechpy.utils.userIO.get_dict_shell_input"><code class="name flex">
+<span>def <span class="ident">get_dict_shell_input</span></span>(<span>dat, type_dict=None, tabstop='', prompt=None)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_dict_shell_input(dat, type_dict=None, tabstop=&#39;&#39;, prompt=None):
+    if prompt:
+        print(&#39;----------\n%s\n----------&#39; % prompt)
+
+    output = deepcopy(dat)
+    if type_dict is None:
+        type_dict = make_type_dict(dat)
+
+    for k, v in dat.items():
+        if isinstance(v, Mapping) and v != {}:
+            print(&#39;%s%s\n%s----------&#39; % (tabstop, k, tabstop))
+            tmp = get_dict_shell_input(v, type_dict[k], tabstop+&#39;    &#39;)
+            output[k] = deepcopy(tmp)
+            continue
+
+        prompt = &#39;%s%s (%s) &#39; % (tabstop, k, type_dict[k].__name__)
+        if type_dict[k] is list:
+            prompt += &#39;(comma-separated)&#39;
+
+        prompt += &#39; : &#39;
+        if any([isinstance(v, x) for x in [str, list, int, float]]):
+            default_val = str(v).replace(&#39;[&#39;,&#39;&#39;).replace(&#39;]&#39;,&#39;&#39;)
+            tmp = pt_prompt(prompt, default=default_val)
+        else:
+            tmp = pt_prompt(prompt)
+
+        if tmp == &#39;abort&#39;:
+            return None
+
+        output[k] = convert_str_to_type(tmp, type_dict[k])
+
+    return output</code></pre>
+</details>
+</dd>
+<dt id="blechpy.utils.userIO.get_filedirs"><code class="name flex">
+<span>def <span class="ident">get_filedirs</span></span>(<span>prompt='', root=None, multi=False, shell=False)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Queries user for directory or multiple directories</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>prompt</code></strong> :&ensp;<code>str</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>root</code></strong> :&ensp;<code>str, where to start file chooser</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>multi</code></strong> :&ensp;<code>bool, whether to query for multiple directories</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>shell</code></strong> :&ensp;<code>bool</code></dt>
+<dd>True for command-line interface, False (default) for GUI
+forced True if ssh</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>str</code> or <code>list</code> of <code>str</code></dt>
+<dd>&nbsp;</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_filedirs(prompt=&#39;&#39;, root=None, multi=False, shell=False):
+    &#39;&#39;&#39;Queries user for directory or multiple directories
+
+    Parameters
+    ----------
+    prompt : str
+    root : str, where to start file chooser
+    multi : bool, whether to query for multiple directories
+    shell : bool
+        True for command-line interface, False (default) for GUI
+        forced True if ssh
+
+    Returns
+    -------
+    str or list of str
+    &#39;&#39;&#39;
+    if &#39;SSH_CONNECTION&#39; in os.environ:
+        shell=True
+
+    path_completer = PathCompleter(only_directories=True)
+    history = InMemoryHistory()
+
+    go = True
+    out = []
+    if shell:
+        print(prompt)
+        if multi:
+            print(&#39;Leave blank or ctrl-c to terminate collection&#39;)
+
+        print(&#39;----------&#39;)
+
+    while go:
+        if shell:
+            if root is None:
+                root = &#39;&#39;
+
+            try:
+                tmp = pt_prompt(&#39; &gt;&gt; &#39;, completer=path_completer, history=history,
+                                auto_suggest=AutoSuggestFromHistory(), default=root)
+            except KeyboardInterrupt:
+                break
+
+        else:
+            tmp = eg.diropenbox(prompt + &#39; (cancel to stop collection)&#39;, default=root)
+
+        if tmp == &#39;&#39; or tmp is None:
+            go = False
+        elif os.path.isdir(tmp):
+            root = os.path.dirname(tmp)
+            out.append(tmp)
+        else:
+            print(&#39;Must enter a valid path to a directory&#39;)
+
+        if not multi:
+            out = out[0]
+            break
+
+    if out == [] or out == &#39;&#39;:
+        out = None
+
+    return out</code></pre>
+</details>
+</dd>
+<dt id="blechpy.utils.userIO.get_files"><code class="name flex">
+<span>def <span class="ident">get_files</span></span>(<span>prompt='', root=None, filetypes=None, multi=False, shell=False)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Queries user for file or multiple files</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>prompt</code></strong> :&ensp;<code>str</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>root</code></strong> :&ensp;<code>str, where to start file chooser</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>multi</code></strong> :&ensp;<code>bool, whether to query for multiple directories</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>filetypes</code></strong> :&ensp;<code>list</code> of <code>str, list</code> of <code>acceptable file suffixes</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>shell</code></strong> :&ensp;<code>bool</code></dt>
+<dd>True for command-line interface, False (default) for GUI
+forced True if ssh</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>str</code> or <code>list</code> of <code>str</code></dt>
+<dd>&nbsp;</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_files(prompt=&#39;&#39;, root=None, filetypes=None, multi=False, shell=False):
+    &#39;&#39;&#39;Queries user for file or multiple files
+
+    Parameters
+    ----------
+    prompt : str
+    root : str, where to start file chooser
+    multi : bool, whether to query for multiple directories
+    filetypes : list of str, list of acceptable file suffixes
+    shell : bool
+        True for command-line interface, False (default) for GUI
+        forced True if ssh
+
+    Returns
+    -------
+    str or list of str
+    &#39;&#39;&#39;
+    if &#39;SSH_CONNECTION&#39; in os.environ:
+        shell=True
+
+    if filetypes is not None:
+        file_filter = lambda x: (any([x.endswith(y) for y in filetypes]) or os.path.isdir(x))
+    else:
+        file_filter = None
+
+    path_completer = PathCompleter(file_filter=file_filter)
+    history = InMemoryHistory()
+
+    go = True
+    out = []
+    if shell:
+        print(prompt)
+        if multi:
+            print(&#39;Leave blank or ctrl-c to terminate collection&#39;)
+
+        print(&#39;----------&#39;)
+
+    while go:
+        if shell:
+            if root is None:
+                root = &#39;&#39;
+
+            try:
+                tmp = pt_prompt(&#39; &gt;&gt; &#39;, completer=path_completer, history=history,
+                                auto_suggest=AutoSuggestFromHistory(), default=root)
+            except KeyboardInterrupt:
+                break
+
+        else:
+            tmp = eg.fileopenbox(prompt + &#39; (cancel to stop collection)&#39;,
+                                 default=root, multiple=multi,
+                                 filetypes=filetypes)
+
+        if tmp == &#39;&#39; or tmp is None:
+            go = False
+        elif isinstance(tmp, list) and all([os.path.isfile(x) for x in tmp]):
+            root = os.path.dirname(tmp[0])
+            out.extend(tmp)
+        elif os.path.isfile(tmp):
+            root = os.path.dirname(tmp)
+            out.append(tmp)
+        else:
+            print(&#39;Must enter a valid path to file&#39;)
+
+        if not multi:
+            out = out[0]
+            break
+
+    if out == [] or out == &#39;&#39;:
+        out = None
+
+    return out</code></pre>
+</details>
+</dd>
+<dt id="blechpy.utils.userIO.get_labels"><code class="name flex">
+<span>def <span class="ident">get_labels</span></span>(<span>items, prompt='', shell=False)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Gets user input corresponding to items in items</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>items</code></strong> :&ensp;<code>list</code> of <code>str</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>prompt</code></strong> :&ensp;<code>str</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>shell</code></strong> :&ensp;<code>bool</code></dt>
+<dd>True for command-line interface. False (default) for GUI.
+Automatically sets to True when connected via ssh</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>list</code> of <code>str</code></dt>
+<dd>&nbsp;</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_labels(items, prompt=&#39;&#39;, shell=False):
+    &#39;&#39;&#39;Gets user input corresponding to items in items
+
+    Parameters
+    ----------
+    items : list of str
+    prompt: str
+    shell : bool
+        True for command-line interface. False (default) for GUI.
+        Automatically sets to True when connected via ssh
+
+    Returns
+    -------
+    list of str
+    &#39;&#39;&#39;
+    if &#39;SSH_CONNECTION&#39; in os.environ:
+        shell=True
+
+    tmp = dict.fromkeys(items,&#39;&#39;)
+    tmp = fill_dict(tmp, prompt, shell)
+    out = [tmp[x] for x in items]
+    return out</code></pre>
+</details>
+</dd>
+<dt id="blechpy.utils.userIO.get_user_input"><code class="name flex">
+<span>def <span class="ident">get_user_input</span></span>(<span>msg, default=None, shell=False)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Get single input from user.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>msg</code></strong> :&ensp;<code>str, prompt</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>default</code></strong> :&ensp;<code>str (optional)</code></dt>
+<dd>value returned if user enters nothing.
+default is None</dd>
+<dt><strong><code>shell</code></strong> :&ensp;<code>bool (optional)</code></dt>
+<dd>True for CLI, False (default) for GUI</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_user_input(msg, default=None, shell=False):
+    &#39;&#39;&#39;Get single input from user.
+
+    Parameters
+    ----------
+    msg : str, prompt
+    default : str (optional)
+        value returned if user enters nothing.
+        default is None
+    shell : bool (optional)
+        True for CLI, False (default) for GUI
+    &#39;&#39;&#39;
+    if &#39;SSH_CONNECTION&#39; in os.environ:
+        shell = True
+
+    if shell:
+        original = sys.stdout
+        sys.stdout = sys.__stdout__
+        try:
+            prompt = msg + &#39; &#39;
+            #if default is not None:
+            #    prompt += &#39;(default=%s) &#39; % default
+            if default is None:
+                default = &#39;&#39;
+
+            prompt += &#39; : &#39;
+            out = pt_prompt(prompt, default=default)
+            if out == &#39;&#39;:
+                out = default
+
+        except EOFError:
+            out = None
+
+        sys.stdout = original
+        return out
+    else:
+        out = eg.enterbox(msg, default=default)
+
+        return out</code></pre>
+</details>
+</dd>
+<dt id="blechpy.utils.userIO.make_type_dict"><code class="name flex">
+<span>def <span class="ident">make_type_dict</span></span>(<span>dat)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def make_type_dict(dat):
+    type_dict = deepcopy(dat)
+    for k, v in dat.items():
+        if isinstance(v, Mapping) and v != {}:
+            tmp = make_type_dict(v)
+        elif isinstance(v, type):
+            tmp = v
+        elif v is None or v == {}:
+            tmp = str
+        else:
+            tmp = type(v)
+
+        type_dict[k] = tmp
+
+    return type_dict</code></pre>
+</details>
+</dd>
+<dt id="blechpy.utils.userIO.new_fill_dict"><code class="name flex">
+<span>def <span class="ident">new_fill_dict</span></span>(<span>data, prompt=None, shell=False, gui_root=None)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def new_fill_dict(data, prompt=None, shell=False, gui_root=None):
+    pass</code></pre>
+</details>
+</dd>
+<dt id="blechpy.utils.userIO.select_from_list"><code class="name flex">
+<span>def <span class="ident">select_from_list</span></span>(<span>prompt, items, title='', multi_select=False, shell=False)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>makes a popup for list selections, can be multichoice or single choice
+default is single selection</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>prompt</code></strong> :&ensp;<code>str, prompt for selection dialog</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>item</code></strong> :&ensp;<code>list, list</code> of <code>items to be selected from</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>title</code></strong> :&ensp;<code>str (optional), title</code> of <code>selection dialog</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>multi_select</code></strong> :&ensp;<code>bool (optional)</code></dt>
+<dd>whether multiple selection is permitted,
+default False</dd>
+<dt><strong><code>shell</code></strong> :&ensp;<code>bool (optional)</code></dt>
+<dd>True for command-line interface
+False (default) for GUI</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>str (if multi_select=False): string</code> of <code>selected choice</code></dt>
+<dd>&nbsp;</dd>
+<dt><code>list (if multi_select=True): list</code> of <code>strings that were selected</code></dt>
+<dd>&nbsp;</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def select_from_list(prompt, items, title=&#39;&#39;, multi_select=False, shell=False):
+    &#39;&#39;&#39;makes a popup for list selections, can be multichoice or single choice
+    default is single selection
+
+    Parameters
+    ----------
+    prompt : str, prompt for selection dialog
+    item : list, list of items to be selected from
+    title : str (optional), title of selection dialog
+    multi_select : bool (optional)
+        whether multiple selection is permitted,
+        default False
+    shell : bool (optional)
+        True for command-line interface
+        False (default) for GUI
+
+    Returns
+    -------
+    str (if multi_select=False): string of selected choice
+    list (if multi_select=True): list of strings that were selected
+    &#39;&#39;&#39;
+    if &#39;SSH_CONNECION&#39; in os.environ:
+        shell = True
+
+    if not isinstance(items, list):
+        raise TypeError(&#34;Passed %s, but expected &lt;class &#39;list&#39;&gt;&#34; % type(items))
+
+    if shell:
+        original = sys.stdout
+        sys.stdout = sys.__stdout__
+        print(prompt)
+        for i, item in enumerate(items):
+            print(&#39;%i) %s&#39; % (i, item))
+
+        if multi_select:
+            idx = input(&#39;Enter selection numbers comma-separated:\n&gt;&gt;  &#39;)
+            if idx == &#39;&#39;:
+                out = None
+            else:
+                idx = [int(x) for x in idx.split(&#39;,&#39;)]
+                out = [items[x] for x in idx]
+
+        else:
+            idx = input(&#39;Enter selection number:  &#39;)
+            if idx == &#39;&#39;:
+                out = None
+            else:
+                out = items[int(idx)]
+
+        sys.stdout = original
+        return out
+    else:
+        if multi_select is False:
+            choice = eg.choicebox(prompt, title, items)
+        else:
+            choice = eg.multchoicebox(prompt, title, items, None)
+
+        return choice</code></pre>
+</details>
+</dd>
+<dt id="blechpy.utils.userIO.tell_user"><code class="name flex">
+<span>def <span class="ident">tell_user</span></span>(<span>msg, shell=False)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Tells users a message, even if top level function is outputing to a
+loggin file</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>msg</code></strong> :&ensp;<code>str, message</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>shell</code></strong> :&ensp;<code>bool (optional)</code></dt>
+<dd>True for command-line, False (default) for GUI</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def tell_user(msg, shell=False):
+    &#39;&#39;&#39;Tells users a message, even if top level function is outputing to a
+    loggin file
+
+    Parameters
+    ----------
+    msg : str, message
+    shell : bool (optional)
+        True for command-line, False (default) for GUI
+    &#39;&#39;&#39;
+    if &#39;SHH_CONNECTION&#39; in os.environ:
+        shell = True
+
+    if shell:
+        original = sys.stdout
+        sys.stdout = sys.__stdout__
+        print(msg)
+        sys.stdout = original
+        return True
+    else:
+        eg.msgbox(msg)
+        return True</code></pre>
+</details>
+</dd>
+</dl>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="blechpy.utils.userIO.dictIO"><code class="flex name class">
+<span>class <span class="ident">dictIO</span></span>
+<span>(</span><span>data, types=None, shell=False)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class dictIO(object):
+    def __init__(self, data, types=None, shell=False):
+        if &#39;SSH_CONNECTION&#39; in os.environ:
+            shell = True
+
+        if not isinstance(data, Mapping):
+            raise TypeError((&#39;%s is invalid data type. Requires extension of&#39;
+                             &#39;Mapping such as dict.&#39;) % type(data))
+        if types is None:
+            self._types = make_type_dict(data)
+        elif len(types.keys()) != len(data.keys()):
+            raise ValueError((&#39;types must be a dict with keys matching data&#39;
+                              &#39; and values as types or be set to None to &#39;
+                              &#39;automatically detect data types&#39;
+                              &#39;or default to string input&#39;))
+        else:
+            self._types = types
+
+        self._storage = deepcopy(data)
+        self._output = deepcopy(data)
+        self._shell = shell
+
+    def fill_dict(self, prompt=None):
+        if self._shell:
+            self.fill_dict_shell(prompt=prompt)
+        else:
+            self.fill_dict_gui(prompt=prompt)
+
+        return self.get_dict()
+
+    def fill_dict_shell(self, prompt=None):
+        original = sys.stdout
+        sys.stdout = sys.__stdout__
+        out = get_dict_shell_input(self._storage, prompt=prompt)
+        self._output = deepcopy(out)
+        sys.stdout = original
+
+    def get_dict(self):
+        return deepcopy(self._output)
+
+    def fill_dict_gui(self, prompt=None):
+        output = deepcopy(self._storage)
+        type_dict = self._types
+        root = tk.Tk()
+        root.style = ttk.Style()
+        root.style.theme_use(&#39;clam&#39;)
+        self.root = root
+
+        if prompt:
+            prompt_label = ttk.Label(root, text=prompt)
+            prompt_label.pack(side=&#39;top&#39;, fill=&#39;x&#39;, expand=&#39;True&#39;)
+            ttk.Separator(root, orient=&#39;horizontal&#39;).pack(side=&#39;top&#39;, fill=&#39;x&#39;,
+                                                          expand=True, pady=10)
+
+        dict_pane = dict_fill_pane(root, output, type_dict)
+        dict_pane.pack(side=&#39;top&#39;, fill=&#39;both&#39;, expand=True)
+        self.dict_pane = dict_pane
+        line = ttk.Frame(root)
+        submit = ttk.Button(line, text=&#39;Submit&#39;, command=self.submit)
+        cancel = ttk.Button(line, text=&#39;Cancel&#39;, command=self.cancel)
+        submit.pack(side=&#39;left&#39;)
+        cancel.pack(side=&#39;right&#39;)
+        line.pack(side=&#39;bottom&#39;, anchor=&#39;e&#39;, pady=5)
+        center(root)
+        root.mainloop()
+
+    def submit(self):
+        self._output = self.dict_pane.get_values()
+        self.root.destroy()
+
+    def cancel(self):
+        self._output = None
+        self.root.destroy()</code></pre>
+</details>
+<h3>Methods</h3>
+<dl>
+<dt id="blechpy.utils.userIO.dictIO.cancel"><code class="name flex">
+<span>def <span class="ident">cancel</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def cancel(self):
+    self._output = None
+    self.root.destroy()</code></pre>
+</details>
+</dd>
+<dt id="blechpy.utils.userIO.dictIO.fill_dict"><code class="name flex">
+<span>def <span class="ident">fill_dict</span></span>(<span>self, prompt=None)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def fill_dict(self, prompt=None):
+    if self._shell:
+        self.fill_dict_shell(prompt=prompt)
+    else:
+        self.fill_dict_gui(prompt=prompt)
+
+    return self.get_dict()</code></pre>
+</details>
+</dd>
+<dt id="blechpy.utils.userIO.dictIO.fill_dict_gui"><code class="name flex">
+<span>def <span class="ident">fill_dict_gui</span></span>(<span>self, prompt=None)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def fill_dict_gui(self, prompt=None):
+    output = deepcopy(self._storage)
+    type_dict = self._types
+    root = tk.Tk()
+    root.style = ttk.Style()
+    root.style.theme_use(&#39;clam&#39;)
+    self.root = root
+
+    if prompt:
+        prompt_label = ttk.Label(root, text=prompt)
+        prompt_label.pack(side=&#39;top&#39;, fill=&#39;x&#39;, expand=&#39;True&#39;)
+        ttk.Separator(root, orient=&#39;horizontal&#39;).pack(side=&#39;top&#39;, fill=&#39;x&#39;,
+                                                      expand=True, pady=10)
+
+    dict_pane = dict_fill_pane(root, output, type_dict)
+    dict_pane.pack(side=&#39;top&#39;, fill=&#39;both&#39;, expand=True)
+    self.dict_pane = dict_pane
+    line = ttk.Frame(root)
+    submit = ttk.Button(line, text=&#39;Submit&#39;, command=self.submit)
+    cancel = ttk.Button(line, text=&#39;Cancel&#39;, command=self.cancel)
+    submit.pack(side=&#39;left&#39;)
+    cancel.pack(side=&#39;right&#39;)
+    line.pack(side=&#39;bottom&#39;, anchor=&#39;e&#39;, pady=5)
+    center(root)
+    root.mainloop()</code></pre>
+</details>
+</dd>
+<dt id="blechpy.utils.userIO.dictIO.fill_dict_shell"><code class="name flex">
+<span>def <span class="ident">fill_dict_shell</span></span>(<span>self, prompt=None)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def fill_dict_shell(self, prompt=None):
+    original = sys.stdout
+    sys.stdout = sys.__stdout__
+    out = get_dict_shell_input(self._storage, prompt=prompt)
+    self._output = deepcopy(out)
+    sys.stdout = original</code></pre>
+</details>
+</dd>
+<dt id="blechpy.utils.userIO.dictIO.get_dict"><code class="name flex">
+<span>def <span class="ident">get_dict</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_dict(self):
+    return deepcopy(self._output)</code></pre>
+</details>
+</dd>
+<dt id="blechpy.utils.userIO.dictIO.submit"><code class="name flex">
+<span>def <span class="ident">submit</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def submit(self):
+    self._output = self.dict_pane.get_values()
+    self.root.destroy()</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="blechpy.utils.userIO.dict_fill_pane"><code class="flex name class">
+<span>class <span class="ident">dict_fill_pane</span></span>
+<span>(</span><span>root, data, type_dict, tabstop='', *args, **kwargs)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Ttk Frame widget is a container, used to group other widgets
+together.</p>
+<p>Construct a Ttk Frame with parent master.</p>
+<p>STANDARD OPTIONS</p>
+<pre><code>class, cursor, style, takefocus
+</code></pre>
+<p>WIDGET-SPECIFIC OPTIONS</p>
+<pre><code>borderwidth, relief, padding, width, height
+</code></pre></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class dict_fill_pane(ttk.Frame):
+    def __init__(self, root, data, type_dict, tabstop=&#39;&#39;, *args, **kwargs):
+        ttk.Frame.__init__(self, root, *args, **kwargs)
+        self.data = deepcopy(data)
+        self.val_dict = deepcopy(type_dict)
+        self.type_dict = deepcopy(type_dict)
+        row = 0
+        for k, v in data.items():
+            t = type_dict[k]
+            if isinstance(v, Mapping) and v != {}:
+                sub_pane = dict_fill_pane(self, v, t, tabstop+&#39;    &#39;)
+                label = ttk.Label(self, text=&#39;%s%s&#39; % (tabstop, k),
+                                  foreground=&#39;red&#39;)
+                self.val_dict[k] = sub_pane
+                label.grid(row=row, column=0, sticky=&#39;w&#39;)
+                sub_pane.grid(row=row+1, column=0, sticky=&#39;nw&#39;)
+                row += 2
+            else:
+                line = ttk.Frame(self)
+                prompt = &#39;%s%s (%s) &#39; % (tabstop, k, t.__name__)
+                if t is list:
+                    prompt += &#39;(comma-separated)&#39;
+                if all([v is not x for x in [None, [], {}, &#39;&#39;]]):
+                    if isinstance(v, type):
+                        if t is bool:
+                            default = False
+                        else:
+                            default = &#39;&#39;
+
+                    elif t is bool:
+                        default = v
+                    else:
+                        default = str(v)
+                        if t is list:
+                            default = default[1:-1]
+                else:
+                    default = &#39;&#39;
+
+                prompt += &#39; : &#39;
+                label = ttk.Label(line, text=prompt)
+                if t is bool:
+                    if isinstance(v, type):
+                        val = False
+                    else:
+                        val = v
+
+                    var = tk.BooleanVar(self, value=val)
+                    entry = ttk.Checkbutton(line, text=&#39;&#39;, variable=var)
+                else:
+                    var = tk.StringVar(self, value=default)
+                    entry = ttk.Entry(line, textvariable=var)
+
+                self.val_dict[k] = var
+                label.pack(side=&#39;left&#39;)
+                entry.pack(side=&#39;right&#39;)
+                line.grid(row=row, column=0, sticky=&#39;ew&#39;)
+                row += 1
+
+    def get_value_vars(self):
+        return self.val_dict
+
+    def get_values(self):
+        output = deepcopy(self.data)
+        vals = self.val_dict
+        types = deepcopy(self.type_dict)
+        for k, v in vals.items():
+            t = types[k]
+            if isinstance(v, ttk.Frame):
+                output[k] = v.get_values()
+            elif isinstance(v, tk.BooleanVar):
+                output[k] = v.get()
+            else:
+                output[k] = convert_str_to_type(v.get(), t)
+
+        return deepcopy(output)</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>tkinter.ttk.Frame</li>
+<li>tkinter.ttk.Widget</li>
+<li>tkinter.Widget</li>
+<li>tkinter.BaseWidget</li>
+<li>tkinter.Misc</li>
+<li>tkinter.Pack</li>
+<li>tkinter.Place</li>
+<li>tkinter.Grid</li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="blechpy.utils.userIO.dict_fill_pane.get_value_vars"><code class="name flex">
+<span>def <span class="ident">get_value_vars</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_value_vars(self):
+    return self.val_dict</code></pre>
+</details>
+</dd>
+<dt id="blechpy.utils.userIO.dict_fill_pane.get_values"><code class="name flex">
+<span>def <span class="ident">get_values</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_values(self):
+    output = deepcopy(self.data)
+    vals = self.val_dict
+    types = deepcopy(self.type_dict)
+    for k, v in vals.items():
+        t = types[k]
+        if isinstance(v, ttk.Frame):
+            output[k] = v.get_values()
+        elif isinstance(v, tk.BooleanVar):
+            output[k] = v.get()
+        else:
+            output[k] = convert_str_to_type(v.get(), t)
+
+    return deepcopy(output)</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="blechpy.utils.userIO.fill_dict_popup"><code class="flex name class">
+<span>class <span class="ident">fill_dict_popup</span></span>
+<span>(</span><span>data, master=None, prompt=None)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class fill_dict_popup(object):
+    def __init__(self, data, master=None, prompt=None):
+        if master:
+            root = self.root = tk.Toplevel(master)
+        else:
+            root = self.root = tk.Tk()
+
+        root.style = ttk.Style()
+        root.style.theme_use(&#39;clam&#39;)
+        self.data = data
+
+        if prompt:
+            prompt_label = ttk.Label(root, text=prompt)
+            prompt_label.pack(side=&#39;top&#39;, fill=&#39;x&#39;, expand=&#39;True&#39;)
+            ttk.Separator(root, orient=&#39;horizontal&#39;).pack(side=&#39;top&#39;, fill=&#39;x&#39;,
+                                                         expand=True, pady=10)
+
+        type_dict = make_type_dict(data)
+        dict_pane = dict_fill_pane(root, data, type_dict)
+        dict_pane.pack(side=&#39;top&#39;, fill=&#39;both&#39;, expand=True)
+        self.dict_pane = dict_pane
+        line = ttk.Frame(root)
+        submit = ttk.Button(line, text=&#39;Submit&#39;, command=self.submit)
+        cancel = ttk.Button(line, text=&#39;Cancel&#39;, command=self.cancel)
+        submit.pack(side=&#39;left&#39;)
+        cancel.pack(side=&#39;right&#39;)
+        line.pack(side=&#39;bottom&#39;, anchor=&#39;e&#39;, pady=5)
+        center(root)
+
+        self.output = deepcopy(data)
+        self.cancelled = False
+
+        if master is None:
+            root.mainloop()
+
+    def submit(self):
+        output = self.dict_pane.get_values()
+        for k,v in output.items():
+            self.output[k] = v
+
+        self.root.destroy()
+
+    def cancel(self):
+        self.cancelled = True
+        self.root.destroy()</code></pre>
+</details>
+<h3>Methods</h3>
+<dl>
+<dt id="blechpy.utils.userIO.fill_dict_popup.cancel"><code class="name flex">
+<span>def <span class="ident">cancel</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def cancel(self):
+    self.cancelled = True
+    self.root.destroy()</code></pre>
+</details>
+</dd>
+<dt id="blechpy.utils.userIO.fill_dict_popup.submit"><code class="name flex">
+<span>def <span class="ident">submit</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def submit(self):
+    output = self.dict_pane.get_values()
+    for k,v in output.items():
+        self.output[k] = v
+
+    self.root.destroy()</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<h1>Index</h1>
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="blechpy.utils" href="index.html">blechpy.utils</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="blechpy.utils.userIO.ask_user" href="#blechpy.utils.userIO.ask_user">ask_user</a></code></li>
+<li><code><a title="blechpy.utils.userIO.center" href="#blechpy.utils.userIO.center">center</a></code></li>
+<li><code><a title="blechpy.utils.userIO.confirm_parameter_dict" href="#blechpy.utils.userIO.confirm_parameter_dict">confirm_parameter_dict</a></code></li>
+<li><code><a title="blechpy.utils.userIO.convert_str_to_type" href="#blechpy.utils.userIO.convert_str_to_type">convert_str_to_type</a></code></li>
+<li><code><a title="blechpy.utils.userIO.fill_dict" href="#blechpy.utils.userIO.fill_dict">fill_dict</a></code></li>
+<li><code><a title="blechpy.utils.userIO.get_dict_shell_input" href="#blechpy.utils.userIO.get_dict_shell_input">get_dict_shell_input</a></code></li>
+<li><code><a title="blechpy.utils.userIO.get_filedirs" href="#blechpy.utils.userIO.get_filedirs">get_filedirs</a></code></li>
+<li><code><a title="blechpy.utils.userIO.get_files" href="#blechpy.utils.userIO.get_files">get_files</a></code></li>
+<li><code><a title="blechpy.utils.userIO.get_labels" href="#blechpy.utils.userIO.get_labels">get_labels</a></code></li>
+<li><code><a title="blechpy.utils.userIO.get_user_input" href="#blechpy.utils.userIO.get_user_input">get_user_input</a></code></li>
+<li><code><a title="blechpy.utils.userIO.make_type_dict" href="#blechpy.utils.userIO.make_type_dict">make_type_dict</a></code></li>
+<li><code><a title="blechpy.utils.userIO.new_fill_dict" href="#blechpy.utils.userIO.new_fill_dict">new_fill_dict</a></code></li>
+<li><code><a title="blechpy.utils.userIO.select_from_list" href="#blechpy.utils.userIO.select_from_list">select_from_list</a></code></li>
+<li><code><a title="blechpy.utils.userIO.tell_user" href="#blechpy.utils.userIO.tell_user">tell_user</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="blechpy.utils.userIO.dictIO" href="#blechpy.utils.userIO.dictIO">dictIO</a></code></h4>
+<ul class="two-column">
+<li><code><a title="blechpy.utils.userIO.dictIO.cancel" href="#blechpy.utils.userIO.dictIO.cancel">cancel</a></code></li>
+<li><code><a title="blechpy.utils.userIO.dictIO.fill_dict" href="#blechpy.utils.userIO.dictIO.fill_dict">fill_dict</a></code></li>
+<li><code><a title="blechpy.utils.userIO.dictIO.fill_dict_gui" href="#blechpy.utils.userIO.dictIO.fill_dict_gui">fill_dict_gui</a></code></li>
+<li><code><a title="blechpy.utils.userIO.dictIO.fill_dict_shell" href="#blechpy.utils.userIO.dictIO.fill_dict_shell">fill_dict_shell</a></code></li>
+<li><code><a title="blechpy.utils.userIO.dictIO.get_dict" href="#blechpy.utils.userIO.dictIO.get_dict">get_dict</a></code></li>
+<li><code><a title="blechpy.utils.userIO.dictIO.submit" href="#blechpy.utils.userIO.dictIO.submit">submit</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="blechpy.utils.userIO.dict_fill_pane" href="#blechpy.utils.userIO.dict_fill_pane">dict_fill_pane</a></code></h4>
+<ul class="">
+<li><code><a title="blechpy.utils.userIO.dict_fill_pane.get_value_vars" href="#blechpy.utils.userIO.dict_fill_pane.get_value_vars">get_value_vars</a></code></li>
+<li><code><a title="blechpy.utils.userIO.dict_fill_pane.get_values" href="#blechpy.utils.userIO.dict_fill_pane.get_values">get_values</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="blechpy.utils.userIO.fill_dict_popup" href="#blechpy.utils.userIO.fill_dict_popup">fill_dict_popup</a></code></h4>
+<ul class="">
+<li><code><a title="blechpy.utils.userIO.fill_dict_popup.cancel" href="#blechpy.utils.userIO.fill_dict_popup.cancel">cancel</a></code></li>
+<li><code><a title="blechpy.utils.userIO.fill_dict_popup.submit" href="#blechpy.utils.userIO.fill_dict_popup.submit">submit</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc"><cite>pdoc</cite> 0.9.2</a>.</p>
+</footer>
+</body>
+</html>

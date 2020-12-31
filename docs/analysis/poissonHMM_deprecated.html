@@ -1,0 +1,4664 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+<meta name="generator" content="pdoc 0.9.2" />
+<title>blechpy.analysis.poissonHMM_deprecated API documentation</title>
+<meta name="description" content="" />
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
+<link rel="stylesheet preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/styles/github.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/highlight.min.js" integrity="sha256-Uv3H6lx7dJmRfRvH8TH6kJD1TSK1aFcwgx+mdg3epi8=" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => hljs.initHighlighting())</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>blechpy.analysis.poissonHMM_deprecated</code></h1>
+</header>
+<section id="section-intro">
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">import os
+import math
+import numpy as np
+import itertools as it
+import pylab as plt
+import seaborn as sns
+import pandas as pd
+import multiprocessing as mp
+import tables
+#from scipy.spatial.distance import euclidean
+from numba import njit
+from blechpy.utils.particles import HMMInfoParticle
+from blechpy import load_dataset
+from blechpy.dio import h5io
+from blechpy.plotting import hmm_plot as hmmplt
+from joblib import Parallel, delayed, Memory
+from appdirs import user_cache_dir
+cachedir = user_cache_dir(&#39;blechpy&#39;)
+memory = Memory(cachedir, verbose=0)
+
+
+
+TEST_PARAMS = {&#39;n_cells&#39;: 10, &#39;n_states&#39;: 4, &#39;state_seq_length&#39;: 5,
+               &#39;trial_time&#39;: 3.5, &#39;dt&#39;: 0.001, &#39;max_rate&#39;: 50, &#39;n_trials&#39;: 15,
+               &#39;min_state_dur&#39;: 0.05, &#39;noise&#39;: 0.01, &#39;baseline_dur&#39;: 1}
+
+FACTORIAL_LOOKUP = np.array([math.factorial(x) for x in range(20)])
+
+
+@njit
+def fast_factorial(x):
+    if x &lt; len(FACTORIAL_LOOKUP):
+        return FACTORIAL_LOOKUP[x]
+    else:
+        y = 1
+        for i in range(1,x+1):
+            y = y*i
+
+        return y
+
+
+@njit
+def poisson(rate, n, dt):
+    &#39;&#39;&#39;Gives probability of each neurons spike count assuming poisson spiking
+    &#39;&#39;&#39;
+    tmp = np.power(rate*dt, n) / np.array([fast_factorial(x) for x in n])
+    tmp = tmp * np.exp(-rate*dt)
+    return tmp
+
+
+@njit
+def forward(spikes, dt, PI, A, B):
+    &#39;&#39;&#39;Run forward algorithm to compute alpha = P(Xt = i| o1...ot, pi)
+    Gives the probabilities of being in a specific state at each time point
+    given the past observations and initial probabilities
+
+    Parameters
+    ----------
+    spikes : np.array
+        N x T matrix of spike counts with each entry ((i,j)) holding the # of
+        spikes from neuron i in timebine j
+    nStates : int, # of hidden states predicted to have generate the spikes
+    dt : float, timebin in seconds (i.e. 0.001)
+    PI : np.array
+        nStates x 1 vector of initial state probabilities
+    A : np.array
+        nStates x nStates state transmission matrix with each entry ((i,j))
+        giving the probability of transitioning from state i to state j
+    B : np.array
+        N x nSates rate matrix. Each entry ((i,j)) gives this predicited rate
+        of neuron i in state j
+
+    Returns
+    -------
+    alpha : np.array
+        nStates x T matrix of forward probabilites. Each entry (i,j) gives
+        P(Xt = i | o1,...,oj, pi)
+    norms : np.array
+        1 x T vector of norm used to normalize alpha to be a probability
+        distribution and also to scale the outputs of the backward algorithm.
+        norms(t) = sum(alpha(:,t))
+    &#39;&#39;&#39;
+    nTimeSteps = spikes.shape[1]
+    nStates = A.shape[0]
+
+    # For each state, use the the initial state distribution and spike counts
+    # to initialize alpha(:,1)
+    row = np.array([PI[i] * np.prod(poisson(B[:,i], spikes[:,0], dt))
+                    for i in range(nStates)])
+    alpha = np.zeros((nStates, nTimeSteps))
+    norms = [np.sum(row)]
+    alpha[:, 0] = row/norms[0]
+    for t in range(1, nTimeSteps):
+        tmp = np.array([np.prod(poisson(B[:, s], spikes[:, t], dt)) *
+                        np.sum(alpha[:, t-1] * A[:,s])
+                        for s in range(nStates)])
+        tmp_norm = np.sum(tmp)
+        norms.append(tmp_norm)
+        tmp = tmp / tmp_norm
+        alpha[:, t] = tmp
+
+    return alpha, norms
+
+
+@njit
+def backward(spikes, dt, A, B, norms):
+    &#39;&#39;&#39; Runs the backward algorithm to compute beta = P(ot+1...oT | Xt=s)
+    Computes the probability of observing all future observations given the
+    current state at each time point
+
+    Paramters
+    ---------
+    spike : np.array, N x T matrix of spike counts
+    nStates : int, # of hidden states predicted
+    dt : float, timebin size in seconds
+    A : np.array, nStates x nStates matrix of transition probabilities
+    B : np.array, N x nStates matrix of estimated spike rates for each neuron
+
+    Returns
+    -------
+    beta : np.array, nStates x T matrix of backward probabilities
+    &#39;&#39;&#39;
+    nTimeSteps = spikes.shape[1]
+    nStates = A.shape[0]
+    beta = np.zeros((nStates, nTimeSteps))
+    beta[:, -1] = 1  # Initialize final beta to 1 for all states
+    tStep = list(range(nTimeSteps-1))
+    tStep.reverse()
+    for t in tStep:
+        for s in range(nStates):
+            beta[s,t] = np.sum((beta[:, t+1] * A[s,:]) *
+                               np.prod(poisson(B[:, s], spikes[:, t+1], dt)))
+
+        beta[:, t] = beta[:, t] / norms[t+1]
+
+    return beta
+
+
+@njit
+def baum_welch(spikes, dt, A, B, alpha, beta):
+    nTimeSteps = spikes.shape[1]
+    nStates = A.shape[0]
+    gamma = np.zeros((nStates, nTimeSteps))
+    epsilons = np.zeros((nStates, nStates, nTimeSteps-1))
+    for t in range(nTimeSteps):
+        if t &lt; nTimeSteps-1:
+            gamma[:, t] = (alpha[:, t] * beta[:, t]) / np.sum(alpha[:,t] * beta[:,t])
+            epsilonNumerator = np.zeros((nStates, nStates))
+            for si in range(nStates):
+                for sj in range(nStates):
+                    probs = np.prod(poisson(B[:,sj], spikes[:, t+1], dt))
+                    epsilonNumerator[si, sj] = (alpha[si, t]*A[si, sj]*
+                                                beta[sj, t]*probs)
+
+            epsilons[:, :, t] = epsilonNumerator / np.sum(epsilonNumerator)
+
+    return gamma, epsilons
+
+
+def isNotConverged(oldPI, oldA, oldB, PI, A, B, thresh=1e-4):
+    dPI = np.sqrt(np.sum(np.power(oldPI - PI, 2)))
+    dA = np.sqrt(np.sum(np.power(oldA - A, 2)))
+    dB = np.sqrt(np.sum(np.power(oldB - B, 2)))
+    print(&#39;dPI = %f,  dA = %f,  dB = %f&#39; % (dPI, dA, dB))
+    if all([x &lt; thresh for x in [dPI, dA, dB]]):
+        return False
+    else:
+        return True
+
+def poisson_viterbi(spikes, dt, PI, A, B):
+    &#39;&#39;&#39;
+    Parameters
+    ----------
+    spikes : np.array, Neuron X Time matrix of spike counts
+    PI : np.array, nStates x 1 vector of initial state probabilities
+    A : np.array, nStates X nStates matric of state transition probabilities
+    B : np.array, Neuron X States matrix of estimated firing rates
+    dt : float, time step size in seconds
+
+    Returns
+    -------
+    bestPath : np.array
+        1 x Time vector of states representing the most likely hidden state
+        sequence
+    maxPathLogProb : float
+        Log probability of the most likely state sequence
+    T1 : np.array
+        State X Time matrix where each entry (i,j) gives the log probability of
+        the the most likely path so far ending in state i that generates
+        observations o1,..., oj
+    T2: np.array
+        State X Time matrix of back pointers where each entry (i,j) gives the
+        state x(j-1) on the most likely path so far ending in state i
+    &#39;&#39;&#39;
+    if A.shape[0] != A.shape[1]:
+        raise ValueError(&#39;Transition matrix is not square&#39;)
+
+    nStates = A.shape[0]
+    nCells, nTimeSteps = spikes.shape
+    T1 = np.zeros((nStates, nTimeSteps))
+    T2 = np.zeros((nStates, nTimeSteps))
+    T1[:,1] = np.array([np.log(PI[i]) +
+                        np.log(np.prod(poisson(B[:,i], spikes[:, 1], dt)))
+                        for i in range(nStates)])
+    for t, s in it.product(range(1,nTimeSteps), range(nStates)):
+        probs = np.log(np.prod(poisson(B[:, s], spikes[:, t], dt)))
+        vec2 = T1[:, t-1] + np.log(A[:,s])
+        vec1 = vec2 + probs
+        T1[s, t] = np.max(vec1)
+        idx = np.argmax(vec2)
+        T2[s, t] = idx
+
+    bestPathEndState = np.argmax(T1[:, -1])
+    maxPathLogProb = T1[idx, -1]
+    bestPath = np.zeros((nTimeSteps,))
+    bestPath[-1] = bestPathEndState
+    tStep = list(range(nTimeSteps-1))
+    tStep.reverse()
+    for t in tStep:
+        bestPath[t] = T2[int(bestPath[t+1]), t+1]
+
+    return bestPath, maxPathLogProb, T1, T2
+
+
+class TestData(object):
+    def __init__(self, params=None):
+        if params is None:
+            params = TEST_PARAMS.copy()
+            param_str = &#39;\t&#39;+&#39;\n\t&#39;.join(repr(params)[1:-1].split(&#39;, &#39;))
+            print(&#39;Using default parameters:\n%s&#39; % param_str)
+
+        self.params = params.copy()
+        self.generate()
+
+    def generate(self, params=None):
+        print(&#39;-&#39;*80)
+        print(&#39;Simulating Data&#39;)
+        print(&#39;-&#39;*80)
+        if params is not None:
+            self.params.update(params)
+
+        params = self.params
+        param_str = &#39;\t&#39;+&#39;\n\t&#39;.join(repr(params)[1:-1].split(&#39;, &#39;))
+        print(&#39;Parameters:\n%s&#39; % param_str)
+
+        self._generate_ground_truth()
+        self._generate_spike_trains()
+
+    def _generate_ground_truth(self):
+        print(&#39;Generating ground truth state sequence...&#39;)
+        params = self.params
+        nStates = params[&#39;n_states&#39;]
+        seqLen = params[&#39;state_seq_length&#39;]
+        minSeqDur = params[&#39;min_state_dur&#39;]
+        baseline_dur = params[&#39;baseline_dur&#39;]
+        maxFR = params[&#39;max_rate&#39;]
+        nCells = params[&#39;n_cells&#39;]
+        trialTime = params[&#39;trial_time&#39;]
+        nTrials = params[&#39;n_trials&#39;]
+        dt = params[&#39;dt&#39;]
+        nTimeSteps = int(trialTime/dt)
+
+        T = trialTime
+        # Figure out a random state sequence and state durations
+        stateSeq = np.random.randint(0, nStates, seqLen)
+        stateSeq = np.array([0, *np.random.randint(0,nStates, seqLen-1)])
+        stateDurs = np.zeros((nTrials, seqLen))
+        for i in range(nTrials):
+            tmp = np.abs(np.random.rand(seqLen-1))
+            tmp = tmp * ((trialTime - baseline_dur) / np.sum(tmp))
+            stateDurs[i, :] = np.array([baseline_dur, *tmp])
+
+        # Make vector of state at each time point
+        stateVec = np.zeros((nTrials, nTimeSteps))
+        for trial in range(nTrials):
+            t0 = 0
+            for state, dur in zip(stateSeq, stateDurs[trial]):
+                tn = int(dur/dt)
+                stateVec[trial, t0:t0+tn] = state
+                t0 += tn
+
+        # Determine firing rates per neuron per state
+        # For each neuron generate a mean firing rate and then draw state
+        # firing rates from a normal distribution around that with 10Hz
+        # variance
+        mean_rates = np.random.rand(nCells, 1) * maxFR
+        stateRates = np.zeros((nCells, nStates))
+        for i, r in enumerate(mean_rates):
+            stateRates[i, :] = np.array([r, *np.abs(np.random.normal(r, .5*r, nStates-1))])
+
+        self.ground_truth = {&#39;state_sequence&#39;: stateSeq,
+                             &#39;state_durations&#39;: stateDurs,
+                             &#39;firing_rates&#39;: stateRates,
+                             &#39;state_vectors&#39;: stateVec}
+
+    def _generate_spike_trains(self):
+        print(&#39;Generating new spike trains...&#39;)
+        params = self.params
+        nCells = params[&#39;n_cells&#39;]
+        trialTime = params[&#39;trial_time&#39;]
+        dt = params[&#39;dt&#39;]
+        nTrials = params[&#39;n_trials&#39;]
+        noise = params[&#39;noise&#39;]
+        nTimeSteps = int(trialTime/dt)
+
+        stateRates = self.ground_truth[&#39;firing_rates&#39;]
+        stateVec = self.ground_truth[&#39;state_vectors&#39;]
+
+
+        # Make spike arrays
+        # Trial x Neuron x Time
+        random_nums = np.abs(np.random.rand(nTrials, nCells, nTimeSteps))
+        rate_arr = np.zeros((nTrials, nCells, nTimeSteps))
+        for trial, cell, t in  it.product(range(nTrials), range(nCells), range(nTimeSteps)):
+            state = int(stateVec[trial, t])
+            mean_rate = stateRates[cell, state]
+            # draw noisy rates from normal distrib with mean rate from ground
+            # truth and width as noise*mean_rate
+            r = np.random.normal(mean_rate, mean_rate*noise)
+            rate_arr[trial, cell, t] = r
+
+        spikes = (random_nums &lt;= rate_arr *dt).astype(&#39;int&#39;)
+
+        self.spike_trains = spikes
+
+    def get_spike_trains(self):
+        if not hasattr(self, &#39;spike_trains&#39;):
+            self._generate_spike_trains()
+
+        return self.spike_trains
+
+    def get_ground_truth(self):
+        if not hasattr(self, &#39;ground_truth&#39;):
+            self._generate_ground_truth()
+
+        return self.ground_truth
+
+    def plot_state_rates(self, ax=None):
+        fig, ax = plot_state_rates(self.ground_truth[&#39;firing_rates&#39;], ax=ax)
+        return fig, ax
+
+    def plot_state_raster(self, ax=None):
+        fig, ax = plot_state_raster(self.spike_trains,
+                                    self.ground_truth[&#39;state_vectors&#39;],
+                                    self.params[&#39;dt&#39;], ax=ax)
+        return fig, ax
+
+
+class PoissonHMM(object):
+    &#39;&#39;&#39;Poisson implementation of Hidden Markov Model for fitting spike data
+    from a neuronal population
+    Author: Roshan Nanu
+    Adpated from code by Ben Ballintyn
+    &#39;&#39;&#39;
+    def __init__(self, n_predicted_states, spikes, dt,
+                 max_history=500, cost_window=0.25, set_data=None):
+        if len(spikes.shape) == 2:
+            spikes = np.array([spikes])
+
+        self.data = spikes.astype(&#39;int32&#39;)
+        self.dt = dt
+        self._rate_data = None
+        self.n_states = n_predicted_states
+        self._cost_window = cost_window
+        self._max_history = max_history
+        self.cost = None
+        self.BIC = None
+        self.best_sequences = None
+        self.max_log_prob = None
+        self._rate_data = None
+        self.history = None
+        self._compute_data_rate_array()
+        if set_data is None:
+            self.randomize()
+        else:
+            self.fitted = set_data[&#39;fitted&#39;]
+            self.initial_distribution = set_data[&#39;initial_distribution&#39;]
+            self.transition = set_data[&#39;transition&#39;]
+            self.emission = set_data[&#39;emission&#39;]
+            self.iteration = 0
+            self._update_cost()
+
+
+    def randomize(self):
+        nStates = self.n_states
+        spikes = self.data
+        dt = self.dt
+        n_trials, n_cells, n_steps = spikes.shape
+        total_time = n_steps * dt
+
+        # Initialize transition matrix with high stay probability
+        print(&#39;Randomizing&#39;)
+        diag = np.abs(np.random.normal(.99, .01, nStates))
+        A = np.abs(np.random.normal(0.01/(nStates-1), 0.01, (nStates, nStates)))
+        for i in range(nStates):
+            A[i, i] = diag[i]
+            A[i,:] = A[i,:] / np.sum(A[i,:])
+
+        # Initialize rate matrix (&#34;Emission&#34; matrix)
+        spike_counts = np.sum(spikes, axis=2) / total_time
+        mean_rates = np.mean(spike_counts, axis=0)
+        std_rates = np.std(spike_counts, axis=0)
+        B = np.vstack([np.abs(np.random.normal(x, y, nStates))
+                       for x,y in zip(mean_rates, std_rates)])
+        # B = np.random.rand(nCells, nStates)
+
+        self.transition = A
+        self.emission = B
+        self.initial_distribution = np.ones((nStates,)) / nStates
+        self.iteration = 0
+        self.fitted = False
+        self.history = None
+        self._update_cost()
+
+    def fit(self, spikes=None, dt=None, max_iter = 1000, convergence_thresh = 1e-4,
+            parallel=False):
+        &#39;&#39;&#39;using parallels for processing trials actually seems to slow down
+        processing (with 15 trials). Might still be useful if there is a very
+        large nubmer of trials
+        &#39;&#39;&#39;
+        if self.fitted:
+            return
+
+        if spikes is not None:
+            spikes = spikes.astype(&#39;int32&#39;)
+            self.data = spikes
+            self.dt = dt
+        else:
+            spikes = self.data
+            dt = self.dt
+
+        while (not self.isConverged(convergence_thresh) and
+               (self.iteration &lt; max_iter)):
+            self._step(spikes, dt, parallel=parallel)
+            print(&#39;Iter #%i complete.&#39; % self.iteration)
+
+        self.fitted = True
+
+    def _step(self, spikes, dt, parallel=False):
+        if len(spikes.shape) == 2:
+            spikes = np.array([spikes])
+
+        nTrials, nCells, nTimeSteps = spikes.shape
+
+        A = self.transition
+        B = self.emission
+        PI = self.initial_distribution
+        nStates = self.n_states
+
+        # For multiple trials need to cmpute gamma and epsilon for every trial
+        # and then update
+        gammas = np.zeros((nTrials, nStates, nTimeSteps))
+        epsilons = np.zeros((nTrials, nStates, nStates, nTimeSteps-1))
+        if parallel:
+            def update(ans):
+                idx = ans[0]
+                gammas[idx, :, :] = ans[1]
+                epsilons[idx, :, :, :] = ans[2]
+
+            def error(ans):
+                raise RuntimeError(ans)
+
+            n_cores = mp.cpu_count() - 1
+            pool = mp.get_context(&#39;spawn&#39;).Pool(n_cores)
+            for i, trial in enumerate(spikes):
+                pool.apply_async(wrap_baum_welch,
+                                 (i, trial, dt, PI, A, B),
+                                 callback=update, error_callback=error)
+
+            pool.close()
+            pool.join()
+        else:
+            for i, trial in enumerate(spikes):
+                _, tmp_gamma, tmp_epsilons = wrap_baum_welch(i, trial, dt, PI, A, B)
+                gammas[i, :, :] = tmp_gamma
+                epsilons[i, :, :, :] = tmp_epsilons
+
+        # Store old parameters for convergence check
+        self.update_history()
+
+        PI, A, B = compute_new_matrices(spikes, dt, gammas, epsilons)
+        self.transition = A
+        self.emission = B
+        self.initial_distribution = PI
+        self.iteration += 1
+        self._update_cost()
+
+    def update_history(self):
+        A = self.transition
+        B = self.emission
+        PI = self.initial_distribution
+        BIC = self.BIC
+        cost = self.cost
+        iteration = self.iteration
+
+        if self.history is None:
+            self.history = {}
+            self.history[&#39;A&#39;] = [A]
+            self.history[&#39;B&#39;] = [B]
+            self.history[&#39;PI&#39;] = [PI]
+            self.history[&#39;iterations&#39;] = [iteration]
+            self.history[&#39;cost&#39;] = [cost]
+            self.history[&#39;BIC&#39;] = [BIC]
+        else:
+            if iteration in self.history[&#39;iterations&#39;]:
+                return self.history
+
+            self.history[&#39;A&#39;].append(A)
+            self.history[&#39;B&#39;].append(B)
+            self.history[&#39;PI&#39;].append(PI)
+            self.history[&#39;iterations&#39;].append(iteration)
+            self.history[&#39;cost&#39;].append(cost)
+            self.history[&#39;BIC&#39;].append(BIC)
+
+        if len(self.history[&#39;iterations&#39;]) &gt; self._max_history:
+            nmax = self._max_history
+            for k, v in self.history.items():
+                self.history[k] = v[-nmax:]
+
+        return self.history
+
+    def isConverged(self, thresh):
+        if self.history is None:
+            return False
+
+        oldPI = self.history[&#39;PI&#39;][-1]
+        oldA = self.history[&#39;A&#39;][-1]
+        oldB = self.history[&#39;B&#39;][-1]
+        oldCost = self.history[&#39;cost&#39;][-1]
+
+        PI = self.initial_distribution
+        A = self.transition
+        B = self.emission
+        cost = self.cost
+
+        dPI = np.sqrt(np.sum(np.power(oldPI - PI, 2)))
+        dA = np.sqrt(np.sum(np.power(oldA - A, 2)))
+        dB = np.sqrt(np.sum(np.power(oldB - B, 2)))
+        dCost = cost-oldCost
+        print(&#39;dPI = %f,  dA = %f,  dB = %f, dCost = %f, cost = %f&#39;
+              % (dPI, dA, dB, dCost, cost))
+
+        # TODO: determine if this is reasonable
+        # dB takes waaaaay longer to converge than the rest, i&#39;m going to
+        # double the thresh just for that
+        dB = dB/2
+
+        if not all([x &lt; thresh for x in [dPI, dA, dB]]):
+            return False
+        else:
+            return True
+
+    def get_best_paths(self):
+        if self.best_sequences is not None:
+            return self.best_sequences, self.max_log_prob
+
+        spikes = self.data
+        dt = self.dt
+        PI = self.initial_distribution
+        A = self.transition
+        B = self.emission
+
+        bestPaths, pathProbs = compute_best_paths(spikes, dt, PI, A, B)
+        self.best_sequences = bestPaths
+        self.max_log_prob = np.max(pathProbs)
+        return bestPaths, self.max_log_prob
+
+    def get_forward_probabilities(self):
+        alphas = []
+        for trial in self.data:
+            tmp, _ = forward(trial, self.dt, self.initial_distribution,
+                             self.transition, self.emission)
+            alphas.append(tmp)
+
+        return np.array(alphas)
+
+    def get_backward_probabilities(self):
+        PI = self.initial_distribution
+        A = self.transition
+        B = self.emission
+        betas = []
+        for trial in self.data:
+            alpha, norms = forward(trial, self.dt, PI, A, B)
+            tmp = backward(trial, self.dt, A, B, norms)
+            betas.append(tmp)
+
+        return np.array(betas)
+
+    def get_gamma_probabilities(self):
+        PI = self.initial_distribution
+        A = self.transition
+        B = self.emission
+        gammas = []
+        for i, trial in enumerate(self.data):
+            _, tmp, _ = wrap_baum_welch(i, trial, self.dt, PI, A, B)
+            gammas.append(tmp)
+
+        return np.array(gammas)
+
+    def get_BIC(self):
+        if self.BIC is not None:
+            return self.BIC
+
+        PI = self.initial_distribution
+        A = self.transition
+        B = self.emission
+        BIC, bestPaths, max_log_prob = compute_BIC(self.data, self.dt, PI, A, B)
+        self.BIC = BIC
+        self.best_sequences = bestPaths
+        self.max_log_prob = max_log_prob
+        return BIC, bestPaths, max_log_prob
+
+    def _compute_data_rate_array(self):
+        if self._rate_data is not None:
+            return self._rate_data
+
+        win_size = self._cost_window
+        rate_array = convert_spikes_to_rates(self.data, self.dt,
+                                             win_size, step_size=win_size)
+        self._rate_data = rate_array
+
+    def _compute_predicted_rate_array(self):
+        B = self.emission
+        bestPaths, _ = self.get_best_paths()
+        bestPaths = bestPaths.astype(&#39;int32&#39;)
+        win_size = self._cost_window
+        dt = self.dt
+        mean_rates = generate_rate_array_from_state_seq(bestPaths, B,
+                                                        dt, win_size,
+                                                        step_size=win_size)
+        return mean_rates
+
+    def set_to_lowest_cost(self):
+        hist = self.update_history()
+        idx = np.argmin(hist[&#39;cost&#39;])
+        iteration = hist[&#39;iterations&#39;][idx]
+        self.roll_back(iteration)
+
+    def set_to_lowest_BIC(self):
+        hist = self.update_history()
+        idx = np.argmin(hist[&#39;BIC&#39;])
+        iteration = hist[&#39;iterations&#39;][idx]
+        self.roll_back(iteration)
+
+    def find_best_in_history(self):
+        hist = self.update_history()
+        PIs = hist[&#39;PI&#39;]
+        As = hist[&#39;A&#39;]
+        Bs = hist[&#39;B&#39;]
+        iters = hist[&#39;iterations&#39;]
+        BICs = hist[&#39;BIC&#39;]
+        idx = np.argmin(BICs)
+        out = {&#39;PI&#39;: PIs[idx], &#39;A&#39;: As[idx], &#39;B&#39;: Bs[idx]}
+        return out, iters[idx], BICs
+
+    def roll_back(self, iteration):
+        hist = self.history
+        try:
+            idx = hist[&#39;iterations&#39;].index(iteration)
+        except ValueError:
+            raise ValueError(&#39;Iteration %i not found in history&#39; % iteration)
+
+        self.initial_distribution = hist[&#39;PI&#39;][idx]
+        self.transition = hist[&#39;A&#39;][idx]
+        self.emission = hist[&#39;B&#39;][idx]
+        self.iteration = iteration
+        self._update_cost()
+
+    def set_matrices(self, new_mats):
+        self.initial_distribution = new_mats[&#39;PI&#39;]
+        self.transition = new_mats[&#39;A&#39;]
+        self.emission = new_mats[&#39;B&#39;]
+        if &#39;iteration&#39; in new_mats:
+            self.iteration = new_mats[&#39;iteration&#39;]
+        self._update_cost()
+
+    def set_data(self, new_data, dt):
+        self.data = new_data
+        self.dt = dt
+        self._compute_data_rate_array()
+        self._update_cost()
+
+    def plot_state_raster(self, ax=None, state_map=None):
+        bestPaths, _ = self.get_best_paths()
+        if state_map is not None:
+            bestPaths = convert_path_state_numbers(bestPaths, state_map)
+
+        data = self.data
+        fig, ax = plot_state_raster(data, bestPaths, self.dt, ax=ax)
+        return fig, ax
+
+    def plot_state_rates(self, ax=None, state_map=None):
+        rates = self.emission
+        if state_map:
+            idx = [state_map[k] for k in sorted(state_map.keys())]
+            maxState = np.max(list(state_map.values()))
+            newRates = np.zeros((rates.shape[0], maxState+1))
+            for k, v in state_map.items():
+                newRates[:, v] = rates[:, k]
+
+            rates = newRates
+
+        fig, ax = plot_state_rates(rates, ax=ax)
+        return fig, ax
+
+    def reorder_states(self, state_map):
+        idx = [state_map[k] for k in sorted(state_map.keys())]
+        PI = self.initial_distribution
+        A = self.transition
+        B = self.emission
+
+        newPI = PI[idx]
+        newB = B[:, idx]
+        newA = np.zeros(A.shape)
+        for x in range(A.shape[0]):
+            for y in range(A.shape[1]):
+                i = state_map[x]
+                j = state_map[y]
+                newA[i,j] = A[x,y]
+
+        self.initial_distribution = newPI
+        self.transition = newA
+        self.emission = newB
+        self._update_cost()
+
+    def _update_cost(self):
+        spikes = self.data
+        win_size = self._cost_window
+        dt = self.dt
+        PI = self.initial_distribution
+        A  = self.transition
+        B  = self.emission
+        true_rates = self._rate_data
+        cost, BIC, bestPaths, maxLogProb = compute_hmm_cost(spikes, dt, PI, A, B,
+                                                            win_size=win_size,
+                                                            true_rates=true_rates)
+        self.cost = cost
+        self.BIC = BIC
+        self.best_sequences = bestPaths
+        self.max_log_prob = maxLogProb
+
+    def get_cost(self):
+        if self.cost is None:
+            self._update_cost()
+
+        return self.cost
+
+
+def compute_BIC(spikes, dt, PI, A, B):
+    bestPaths, maxLogProb = compute_best_paths(spikes, dt, PI, A, B)
+    maxLogProb = np.max(maxLogProb)
+
+    nParams = (A.shape[0]*(A.shape[1]-1) +
+               (PI.shape[0]-1) +
+               B.shape[0]*(B.shape[1]-1))
+
+    nPts = spikes.shape[-1]
+    BIC = -2 * maxLogProb + nParams * np.log(nPts)
+    return BIC, bestPaths, maxLogProb
+
+
+def compute_hmm_cost(spikes, dt, PI, A, B, win_size=0.25, true_rates=None):
+    if true_rates is None:
+        true_rates = convert_spikes_to_rates(spikes, dt, win_size)
+
+    BIC, bestPaths, maxLogProb = compute_BIC(spikes, dt, PI, A, B)
+    hmm_rates = generate_rate_array_from_state_seq(bestPaths, B, dt, win_size,
+                                                   step_size=win_size)
+    RMSE = compute_rate_rmse(true_rates, hmm_rates)
+    return RMSE, BIC, bestPaths, maxLogProb
+
+
+def compute_best_paths(spikes, dt, PI, A, B):
+    if len(spikes.shape) == 2:
+        spikes = np.array([spikes])
+
+    nTrials, nCells, nTimeSteps = spikes.shape
+    bestPaths = np.zeros((nTrials, nTimeSteps))-1
+    pathProbs = np.zeros((nTrials,))
+
+    for i, trial in enumerate(spikes):
+        bestPaths[i,:], pathProbs[i], _, _ = poisson_viterbi(trial, dt, PI,
+                                                             A, B)
+    return bestPaths, pathProbs
+
+
+def convert_path_state_numbers(paths, state_map):
+    newPaths = np.zeros(paths.shape)
+    for k,v in state_map.items():
+        idx = np.where(paths == k)
+        newPaths[idx] = v
+
+    return newPaths
+
+
+@njit
+def compute_rate_rmse(rates1, rates2):
+    # Compute RMSE per trial
+    # Mean over trials
+    n_trials, n_cells, n_steps = rates1.shape
+    RMSE = np.zeros((n_trials,))
+    for i in range(n_trials):
+        t1 = rates1[i, :, :]
+        t2 = rates2[i, :, :]
+        # Compute RMSE from euclidean distances at each time point
+        distances = np.zeros((n_steps,))
+        for j in range(n_steps):
+            distances[j] =  euclidean(t1[:,j], t2[:,j])
+
+        RMSE[i] = np.sqrt(np.mean(np.power(distances,2)))
+
+    return np.mean(RMSE)
+
+
+def plot_state_raster(data, stateVec, dt, ax=None):
+    if len(data.shape) == 2:
+        data = np.array([data])
+
+    nTrials, nCells, nTimeSteps = data.shape
+    nStates = np.max(stateVec) +1
+
+    gradient = np.array([0 + i/(nCells+1) for i in range(nCells)])
+    time = np.arange(0, nTimeSteps * dt * 1000, dt * 1000)
+    colors = [plt.cm.jet(i) for i in np.linspace(0,1,nStates)]
+
+    if ax is None:
+        fig, ax = plt.subplots()
+    else:
+        fig = ax.figure
+
+    for trial, spikes in enumerate(data):
+        path = stateVec[trial]
+        for i, row in enumerate(spikes):
+            idx = np.where(row == 1)[0]
+            ax.scatter(time[idx], row[idx]*trial + gradient[i],
+                       c=[colors[int(x)] for x in path[idx]], marker=&#39;|&#39;)
+
+    return fig, ax
+
+def plot_state_rates(rates, ax=None):
+    if ax is None:
+        fig, ax = plt.subplots()
+    else:
+        fig = ax.figure
+
+    nCells, nStates = rates.shape
+    df = pd.DataFrame(rates, columns=[&#39;state %i&#39; % i for i in range(nStates)])
+    df[&#39;cell&#39;] = [&#39;cell %i&#39; % i for i in df.index]
+    df = pd.melt(df, &#39;cell&#39;, [&#39;state %i&#39; % i for i in range(nStates)], &#39;state&#39;, &#39;rate&#39;)
+    sns.barplot(x=&#39;state&#39;, y=&#39;rate&#39;, hue=&#39;cell&#39;, data=df,
+                palette=&#39;muted&#39;, ax=ax)
+
+    return fig, ax
+
+def compare_hmm_to_truth(truth_dat, hmm, state_map=None):
+    if state_map is None:
+        state_map = match_states(truth_dat.ground_truth[&#39;firing_rates&#39;], hmm.emission)
+
+    fig, ax = plt.subplots(nrows=2, ncols=2, figsize=(15,10))
+    truth_dat.plot_state_raster(ax=ax[0,0])
+    truth_dat.plot_state_rates(ax=ax[1,0])
+    hmm.plot_state_raster(ax=ax[0,1], state_map=state_map)
+    hmm.plot_state_rates(ax=ax[1,1], state_map=state_map)
+    ax[0,0].set_title(&#39;Ground Truth States&#39;)
+    ax[0,1].set_title(&#39;HMM Best Decoded States&#39;)
+    ax[1,0].get_legend().remove()
+    ax[1,1].legend(loc=&#39;upper center&#39;, bbox_to_anchor=[-0.4, -0.6, 0.5, 0.5], ncol=5)
+
+    # Compute edit distances, histogram, return mean and median % correct
+    truePaths = truth_dat.ground_truth[&#39;state_vectors&#39;]
+    bestPaths, _ = hmm.get_best_paths()
+    if state_map is not None:
+        bestPaths = convert_path_state_numbers(bestPaths, state_map)
+
+    edit_distances = np.zeros((truePaths.shape[0],))
+    pool = mp.Pool(mp.cpu_count())
+    def update(ans):
+        edit_distances[ans[0]] = ans[1]
+
+    print(&#39;Computing edit distances...&#39;)
+    for i, x in enumerate(zip(truePaths, bestPaths)):
+        pool.apply_async(levenshtein_mp, (i, *x), callback=update)
+
+    pool.close()
+    pool.join()
+    print(&#39;Done!&#39;)
+
+    nPts = truePaths.shape[1]
+    mean_correct = 100*(nPts - np.mean(edit_distances)) / nPts
+    median_correct = 100*(nPts - np.median(edit_distances)) / nPts
+
+    # Plot:
+    #   - edit distance histogram
+    #   - side-by-side trial comparison
+    h = 0.25
+    dt = hmm.dt
+    time = np.arange(0, nPts * (dt*1000), dt*1000)  # time in ms
+    fig2, ax2 = plt.subplots(ncols=2, figsize=(15,10))
+    ax2[0].hist(100*(nPts-edit_distances)/nPts)
+    ax2[0].set_xlabel(&#39;Percent Correct&#39;)
+    ax2[0].set_ylabel(&#39;Trial Count&#39;)
+    ax2[0].set_title(&#39;Percent Correct based on edit distance\n&#39;
+                     &#39;Mean Correct: %0.1f%%, Median: %0.1f%%&#39;
+                     % (mean_correct, median_correct))
+
+    maxState = int(np.max((bestPaths, truePaths)))
+    colors = [plt.cm.Paired(x) for x in np.linspace(0, 1, (maxState+1)*2)]
+    trueCol = [colors[x] for x in np.arange(0, (maxState+1)*2, 2)]
+    hmmCol = [colors[x] for x in np.arange(1, (maxState+1)*2, 2)]
+    leg = {}
+    leg[&#39;hmm&#39;] = {k: None for k in np.unique((bestPaths, truePaths))}
+    leg[&#39;truth&#39;] = {k: None for k in np.unique((bestPaths, truePaths))}
+    for i, x in enumerate(zip(truePaths, bestPaths)):
+        y = x[0]
+        z = x[1]
+        t = 0
+        while(t  &lt; nPts):
+            s = int(y[t])
+            next_t = np.where(y[t:] != s)[0]
+            if len(next_t) == 0:
+                next_t = nPts - t
+            else:
+                next_t = next_t[0]
+
+            t_start = time[t]
+            t_end = time[t+next_t-1]
+            tmp = ax2[1].fill_between([t_start, t_end], [i, i], [i+h, i+h], color=trueCol[s])
+            if leg[&#39;truth&#39;][s] is None:
+                leg[&#39;truth&#39;][s] = tmp
+
+            t += next_t
+
+        t = 0
+        while(t  &lt; nPts):
+            s = int(z[t])
+            next_t = np.where(z[t:] != s)[0]
+            if len(next_t) == 0:
+                next_t = nPts - t
+            else:
+                next_t = next_t[0]
+
+            t_start = time[t]
+            t_end = time[t+next_t-1]
+            tmp = ax2[1].fill_between([t_start, t_end], [i, i], [i-h, i-h], color=hmmCol[s])
+            if leg[&#39;hmm&#39;][s] is None:
+                leg[&#39;hmm&#39;][s] = tmp
+
+            t += next_t
+
+        # Write % correct next to line
+        t_str = &#39;%0.1f%%&#39; % (100 * (nPts - edit_distances[i])/nPts)
+        ax2[1].text(nPts+5, i-h, t_str)
+
+    ax2[1].set_xlim((0, nPts+int(nPts/3)))
+    ax2[1].set_xlabel(&#39;Time (ms)&#39;)
+    ax2[1].set_title(&#39;State Sequences&#39;)
+    handles = list(leg[&#39;truth&#39;].values()) + list(leg[&#39;hmm&#39;].values())
+    labels = ([&#39;True State %i&#39; % i for i in leg[&#39;truth&#39;].keys()] +
+              [&#39;HMM State %i&#39; % i for i in leg[&#39;hmm&#39;].keys()])
+    ax2[1].legend(handles, labels, shadow=True,
+                  bbox_to_anchor=(0.78, 0.5, 0.5, 0.5))
+
+    fig.show()
+    fig2.show()
+    return fig, ax, fig2, ax2
+
+
+def wrap_baum_welch(trial_id, trial_dat, dt, PI, A, B):
+    alpha, norms = forward(trial_dat, dt, PI, A, B)
+    beta = backward(trial_dat, dt, A, B, norms)
+    tmp_gamma, tmp_epsilons = baum_welch(trial_dat, dt, A, B, alpha, beta)
+    return trial_id, tmp_gamma, tmp_epsilons
+
+
+def compute_new_matrices(spikes, dt, gammas, epsilons):
+    nTrials, nCells, nTimeSteps = spikes.shape
+    minFR = 1/(nTimeSteps*dt)
+
+    PI = np.sum(gammas, axis=0)[:,1] / nTrials
+    Anumer = np.sum(np.sum(epsilons, axis=3), axis=0)
+    Adenom = np.sum(np.sum(gammas[:,:,:-1], axis=2), axis=0)
+    A = Anumer/Adenom
+    A = A/np.sum(A, axis=1)
+    Bnumer = np.sum(np.array([np.matmul(tmp_y, tmp_g.T)
+                              for tmp_y, tmp_g in zip(spikes, gammas)]),
+                    axis=0)
+    Bdenom =  np.sum(np.sum(gammas, axis=2), axis=0)
+    B = (Bnumer / Bdenom)/dt
+    idx = np.where(B &lt; minFR)[0]
+    B[idx] = minFR
+
+    return PI, A, B
+
+
+def match_states(rates1, rates2):
+    &#39;&#39;&#39;Takes 2 Cell X State firing rate matrices and determines which states
+    are most similar. Returns dict mapping rates2 states to rates1 states
+    &#39;&#39;&#39;
+    distances = np.zeros((rates1.shape[1], rates2.shape[1]))
+    for x, y in it.product(range(rates1.shape[1]), range(rates2.shape[1])):
+        tmp = euclidean(rates1[:, x], rates2[:, y])
+        distances[x, y] = tmp
+
+    states = list(range(rates2.shape[1]))
+    out = {}
+    for i in range(rates2.shape[1]):
+        s = np.argmin(distances[:,i])
+        r = np.argmin(distances[s, :])
+        if r == i and s in states:
+            out[i] = s
+            idx = np.where(states == s)[0]
+            states.pop(int(idx))
+
+    for i in range(rates2.shape[1]):
+        if i not in out:
+            s = np.argmin(distances[states, i])
+            out[i] = states[s]
+
+    return out
+
+
+@njit
+def levenshtein(seq1, seq2):
+    &#39;&#39;&#39; Computes edit distance between 2 sequences
+    &#39;&#39;&#39;
+    size_x = len(seq1) + 1
+    size_y = len(seq2) + 1
+    matrix = np.zeros ((size_x, size_y))
+    for x in range(size_x):
+        matrix [x, 0] = x
+
+    for y in range(size_y):
+        matrix [0, y] = y
+
+    for x in range(1, size_x):
+        for y in range(1, size_y):
+            if seq1[x-1] == seq2[y-1]:
+                matrix [x,y] = min(matrix[x-1, y] + 1, matrix[x-1, y-1],
+                                   matrix[x, y-1] + 1)
+            else:
+                matrix [x,y] = min(matrix[x-1,y] + 1, matrix[x-1,y-1] + 1,
+                                   matrix[x,y-1] + 1)
+
+    return (matrix[size_x - 1, size_y - 1])
+
+@njit
+def levenshtein_mp(i, seq1, seq2):
+    &#39;&#39;&#39; Computes edit distance between 2 sequences
+    &#39;&#39;&#39;
+    size_x = len(seq1) + 1
+    size_y = len(seq2) + 1
+    matrix = np.zeros ((size_x, size_y))
+    for x in range(size_x):
+        matrix [x, 0] = x
+
+    for y in range(size_y):
+        matrix [0, y] = y
+
+    for x in range(1, size_x):
+        for y in range(1, size_y):
+            if seq1[x-1] == seq2[y-1]:
+                matrix [x,y] = min(matrix[x-1, y] + 1, matrix[x-1, y-1],
+                                   matrix[x, y-1] + 1)
+            else:
+                matrix [x,y] = min(matrix[x-1,y] + 1, matrix[x-1,y-1] + 1,
+                                   matrix[x,y-1] + 1)
+
+    return i, matrix[size_x - 1, size_y - 1]
+
+
+def fit_hmm_mp(nStates, spikes, dt, max_iter=1000, thresh=1e-4):
+    hmm = PoissonHMM(nStates, spikes, dt)
+    hmm.fit(max_iter=max_iter, convergence_thresh=thresh, parallel=False)
+    return hmm
+
+
+@njit
+def convert_spikes_to_rates(spikes, dt, win_size, step_size=None):
+    if step_size is None:
+        step_size = win_size
+
+    n_trials, n_cells, n_steps = spikes.shape
+    n_pts = int(win_size/dt)
+    n_step_pts = int(step_size/dt)
+    win_starts = np.arange(0, n_steps, n_step_pts)
+    out = np.zeros((n_trials, n_cells, len(win_starts)))
+    for i, w in enumerate(win_starts):
+        out[:, :, i] = np.sum(spikes[:, :, w:w+n_pts], axis=2) / win_size
+
+    return out
+
+
+@njit
+def generate_rate_array_from_state_seq(bestPaths, B, dt, win_size,
+                                       step_size=None):
+    if not step_size:
+        step_size = win_size
+
+    n_trials, n_steps = bestPaths.shape
+    n_cells, n_states = B.shape
+    rates = np.zeros((n_trials, n_cells, n_steps))
+    for j in range(n_trials):
+        seq = bestPaths[j, :].astype(np.int64)
+        rates[j, :, :] = B[:, seq]
+
+    n_pts = int(win_size / dt)
+    n_step_pts = int(step_size/dt)
+    win_starts = np.arange(0, n_steps, n_step_pts)
+    mean_rates = np.zeros((n_trials, n_cells, len(win_starts)))
+    for i, w in enumerate(win_starts):
+        mean_rates[:, :, i] = np.sum(rates[:, : , w:w+n_pts], axis=2) / n_pts
+
+    return mean_rates
+
+
+@njit
+def euclidean(a, b):
+    c = np.power(a-b,2)
+    return np.sqrt(np.sum(c))
+
+
+def rebin_spike_array(spikes, dt, time, new_dt):
+    if spikes.ndim == 2:
+        spikes = np.expand_dims(spikes,0)
+
+    n_trials, n_cells, n_steps = spikes.shape
+    n_bins = int(new_dt/dt)
+    new_time = np.arange(time[0], time[-1], new_dt)
+    new_spikes = np.zeros((n_trials, n_cells, len(new_time)))
+    for i, w in enumerate(new_time):
+        idx = np.where((time &gt;= w) &amp; (time &lt; w+new_dt))[0]
+        new_spikes[:,:,i] = np.sum(spikes[:,:,idx], axis=-1)
+
+    return new_spikes, new_time
+
+
+HMM_PARAMS = {&#39;unit_type&#39;: &#39;single&#39;, &#39;dt&#39;: 0.001, &#39;threshold&#39;: 1e-4, &#39;max_iter&#39;: 1000,
+              &#39;time_start&#39;: 0, &#39;time_end&#39;: 2000, &#39;n_repeats&#39;: 3, &#39;n_states&#39;: 3}
+
+
+class HmmHandler(object):
+    def __init__(self, dat, params=None, save_dir=None):
+        &#39;&#39;&#39;Takes a blechpy dataset object and fits HMMs for each tastant
+
+        Parameters
+        ----------
+        dat: blechpy.dataset
+        params: dict or list of dicts
+            each dict must have fields:
+                time_window: list of int, time window to cut around stimuli in ms
+                convergence_thresh: float
+                max_iter: int
+                n_repeats: int
+                unit_type: str, {&#39;single&#39;, &#39;pyramidal&#39;, &#39;interneuron&#39;, &#39;all&#39;}
+                bin_size: time bin for spike array when fitting in seconds
+                n_states: predicted number of states to fit
+        &#39;&#39;&#39;
+        if isinstance(params, dict):
+            params = [params]
+
+        if isinstance(dat, str):
+            dat = load_dataset(dat)
+            if dat is None:
+                raise FileNotFoundError(&#39;No dataset.p file found given directory&#39;)
+
+        if save_dir is None:
+            save_dir = os.path.join(dat.root_dir,
+                                    &#39;%s_analysis&#39; % dat.data_name)
+
+        self._dataset = dat
+        self.root_dir = dat.root_dir
+        self.save_dir = save_dir
+        self.h5_file = os.path.join(save_dir, &#39;%s_HMM_Analysis.hdf5&#39; % dat.data_name)
+        dim = dat.dig_in_mapping.query(&#39;exclude==False&#39;)
+        tastes = dim[&#39;name&#39;].tolist()
+        if params is None:
+            # Load params and fitted models
+            self.load_data()
+        else:
+            self.init_params(params)
+
+        self.params = params
+
+        if not os.path.isdir(save_dir):
+            os.makedirs(save_dir)
+
+        self.plot_dir = os.path.join(save_dir, &#39;HMM_Plots&#39;)
+        if not os.path.isdir(self.plot_dir):
+            os.makedirs(self.plot_dir)
+
+        self._setup_hdf5()
+
+    def init_params(self, params):
+        dat = self._dataset
+        dim = dat.dig_in_mapping.query(&#39;exclude == False&#39;)
+        tastes = dim[&#39;name&#39;].tolist()
+        dim = dim.set_index(&#39;name&#39;)
+        if not hasattr(dat, &#39;dig_in_trials&#39;):
+            dat.create_trial_list()
+
+        trials = dat.dig_in_trials
+        data_params = []
+        fit_objs = []
+        fit_params = []
+        for i, X in enumerate(it.product(params,tastes)):
+            p = X[0].copy()
+            t = X[1]
+            p[&#39;hmm_id&#39;] = i
+            p[&#39;taste&#39;] = t
+            p[&#39;channel&#39;] = dim.loc[t, &#39;channel&#39;]
+            unit_names = query_units(dat, p[&#39;unit_type&#39;])
+            p[&#39;n_cells&#39;] = len(unit_names)
+            p[&#39;n_trials&#39;] = len(trials.query(&#39;name == @t&#39;))
+
+            data_params.append(p)
+            # Make fit object for each repeat
+            # During fitting compare HMM as ones with the same ID are returned
+            for i in range(p[&#39;n_repeats&#39;]):
+                hmmFit = HMMFit(dat.root_dir, p)
+                fit_objs.append(hmmFit)
+                fit_params.append(p)
+
+        self._fit_objects = fit_objs
+        self._data_params = data_params
+        self._fit_params = fit_params
+        self._fitted_models = dict.fromkeys([x[&#39;hmm_id&#39;] for x in data_params])
+        self.write_overview_to_hdf5()
+
+    def load_data(self):
+        h5_file = self.h5_file
+        if not os.path.isfile(h5_file):
+            raise ValueError(&#39;No params to load&#39;)
+
+        rec_dir = self._dataset.root_dir
+        params = []
+        fit_objs = []
+        fit_params = []
+        fitted_models = {}
+        with tables.open_file(h5_file, &#39;r&#39;) as hf5:
+            table = hf5.root.data_overview
+            col_names = table.colnames
+            for row in table[:]:
+                p = {}
+                for k in col_names:
+                    if table.coltypes[k] == &#39;string&#39;:
+                        p[k] = row[k].decode(&#39;utf-8&#39;)
+                    else:
+                        p[k] = row[k]
+
+                params.append(p)
+                for i in range(p[&#39;n_repeats&#39;]):
+                    hmmFit = HMMFit(rec_dir, p)
+                    fit_objs.append(hmmFit)
+                    fit_params.append(p)
+
+        for p in params:
+            hmm_id = p[&#39;hmm_id&#39;]
+            fitted_models[hmm_id] = read_hmm_from_hdf5(h5_file, hmm_id, rec_dir)
+
+        self._data_params = params
+        self._fit_objects = fit_objs
+        self._fitted_models = fitted_models
+        self._fit_params = fit_params
+
+
+    def write_overview_to_hdf5(self):
+        params = self._data_params
+        h5_file = self.h5_file
+        if hasattr(self, &#39;_fitted_models&#39;):
+            models = self._fitted_models
+        else:
+            models = dict.fromkeys([x[&#39;hmm_id&#39;]
+                                    for x in data_params])
+            self._fitted_models = models
+
+
+        if not os.path.isfile(h5_file):
+            self._setup_hdf5()
+
+        print(&#39;Writing data overview table to hdf5...&#39;)
+        with tables.open_file(h5_file, &#39;a&#39;) as hf5:
+            table = hf5.root.data_overview
+            # Clear old table
+            table.remove_rows(start=0)
+
+            # Add new rows
+            for p in params:
+                row = table.row
+                for k, v in p.items():
+                    row[k] = v
+
+                if models[p[&#39;hmm_id&#39;]] is not None:
+                   hmm = models[p[&#39;hmm_id&#39;]]
+                   row[&#39;n_iterations&#39;] =  hmm.iterations
+                   row[&#39;BIC&#39;] = hmm.BIC
+                   row[&#39;cost&#39;] = hmm.cost
+                   row[&#39;converged&#39;] = hmm.isConverged(p[&#39;threshold&#39;])
+                   row[&#39;fitted&#39;] = hmm.fitted
+
+                row.append()
+
+            table.flush()
+            hf5.flush()
+
+        print(&#39;Done!&#39;)
+
+    def _setup_hdf5(self):
+        h5_file = self.h5_file
+
+        with tables.open_file(h5_file, &#39;a&#39;) as hf5:
+            # Taste -&gt; PI, A, B, BIC, state_sequences, nStates, nCells, dt
+            if not &#39;data_overview&#39; in hf5.root:
+                # Contains taste, channel, n_cells, n_trials, n_states, dt, BIC
+                table = hf5.create_table(&#39;/&#39;, &#39;data_overview&#39;, HMMInfoParticle,
+                                         &#39;Basic info for each digital_input&#39;)
+                table.flush()
+
+
+            if hasattr(self, &#39;_data_params&#39;) and self._data_params is not None:
+                for p in self._data_params:
+                    hmm_str = &#39;hmm_%i&#39; % p[&#39;hmm_id&#39;]
+                    if hmm_str not in hf5.root:
+                        hf5.create_group(&#39;/&#39;, hmm_str, &#39;Data for HMM #%i&#39; % p[&#39;hmm_id&#39;])
+
+            hf5.flush()
+
+    def run(self, parallel=True):
+        self.write_overview_to_hdf5()
+        h5_file = self.h5_file
+        rec_dir = self._dataset.root_dir
+        fit_objs = self._fit_objects
+        fit_params = self._fit_params
+        self._fitted_models = dict.fromkeys([x[&#39;hmm_id&#39;] for x in self._data_params])
+        errors = []
+
+        # def update(ans):
+        #     hmm_id = ans[0]
+        #     hmm = ans[1]
+        #     if self._fitted_models[hmm_id] is not None:
+        #         best_hmm = pick_best_hmm([HMMs[hmm_id], hmm])
+        #         self._fitted_models[hmm_id] = best_hmm
+        #         write_hmm_to_hdf5(h5_file, hmm_id, best_hmm)
+        #         del hmm, best_hmm
+        #     else:
+        #         # Check history for lowest BIC
+        #         self._fitted_models[hmm_id] = hmm.set_to_lowest_BIC()
+        #         write_hmm_to_hdf5(h5_file, hmm_id, hmm)
+        #         del hmm
+
+        # def error_call(e):
+        #     errors.append(e)
+
+        # if parallel:
+        #     n_cpu = np.min((mp.cpu_count()-1, len(fit_objs)))
+        #     if n_cpu &gt; 10:
+        #         pool = mp.get_context(&#39;spawn&#39;).Pool(n_cpu)
+        #     else:
+        #         pool = mp.Pool(n_cpu)
+
+        #     for f in fit_objs:
+        #         pool.apply_async(f.run, callback=update, error_callback=error_call)
+
+        #     pool.close()
+        #     pool.join()
+        # else:
+        #     for f in fit_objs:
+        #         try:
+        #             ans = f.run()
+        #             update(ans)
+        #         except Exception as e:
+        #             raise Exception(e)
+        #             error_call(e)
+        print(&#39;Running fittings&#39;)
+        if parallel:
+            n_cpu = np.min((mp.cpu_count()-1, len(fit_params)))
+        else:
+            n_cpu = 1
+
+        results = Parallel(n_jobs=n_cpu, verbose=20)(delayed(hmm_fit_mp)(rec_dir, p) for p in fit_params)
+        for hmm_id, hmm in zip(*results):
+            if self._fitted_models[hmm_id] is None:
+                self._fitted_models[hmm_id] = hmm
+            else:
+                new_hmm = pick_best_hmm([hmm, self._fitted_models[hmm_id]])
+                self._fitted_models[hmm_id] = new_hmm
+
+        self.write_overview_to_hdf5()
+        self.save_fitted_models()
+        # if len(errors) &gt; 0:
+        #     print(&#39;Encountered errors: &#39;)
+        #     for e in errors:
+        #         print(e)
+
+    def save_fitted_models(self):
+        models = self._fitted_models
+        for k, v in models.items():
+            write_hmm_to_hdf5(self.h5_file, k, v)
+            plot_dir = os.path.join(self.plot_dir, &#39;HMM_%i&#39; % k)
+            if not os.path.isdir(plot_dir):
+                os.makedirs(plot_dir)
+
+            ids = [x[&#39;hmm_id&#39;] for x in self._data_params]
+            idx = ids.index(k)
+            params = self._data_params[idx]
+            time_window = [params[&#39;time_start&#39;], params[&#39;time_end&#39;]]
+            hmmplt.plot_hmm_figures(v, time_window, save_dir=plot_dir)
+
+
+@memory.cache
+def get_hmm_spike_data(rec_dir, unit_type, channel, time_start=None, time_end=None, dt=None):
+    units = query_units(rec_dir, unit_type)
+    time, spike_array = h5io.get_spike_data(rec_dir, units, channel)
+    curr_dt = np.unique(np.diff(time))[0] / 1000
+    if dt is not None and curr_dt &lt; dt:
+        spike_array, time = rebin_spike_array(spike_array, curr_dt, time, dt)
+    elif dt is not None and curr_dt &gt; dt:
+        raise ValueError(&#39;Cannot upsample spike array from %f ms &#39;
+                         &#39;bins to %f ms bins&#39; % (dt, curr_dt))
+    else:
+        dt = curr_dt
+
+    if time_start and time_end:
+        idx = np.where((time &gt;= time_start) &amp; (time &lt; time_end))[0]
+        time = time[idx]
+        spike_array = spike_array[:, :, idx]
+
+    return spike_array.astype(&#39;int32&#39;), dt, time
+
+
+def read_hmm_from_hdf5(h5_file, hmm_id, rec_dir):
+    print(&#39;Loading HMM %i for hdf5&#39; % hmm_id)
+    with tables.open_file(h5_file, &#39;r&#39;) as hf5:
+        h_str = &#39;hmm_%i&#39; % hmm_id
+        if h_str not in hf5.root or len(hf5.list_nodes(&#39;/&#39;+h_str)) == 0:
+            return None
+
+        table = hf5.root.data_overview
+        row = list(table.where(&#39;hmm_id == id&#39;, condvars={&#39;id&#39;:hmm_id}))
+        if len(row) == 0:
+            raise ValueError(&#39;Parameters not found for hmm %i&#39; % hmm_id)
+        elif len(row) &gt; 1:
+            raise ValueError(&#39;Multiple parameters found for hmm %i&#39; % hmm_id)
+
+        row = row[0]
+        units = query_units(rec_dir, row[&#39;unit_type&#39;].decode(&#39;utf-8&#39;))
+        spikes, dt, time = get_spike_data(rec_dir, units, row[&#39;channel&#39;],
+                                          dt=row[&#39;dt&#39;],
+                                          time_start=row[&#39;time_start&#39;],
+                                          time_end=row[&#39;time_end&#39;])
+        tmp = hf5.root[h_str]
+        mats = {&#39;initial_distribution&#39;: tmp[&#39;initial_distribution&#39;][:],
+                &#39;transition&#39;: tmp[&#39;transition&#39;][:],
+                &#39;emission&#39;: tmp[&#39;emission&#39;][:],
+                &#39;fitted&#39;: row[&#39;fitted&#39;]}
+        hmm = PoissonHMM(row[&#39;n_states&#39;], spikes, dt, set_data=mats)
+
+    return hmm
+
+
+def write_hmm_to_hdf5(h5_file, hmm_id, hmm):
+    h_str = &#39;hmm_%i&#39; % hmm_id
+    print(&#39;Writing HMM %i to hdf5 file...&#39; % hmm_id)
+    with tables.open_file(h5_file, &#39;a&#39;) as hf5:
+        if h_str in hf5.root:
+            hf5.remove_node(&#39;/&#39;, h_str, recursive=True)
+
+        hf5.create_group(&#39;/&#39;, h_str, &#39;Data for HMM #%i&#39; % hmm_id)
+        hf5.create_array(&#39;/&#39;+h_str, &#39;initial_distribution&#39;,
+                         hmm.initial_distribution)
+        hf5.create_array(&#39;/&#39;+h_str, &#39;transition&#39;, hmm.transition)
+        hf5.create_array(&#39;/&#39;+h_str, &#39;emission&#39;, hmm.emission)
+
+        best_paths, _ = hmm.get_best_paths()
+        hf5.create_array(&#39;/&#39;+h_str, &#39;state_sequences&#39;, best_paths)
+
+
+def query_units(dat, unit_type):
+    &#39;&#39;&#39;Returns the units names of all units in the dataset that match unit_type
+
+    Parameters
+    ----------
+    dat : blechpy.dataset or str
+        Can either be a dataset object or the str path to the recording
+        directory containing that data .h5 object
+    unit_type : str, {&#39;single&#39;, &#39;pyramidal&#39;, &#39;interneuron&#39;, &#39;all&#39;}
+        determines whether to return &#39;single&#39; units, &#39;pyramidal&#39; (regular
+        spiking single) units, &#39;interneuron&#39; (fast spiking single) units, or
+        &#39;all&#39; units
+
+    Returns
+    -------
+        list of str : unit_names
+    &#39;&#39;&#39;
+    if isinstance(dat, str):
+        units = h5io.get_unit_table(dat)
+    else:
+        units = dat.get_unit_table()
+
+    u_str = unit_type.lower()
+    q_str = &#39;&#39;
+    if u_str == &#39;single&#39;:
+        q_str = &#39;single_unit == True&#39;
+    elif u_str == &#39;pyramidal&#39;:
+        q_str = &#39;single_unit == True and regular_spiking == True&#39;
+    elif u_str == &#39;interneuron&#39;:
+        q_str = &#39;single_unit == True and fast_spiking == True&#39;
+    elif u_str == &#39;all&#39;:
+        return units[&#39;unit_name&#39;].tolist()
+    else:
+        raise ValueError(&#39;Invalid unit_type %s. Must be &#39;
+                         &#39;single, pyramidal, interneuron or all&#39; % u_str)
+
+    return units.query(q_str)[&#39;unit_name&#39;].tolist()
+
+
+    # Parameters
+    # hmm_id
+    # taste
+    # channel
+    # n_cells
+    # unit_type
+    # n_trials
+    # dt
+    # threshold
+    # time_start
+    # time_end
+    # n_repeats
+    # n_states
+    # n_iterations
+    # BIC
+    # cost
+    # converged
+    # fitted
+    #
+    # Extras: unit_names, rec_dir
+
+
+class HMMFit(object):
+    def __init__(self, rec_dir, params):
+        self._rec_dir = rec_dir
+        self._params = params
+
+    def run(self, parallel=False):
+        params = self._params
+        spikes, dt, time = self.get_spike_data()
+        hmm = PoissonHMM(params[&#39;n_states&#39;], spikes, dt)
+        hmm.fit(max_iter=params[&#39;max_iter&#39;],
+                convergence_thresh=params[&#39;threshold&#39;],
+                parallel=parallel)
+        del spikes, dt, time
+        return params[&#39;hmm_id&#39;], hmm
+
+    def get_spike_data(self):
+        p = self._params
+        units = query_units(self._rec_dir, p[&#39;unit_type&#39;])
+        # Get stored spike array, time is in ms, dt is usually 1 ms
+        spike_array, dt, time = get_spike_data(self._rec_dir, units,
+                                               p[&#39;channel&#39;], dt=p[&#39;dt&#39;],
+                                               time_start=p[&#39;time_start&#39;],
+                                               time_end=p[&#39;time_end&#39;])
+        return spike_array, dt, time
+
+def hmm_fit_mp(rec_dir, params):
+    hmm_id = params[&#39;hmm_id&#39;]
+    n_states = params[&#39;n_states&#39;]
+    dt = params[&#39;dt&#39;]
+    time_start = params[&#39;time_start&#39;]
+    time_end = params[&#39;time_end&#39;]
+    max_iter = params[&#39;max_iter&#39;]
+    threshold = params[&#39;threshold&#39;]
+    unit_type = params[&#39;unit_type&#39;]
+    channel = params[&#39;channel&#39;]
+    spikes, dt, time = get_hmm_spike_data(rec_dir, unit_type, channel,
+                                          time_start=time_start,
+                                          time_end=time_end, dt = dt)
+    hmm = PoissonHMM(params[&#39;n_states&#39;], spikes, dt)
+    hmm.fit(max_iter=max_iter, convergence_thresh=threshold)
+    return hmm_id, hmm
+
+
+def get_spike_data(rec_dir, units, channel, dt=None, time_start=None, time_end=None):
+    time, spike_array = h5io.get_spike_data(rec_dir, units, channel)
+    curr_dt = np.unique(np.diff(time))[0] / 1000
+    if dt is not None and curr_dt &lt; dt:
+        spike_array, time = rebin_spike_array(spike_array, curr_dt, time, dt)
+    elif dt is not None and curr_dt &gt; dt:
+        raise ValueError(&#39;Cannot upsample spike array from %f ms &#39;
+                         &#39;bins to %f ms bins&#39; % (dt, curr_dt))
+    else:
+        dt = curr_dt
+
+    if time_start and time_end:
+        idx = np.where((time &gt;= time_start) &amp; (time &lt; time_end))[0]
+        time = time[idx]
+        spike_array = spike_array[:, :, idx]
+
+    return spike_array.astype(&#39;int32&#39;), dt, time
+
+
+def pick_best_hmm(HMMs):
+    &#39;&#39;&#39;For each HMM it searches the history for the HMM with lowest BIC Then it
+    compares HMMs. Those with same # of free parameters are compared by BIC
+    Those with different # of free parameters (namely # of states) are compared
+    by cost Best HMM is returned
+
+    Parameters
+    ----------
+    HMMs : list of PoissonHmm objects
+
+    Returns
+    -------
+    PoissonHmm
+    &#39;&#39;&#39;
+    # First optimize each HMMs and sort into groups based on # of states
+    groups = {}
+    for hmm in HMMs:
+        hmm.set_to_lowest_BIC()
+        if hmm.n_states in groups:
+            groups[hmm.n_states].append(hmm)
+        else:
+            groups[hmm.n_states] = [hmm]
+
+    best_per_state = {}
+    for k, v in groups:
+        BICs = np.array([x.get_BIC()[0] for x in v])
+        idx = np.argmin(BICs)
+        best_per_state[k] = v[idx]
+
+    hmm_list = best_per_state.values()
+    costs = np.array([x.get_cost() for x in hmm_list])
+    idx = np.argmin(costs)
+    return hmm_list[idx]
+
+    # Compare HMMs with same number of states by BIC</code></pre>
+</details>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="blechpy.analysis.poissonHMM_deprecated.backward"><code class="name flex">
+<span>def <span class="ident">backward</span></span>(<span>spikes, dt, A, B, norms)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Runs the backward algorithm to compute beta = P(ot+1&hellip;oT | Xt=s)
+Computes the probability of observing all future observations given the
+current state at each time point</p>
+<h2 id="paramters">Paramters</h2>
+<p>spike : np.array, N x T matrix of spike counts
+nStates : int, # of hidden states predicted
+dt : float, timebin size in seconds
+A : np.array, nStates x nStates matrix of transition probabilities
+B : np.array, N x nStates matrix of estimated spike rates for each neuron</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>beta</code></strong> :&ensp;<code>np.array, nStates x T matrix</code> of <code><a title="blechpy.analysis.poissonHMM_deprecated.backward" href="#blechpy.analysis.poissonHMM_deprecated.backward">backward()</a> probabilities</code></dt>
+<dd>&nbsp;</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@njit
+def backward(spikes, dt, A, B, norms):
+    &#39;&#39;&#39; Runs the backward algorithm to compute beta = P(ot+1...oT | Xt=s)
+    Computes the probability of observing all future observations given the
+    current state at each time point
+
+    Paramters
+    ---------
+    spike : np.array, N x T matrix of spike counts
+    nStates : int, # of hidden states predicted
+    dt : float, timebin size in seconds
+    A : np.array, nStates x nStates matrix of transition probabilities
+    B : np.array, N x nStates matrix of estimated spike rates for each neuron
+
+    Returns
+    -------
+    beta : np.array, nStates x T matrix of backward probabilities
+    &#39;&#39;&#39;
+    nTimeSteps = spikes.shape[1]
+    nStates = A.shape[0]
+    beta = np.zeros((nStates, nTimeSteps))
+    beta[:, -1] = 1  # Initialize final beta to 1 for all states
+    tStep = list(range(nTimeSteps-1))
+    tStep.reverse()
+    for t in tStep:
+        for s in range(nStates):
+            beta[s,t] = np.sum((beta[:, t+1] * A[s,:]) *
+                               np.prod(poisson(B[:, s], spikes[:, t+1], dt)))
+
+        beta[:, t] = beta[:, t] / norms[t+1]
+
+    return beta</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.baum_welch"><code class="name flex">
+<span>def <span class="ident">baum_welch</span></span>(<span>spikes, dt, A, B, alpha, beta)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@njit
+def baum_welch(spikes, dt, A, B, alpha, beta):
+    nTimeSteps = spikes.shape[1]
+    nStates = A.shape[0]
+    gamma = np.zeros((nStates, nTimeSteps))
+    epsilons = np.zeros((nStates, nStates, nTimeSteps-1))
+    for t in range(nTimeSteps):
+        if t &lt; nTimeSteps-1:
+            gamma[:, t] = (alpha[:, t] * beta[:, t]) / np.sum(alpha[:,t] * beta[:,t])
+            epsilonNumerator = np.zeros((nStates, nStates))
+            for si in range(nStates):
+                for sj in range(nStates):
+                    probs = np.prod(poisson(B[:,sj], spikes[:, t+1], dt))
+                    epsilonNumerator[si, sj] = (alpha[si, t]*A[si, sj]*
+                                                beta[sj, t]*probs)
+
+            epsilons[:, :, t] = epsilonNumerator / np.sum(epsilonNumerator)
+
+    return gamma, epsilons</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.compare_hmm_to_truth"><code class="name flex">
+<span>def <span class="ident">compare_hmm_to_truth</span></span>(<span>truth_dat, hmm, state_map=None)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def compare_hmm_to_truth(truth_dat, hmm, state_map=None):
+    if state_map is None:
+        state_map = match_states(truth_dat.ground_truth[&#39;firing_rates&#39;], hmm.emission)
+
+    fig, ax = plt.subplots(nrows=2, ncols=2, figsize=(15,10))
+    truth_dat.plot_state_raster(ax=ax[0,0])
+    truth_dat.plot_state_rates(ax=ax[1,0])
+    hmm.plot_state_raster(ax=ax[0,1], state_map=state_map)
+    hmm.plot_state_rates(ax=ax[1,1], state_map=state_map)
+    ax[0,0].set_title(&#39;Ground Truth States&#39;)
+    ax[0,1].set_title(&#39;HMM Best Decoded States&#39;)
+    ax[1,0].get_legend().remove()
+    ax[1,1].legend(loc=&#39;upper center&#39;, bbox_to_anchor=[-0.4, -0.6, 0.5, 0.5], ncol=5)
+
+    # Compute edit distances, histogram, return mean and median % correct
+    truePaths = truth_dat.ground_truth[&#39;state_vectors&#39;]
+    bestPaths, _ = hmm.get_best_paths()
+    if state_map is not None:
+        bestPaths = convert_path_state_numbers(bestPaths, state_map)
+
+    edit_distances = np.zeros((truePaths.shape[0],))
+    pool = mp.Pool(mp.cpu_count())
+    def update(ans):
+        edit_distances[ans[0]] = ans[1]
+
+    print(&#39;Computing edit distances...&#39;)
+    for i, x in enumerate(zip(truePaths, bestPaths)):
+        pool.apply_async(levenshtein_mp, (i, *x), callback=update)
+
+    pool.close()
+    pool.join()
+    print(&#39;Done!&#39;)
+
+    nPts = truePaths.shape[1]
+    mean_correct = 100*(nPts - np.mean(edit_distances)) / nPts
+    median_correct = 100*(nPts - np.median(edit_distances)) / nPts
+
+    # Plot:
+    #   - edit distance histogram
+    #   - side-by-side trial comparison
+    h = 0.25
+    dt = hmm.dt
+    time = np.arange(0, nPts * (dt*1000), dt*1000)  # time in ms
+    fig2, ax2 = plt.subplots(ncols=2, figsize=(15,10))
+    ax2[0].hist(100*(nPts-edit_distances)/nPts)
+    ax2[0].set_xlabel(&#39;Percent Correct&#39;)
+    ax2[0].set_ylabel(&#39;Trial Count&#39;)
+    ax2[0].set_title(&#39;Percent Correct based on edit distance\n&#39;
+                     &#39;Mean Correct: %0.1f%%, Median: %0.1f%%&#39;
+                     % (mean_correct, median_correct))
+
+    maxState = int(np.max((bestPaths, truePaths)))
+    colors = [plt.cm.Paired(x) for x in np.linspace(0, 1, (maxState+1)*2)]
+    trueCol = [colors[x] for x in np.arange(0, (maxState+1)*2, 2)]
+    hmmCol = [colors[x] for x in np.arange(1, (maxState+1)*2, 2)]
+    leg = {}
+    leg[&#39;hmm&#39;] = {k: None for k in np.unique((bestPaths, truePaths))}
+    leg[&#39;truth&#39;] = {k: None for k in np.unique((bestPaths, truePaths))}
+    for i, x in enumerate(zip(truePaths, bestPaths)):
+        y = x[0]
+        z = x[1]
+        t = 0
+        while(t  &lt; nPts):
+            s = int(y[t])
+            next_t = np.where(y[t:] != s)[0]
+            if len(next_t) == 0:
+                next_t = nPts - t
+            else:
+                next_t = next_t[0]
+
+            t_start = time[t]
+            t_end = time[t+next_t-1]
+            tmp = ax2[1].fill_between([t_start, t_end], [i, i], [i+h, i+h], color=trueCol[s])
+            if leg[&#39;truth&#39;][s] is None:
+                leg[&#39;truth&#39;][s] = tmp
+
+            t += next_t
+
+        t = 0
+        while(t  &lt; nPts):
+            s = int(z[t])
+            next_t = np.where(z[t:] != s)[0]
+            if len(next_t) == 0:
+                next_t = nPts - t
+            else:
+                next_t = next_t[0]
+
+            t_start = time[t]
+            t_end = time[t+next_t-1]
+            tmp = ax2[1].fill_between([t_start, t_end], [i, i], [i-h, i-h], color=hmmCol[s])
+            if leg[&#39;hmm&#39;][s] is None:
+                leg[&#39;hmm&#39;][s] = tmp
+
+            t += next_t
+
+        # Write % correct next to line
+        t_str = &#39;%0.1f%%&#39; % (100 * (nPts - edit_distances[i])/nPts)
+        ax2[1].text(nPts+5, i-h, t_str)
+
+    ax2[1].set_xlim((0, nPts+int(nPts/3)))
+    ax2[1].set_xlabel(&#39;Time (ms)&#39;)
+    ax2[1].set_title(&#39;State Sequences&#39;)
+    handles = list(leg[&#39;truth&#39;].values()) + list(leg[&#39;hmm&#39;].values())
+    labels = ([&#39;True State %i&#39; % i for i in leg[&#39;truth&#39;].keys()] +
+              [&#39;HMM State %i&#39; % i for i in leg[&#39;hmm&#39;].keys()])
+    ax2[1].legend(handles, labels, shadow=True,
+                  bbox_to_anchor=(0.78, 0.5, 0.5, 0.5))
+
+    fig.show()
+    fig2.show()
+    return fig, ax, fig2, ax2</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.compute_BIC"><code class="name flex">
+<span>def <span class="ident">compute_BIC</span></span>(<span>spikes, dt, PI, A, B)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def compute_BIC(spikes, dt, PI, A, B):
+    bestPaths, maxLogProb = compute_best_paths(spikes, dt, PI, A, B)
+    maxLogProb = np.max(maxLogProb)
+
+    nParams = (A.shape[0]*(A.shape[1]-1) +
+               (PI.shape[0]-1) +
+               B.shape[0]*(B.shape[1]-1))
+
+    nPts = spikes.shape[-1]
+    BIC = -2 * maxLogProb + nParams * np.log(nPts)
+    return BIC, bestPaths, maxLogProb</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.compute_best_paths"><code class="name flex">
+<span>def <span class="ident">compute_best_paths</span></span>(<span>spikes, dt, PI, A, B)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def compute_best_paths(spikes, dt, PI, A, B):
+    if len(spikes.shape) == 2:
+        spikes = np.array([spikes])
+
+    nTrials, nCells, nTimeSteps = spikes.shape
+    bestPaths = np.zeros((nTrials, nTimeSteps))-1
+    pathProbs = np.zeros((nTrials,))
+
+    for i, trial in enumerate(spikes):
+        bestPaths[i,:], pathProbs[i], _, _ = poisson_viterbi(trial, dt, PI,
+                                                             A, B)
+    return bestPaths, pathProbs</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.compute_hmm_cost"><code class="name flex">
+<span>def <span class="ident">compute_hmm_cost</span></span>(<span>spikes, dt, PI, A, B, win_size=0.25, true_rates=None)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def compute_hmm_cost(spikes, dt, PI, A, B, win_size=0.25, true_rates=None):
+    if true_rates is None:
+        true_rates = convert_spikes_to_rates(spikes, dt, win_size)
+
+    BIC, bestPaths, maxLogProb = compute_BIC(spikes, dt, PI, A, B)
+    hmm_rates = generate_rate_array_from_state_seq(bestPaths, B, dt, win_size,
+                                                   step_size=win_size)
+    RMSE = compute_rate_rmse(true_rates, hmm_rates)
+    return RMSE, BIC, bestPaths, maxLogProb</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.compute_new_matrices"><code class="name flex">
+<span>def <span class="ident">compute_new_matrices</span></span>(<span>spikes, dt, gammas, epsilons)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def compute_new_matrices(spikes, dt, gammas, epsilons):
+    nTrials, nCells, nTimeSteps = spikes.shape
+    minFR = 1/(nTimeSteps*dt)
+
+    PI = np.sum(gammas, axis=0)[:,1] / nTrials
+    Anumer = np.sum(np.sum(epsilons, axis=3), axis=0)
+    Adenom = np.sum(np.sum(gammas[:,:,:-1], axis=2), axis=0)
+    A = Anumer/Adenom
+    A = A/np.sum(A, axis=1)
+    Bnumer = np.sum(np.array([np.matmul(tmp_y, tmp_g.T)
+                              for tmp_y, tmp_g in zip(spikes, gammas)]),
+                    axis=0)
+    Bdenom =  np.sum(np.sum(gammas, axis=2), axis=0)
+    B = (Bnumer / Bdenom)/dt
+    idx = np.where(B &lt; minFR)[0]
+    B[idx] = minFR
+
+    return PI, A, B</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.compute_rate_rmse"><code class="name flex">
+<span>def <span class="ident">compute_rate_rmse</span></span>(<span>rates1, rates2)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@njit
+def compute_rate_rmse(rates1, rates2):
+    # Compute RMSE per trial
+    # Mean over trials
+    n_trials, n_cells, n_steps = rates1.shape
+    RMSE = np.zeros((n_trials,))
+    for i in range(n_trials):
+        t1 = rates1[i, :, :]
+        t2 = rates2[i, :, :]
+        # Compute RMSE from euclidean distances at each time point
+        distances = np.zeros((n_steps,))
+        for j in range(n_steps):
+            distances[j] =  euclidean(t1[:,j], t2[:,j])
+
+        RMSE[i] = np.sqrt(np.mean(np.power(distances,2)))
+
+    return np.mean(RMSE)</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.convert_path_state_numbers"><code class="name flex">
+<span>def <span class="ident">convert_path_state_numbers</span></span>(<span>paths, state_map)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def convert_path_state_numbers(paths, state_map):
+    newPaths = np.zeros(paths.shape)
+    for k,v in state_map.items():
+        idx = np.where(paths == k)
+        newPaths[idx] = v
+
+    return newPaths</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.convert_spikes_to_rates"><code class="name flex">
+<span>def <span class="ident">convert_spikes_to_rates</span></span>(<span>spikes, dt, win_size, step_size=None)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@njit
+def convert_spikes_to_rates(spikes, dt, win_size, step_size=None):
+    if step_size is None:
+        step_size = win_size
+
+    n_trials, n_cells, n_steps = spikes.shape
+    n_pts = int(win_size/dt)
+    n_step_pts = int(step_size/dt)
+    win_starts = np.arange(0, n_steps, n_step_pts)
+    out = np.zeros((n_trials, n_cells, len(win_starts)))
+    for i, w in enumerate(win_starts):
+        out[:, :, i] = np.sum(spikes[:, :, w:w+n_pts], axis=2) / win_size
+
+    return out</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.euclidean"><code class="name flex">
+<span>def <span class="ident">euclidean</span></span>(<span>a, b)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@njit
+def euclidean(a, b):
+    c = np.power(a-b,2)
+    return np.sqrt(np.sum(c))</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.fast_factorial"><code class="name flex">
+<span>def <span class="ident">fast_factorial</span></span>(<span>x)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@njit
+def fast_factorial(x):
+    if x &lt; len(FACTORIAL_LOOKUP):
+        return FACTORIAL_LOOKUP[x]
+    else:
+        y = 1
+        for i in range(1,x+1):
+            y = y*i
+
+        return y</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.fit_hmm_mp"><code class="name flex">
+<span>def <span class="ident">fit_hmm_mp</span></span>(<span>nStates, spikes, dt, max_iter=1000, thresh=0.0001)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def fit_hmm_mp(nStates, spikes, dt, max_iter=1000, thresh=1e-4):
+    hmm = PoissonHMM(nStates, spikes, dt)
+    hmm.fit(max_iter=max_iter, convergence_thresh=thresh, parallel=False)
+    return hmm</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.forward"><code class="name flex">
+<span>def <span class="ident">forward</span></span>(<span>spikes, dt, PI, A, B)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Run forward algorithm to compute alpha = P(Xt = i| o1&hellip;ot, pi)
+Gives the probabilities of being in a specific state at each time point
+given the past observations and initial probabilities</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>spikes</code></strong> :&ensp;<code>np.array</code></dt>
+<dd>N x T matrix of spike counts with each entry ((i,j)) holding the # of
+spikes from neuron i in timebine j</dd>
+<dt><strong><code>nStates</code></strong> :&ensp;<code>int, #</code> of <code>hidden states predicted to have generate the spikes</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>dt</code></strong> :&ensp;<code>float, timebin in seconds (i.e. 0.001)</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>PI</code></strong> :&ensp;<code>np.array</code></dt>
+<dd>nStates x 1 vector of initial state probabilities</dd>
+<dt><strong><code>A</code></strong> :&ensp;<code>np.array</code></dt>
+<dd>nStates x nStates state transmission matrix with each entry ((i,j))
+giving the probability of transitioning from state i to state j</dd>
+<dt><strong><code>B</code></strong> :&ensp;<code>np.array</code></dt>
+<dd>N x nSates rate matrix. Each entry ((i,j)) gives this predicited rate
+of neuron i in state j</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>alpha</code></strong> :&ensp;<code>np.array</code></dt>
+<dd>nStates x T matrix of forward probabilites. Each entry (i,j) gives
+P(Xt = i | o1,&hellip;,oj, pi)</dd>
+<dt><strong><code>norms</code></strong> :&ensp;<code>np.array</code></dt>
+<dd>1 x T vector of norm used to normalize alpha to be a probability
+distribution and also to scale the outputs of the backward algorithm.
+norms(t) = sum(alpha(:,t))</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@njit
+def forward(spikes, dt, PI, A, B):
+    &#39;&#39;&#39;Run forward algorithm to compute alpha = P(Xt = i| o1...ot, pi)
+    Gives the probabilities of being in a specific state at each time point
+    given the past observations and initial probabilities
+
+    Parameters
+    ----------
+    spikes : np.array
+        N x T matrix of spike counts with each entry ((i,j)) holding the # of
+        spikes from neuron i in timebine j
+    nStates : int, # of hidden states predicted to have generate the spikes
+    dt : float, timebin in seconds (i.e. 0.001)
+    PI : np.array
+        nStates x 1 vector of initial state probabilities
+    A : np.array
+        nStates x nStates state transmission matrix with each entry ((i,j))
+        giving the probability of transitioning from state i to state j
+    B : np.array
+        N x nSates rate matrix. Each entry ((i,j)) gives this predicited rate
+        of neuron i in state j
+
+    Returns
+    -------
+    alpha : np.array
+        nStates x T matrix of forward probabilites. Each entry (i,j) gives
+        P(Xt = i | o1,...,oj, pi)
+    norms : np.array
+        1 x T vector of norm used to normalize alpha to be a probability
+        distribution and also to scale the outputs of the backward algorithm.
+        norms(t) = sum(alpha(:,t))
+    &#39;&#39;&#39;
+    nTimeSteps = spikes.shape[1]
+    nStates = A.shape[0]
+
+    # For each state, use the the initial state distribution and spike counts
+    # to initialize alpha(:,1)
+    row = np.array([PI[i] * np.prod(poisson(B[:,i], spikes[:,0], dt))
+                    for i in range(nStates)])
+    alpha = np.zeros((nStates, nTimeSteps))
+    norms = [np.sum(row)]
+    alpha[:, 0] = row/norms[0]
+    for t in range(1, nTimeSteps):
+        tmp = np.array([np.prod(poisson(B[:, s], spikes[:, t], dt)) *
+                        np.sum(alpha[:, t-1] * A[:,s])
+                        for s in range(nStates)])
+        tmp_norm = np.sum(tmp)
+        norms.append(tmp_norm)
+        tmp = tmp / tmp_norm
+        alpha[:, t] = tmp
+
+    return alpha, norms</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.generate_rate_array_from_state_seq"><code class="name flex">
+<span>def <span class="ident">generate_rate_array_from_state_seq</span></span>(<span>bestPaths, B, dt, win_size, step_size=None)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@njit
+def generate_rate_array_from_state_seq(bestPaths, B, dt, win_size,
+                                       step_size=None):
+    if not step_size:
+        step_size = win_size
+
+    n_trials, n_steps = bestPaths.shape
+    n_cells, n_states = B.shape
+    rates = np.zeros((n_trials, n_cells, n_steps))
+    for j in range(n_trials):
+        seq = bestPaths[j, :].astype(np.int64)
+        rates[j, :, :] = B[:, seq]
+
+    n_pts = int(win_size / dt)
+    n_step_pts = int(step_size/dt)
+    win_starts = np.arange(0, n_steps, n_step_pts)
+    mean_rates = np.zeros((n_trials, n_cells, len(win_starts)))
+    for i, w in enumerate(win_starts):
+        mean_rates[:, :, i] = np.sum(rates[:, : , w:w+n_pts], axis=2) / n_pts
+
+    return mean_rates</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.get_hmm_spike_data"><code class="name flex">
+<span>def <span class="ident">get_hmm_spike_data</span></span>(<span>rec_dir, unit_type, channel, time_start=None, time_end=None, dt=None)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@memory.cache
+def get_hmm_spike_data(rec_dir, unit_type, channel, time_start=None, time_end=None, dt=None):
+    units = query_units(rec_dir, unit_type)
+    time, spike_array = h5io.get_spike_data(rec_dir, units, channel)
+    curr_dt = np.unique(np.diff(time))[0] / 1000
+    if dt is not None and curr_dt &lt; dt:
+        spike_array, time = rebin_spike_array(spike_array, curr_dt, time, dt)
+    elif dt is not None and curr_dt &gt; dt:
+        raise ValueError(&#39;Cannot upsample spike array from %f ms &#39;
+                         &#39;bins to %f ms bins&#39; % (dt, curr_dt))
+    else:
+        dt = curr_dt
+
+    if time_start and time_end:
+        idx = np.where((time &gt;= time_start) &amp; (time &lt; time_end))[0]
+        time = time[idx]
+        spike_array = spike_array[:, :, idx]
+
+    return spike_array.astype(&#39;int32&#39;), dt, time</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.get_spike_data"><code class="name flex">
+<span>def <span class="ident">get_spike_data</span></span>(<span>rec_dir, units, channel, dt=None, time_start=None, time_end=None)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_spike_data(rec_dir, units, channel, dt=None, time_start=None, time_end=None):
+    time, spike_array = h5io.get_spike_data(rec_dir, units, channel)
+    curr_dt = np.unique(np.diff(time))[0] / 1000
+    if dt is not None and curr_dt &lt; dt:
+        spike_array, time = rebin_spike_array(spike_array, curr_dt, time, dt)
+    elif dt is not None and curr_dt &gt; dt:
+        raise ValueError(&#39;Cannot upsample spike array from %f ms &#39;
+                         &#39;bins to %f ms bins&#39; % (dt, curr_dt))
+    else:
+        dt = curr_dt
+
+    if time_start and time_end:
+        idx = np.where((time &gt;= time_start) &amp; (time &lt; time_end))[0]
+        time = time[idx]
+        spike_array = spike_array[:, :, idx]
+
+    return spike_array.astype(&#39;int32&#39;), dt, time</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.hmm_fit_mp"><code class="name flex">
+<span>def <span class="ident">hmm_fit_mp</span></span>(<span>rec_dir, params)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def hmm_fit_mp(rec_dir, params):
+    hmm_id = params[&#39;hmm_id&#39;]
+    n_states = params[&#39;n_states&#39;]
+    dt = params[&#39;dt&#39;]
+    time_start = params[&#39;time_start&#39;]
+    time_end = params[&#39;time_end&#39;]
+    max_iter = params[&#39;max_iter&#39;]
+    threshold = params[&#39;threshold&#39;]
+    unit_type = params[&#39;unit_type&#39;]
+    channel = params[&#39;channel&#39;]
+    spikes, dt, time = get_hmm_spike_data(rec_dir, unit_type, channel,
+                                          time_start=time_start,
+                                          time_end=time_end, dt = dt)
+    hmm = PoissonHMM(params[&#39;n_states&#39;], spikes, dt)
+    hmm.fit(max_iter=max_iter, convergence_thresh=threshold)
+    return hmm_id, hmm</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.isNotConverged"><code class="name flex">
+<span>def <span class="ident">isNotConverged</span></span>(<span>oldPI, oldA, oldB, PI, A, B, thresh=0.0001)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def isNotConverged(oldPI, oldA, oldB, PI, A, B, thresh=1e-4):
+    dPI = np.sqrt(np.sum(np.power(oldPI - PI, 2)))
+    dA = np.sqrt(np.sum(np.power(oldA - A, 2)))
+    dB = np.sqrt(np.sum(np.power(oldB - B, 2)))
+    print(&#39;dPI = %f,  dA = %f,  dB = %f&#39; % (dPI, dA, dB))
+    if all([x &lt; thresh for x in [dPI, dA, dB]]):
+        return False
+    else:
+        return True</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.levenshtein"><code class="name flex">
+<span>def <span class="ident">levenshtein</span></span>(<span>seq1, seq2)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Computes edit distance between 2 sequences</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@njit
+def levenshtein(seq1, seq2):
+    &#39;&#39;&#39; Computes edit distance between 2 sequences
+    &#39;&#39;&#39;
+    size_x = len(seq1) + 1
+    size_y = len(seq2) + 1
+    matrix = np.zeros ((size_x, size_y))
+    for x in range(size_x):
+        matrix [x, 0] = x
+
+    for y in range(size_y):
+        matrix [0, y] = y
+
+    for x in range(1, size_x):
+        for y in range(1, size_y):
+            if seq1[x-1] == seq2[y-1]:
+                matrix [x,y] = min(matrix[x-1, y] + 1, matrix[x-1, y-1],
+                                   matrix[x, y-1] + 1)
+            else:
+                matrix [x,y] = min(matrix[x-1,y] + 1, matrix[x-1,y-1] + 1,
+                                   matrix[x,y-1] + 1)
+
+    return (matrix[size_x - 1, size_y - 1])</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.levenshtein_mp"><code class="name flex">
+<span>def <span class="ident">levenshtein_mp</span></span>(<span>i, seq1, seq2)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Computes edit distance between 2 sequences</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@njit
+def levenshtein_mp(i, seq1, seq2):
+    &#39;&#39;&#39; Computes edit distance between 2 sequences
+    &#39;&#39;&#39;
+    size_x = len(seq1) + 1
+    size_y = len(seq2) + 1
+    matrix = np.zeros ((size_x, size_y))
+    for x in range(size_x):
+        matrix [x, 0] = x
+
+    for y in range(size_y):
+        matrix [0, y] = y
+
+    for x in range(1, size_x):
+        for y in range(1, size_y):
+            if seq1[x-1] == seq2[y-1]:
+                matrix [x,y] = min(matrix[x-1, y] + 1, matrix[x-1, y-1],
+                                   matrix[x, y-1] + 1)
+            else:
+                matrix [x,y] = min(matrix[x-1,y] + 1, matrix[x-1,y-1] + 1,
+                                   matrix[x,y-1] + 1)
+
+    return i, matrix[size_x - 1, size_y - 1]</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.match_states"><code class="name flex">
+<span>def <span class="ident">match_states</span></span>(<span>rates1, rates2)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Takes 2 Cell X State firing rate matrices and determines which states
+are most similar. Returns dict mapping rates2 states to rates1 states</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def match_states(rates1, rates2):
+    &#39;&#39;&#39;Takes 2 Cell X State firing rate matrices and determines which states
+    are most similar. Returns dict mapping rates2 states to rates1 states
+    &#39;&#39;&#39;
+    distances = np.zeros((rates1.shape[1], rates2.shape[1]))
+    for x, y in it.product(range(rates1.shape[1]), range(rates2.shape[1])):
+        tmp = euclidean(rates1[:, x], rates2[:, y])
+        distances[x, y] = tmp
+
+    states = list(range(rates2.shape[1]))
+    out = {}
+    for i in range(rates2.shape[1]):
+        s = np.argmin(distances[:,i])
+        r = np.argmin(distances[s, :])
+        if r == i and s in states:
+            out[i] = s
+            idx = np.where(states == s)[0]
+            states.pop(int(idx))
+
+    for i in range(rates2.shape[1]):
+        if i not in out:
+            s = np.argmin(distances[states, i])
+            out[i] = states[s]
+
+    return out</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.pick_best_hmm"><code class="name flex">
+<span>def <span class="ident">pick_best_hmm</span></span>(<span>HMMs)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>For each HMM it searches the history for the HMM with lowest BIC Then it
+compares HMMs. Those with same # of free parameters are compared by BIC
+Those with different # of free parameters (namely # of states) are compared
+by cost Best HMM is returned</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>HMMs</code></strong> :&ensp;<code>list</code> of <code>PoissonHmm objects</code></dt>
+<dd>&nbsp;</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>PoissonHmm</code></dt>
+<dd>&nbsp;</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def pick_best_hmm(HMMs):
+    &#39;&#39;&#39;For each HMM it searches the history for the HMM with lowest BIC Then it
+    compares HMMs. Those with same # of free parameters are compared by BIC
+    Those with different # of free parameters (namely # of states) are compared
+    by cost Best HMM is returned
+
+    Parameters
+    ----------
+    HMMs : list of PoissonHmm objects
+
+    Returns
+    -------
+    PoissonHmm
+    &#39;&#39;&#39;
+    # First optimize each HMMs and sort into groups based on # of states
+    groups = {}
+    for hmm in HMMs:
+        hmm.set_to_lowest_BIC()
+        if hmm.n_states in groups:
+            groups[hmm.n_states].append(hmm)
+        else:
+            groups[hmm.n_states] = [hmm]
+
+    best_per_state = {}
+    for k, v in groups:
+        BICs = np.array([x.get_BIC()[0] for x in v])
+        idx = np.argmin(BICs)
+        best_per_state[k] = v[idx]
+
+    hmm_list = best_per_state.values()
+    costs = np.array([x.get_cost() for x in hmm_list])
+    idx = np.argmin(costs)
+    return hmm_list[idx]</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.plot_state_raster"><code class="name flex">
+<span>def <span class="ident">plot_state_raster</span></span>(<span>data, stateVec, dt, ax=None)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def plot_state_raster(data, stateVec, dt, ax=None):
+    if len(data.shape) == 2:
+        data = np.array([data])
+
+    nTrials, nCells, nTimeSteps = data.shape
+    nStates = np.max(stateVec) +1
+
+    gradient = np.array([0 + i/(nCells+1) for i in range(nCells)])
+    time = np.arange(0, nTimeSteps * dt * 1000, dt * 1000)
+    colors = [plt.cm.jet(i) for i in np.linspace(0,1,nStates)]
+
+    if ax is None:
+        fig, ax = plt.subplots()
+    else:
+        fig = ax.figure
+
+    for trial, spikes in enumerate(data):
+        path = stateVec[trial]
+        for i, row in enumerate(spikes):
+            idx = np.where(row == 1)[0]
+            ax.scatter(time[idx], row[idx]*trial + gradient[i],
+                       c=[colors[int(x)] for x in path[idx]], marker=&#39;|&#39;)
+
+    return fig, ax</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.plot_state_rates"><code class="name flex">
+<span>def <span class="ident">plot_state_rates</span></span>(<span>rates, ax=None)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def plot_state_rates(rates, ax=None):
+    if ax is None:
+        fig, ax = plt.subplots()
+    else:
+        fig = ax.figure
+
+    nCells, nStates = rates.shape
+    df = pd.DataFrame(rates, columns=[&#39;state %i&#39; % i for i in range(nStates)])
+    df[&#39;cell&#39;] = [&#39;cell %i&#39; % i for i in df.index]
+    df = pd.melt(df, &#39;cell&#39;, [&#39;state %i&#39; % i for i in range(nStates)], &#39;state&#39;, &#39;rate&#39;)
+    sns.barplot(x=&#39;state&#39;, y=&#39;rate&#39;, hue=&#39;cell&#39;, data=df,
+                palette=&#39;muted&#39;, ax=ax)
+
+    return fig, ax</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.poisson"><code class="name flex">
+<span>def <span class="ident">poisson</span></span>(<span>rate, n, dt)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Gives probability of each neurons spike count assuming poisson spiking</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@njit
+def poisson(rate, n, dt):
+    &#39;&#39;&#39;Gives probability of each neurons spike count assuming poisson spiking
+    &#39;&#39;&#39;
+    tmp = np.power(rate*dt, n) / np.array([fast_factorial(x) for x in n])
+    tmp = tmp * np.exp(-rate*dt)
+    return tmp</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.poisson_viterbi"><code class="name flex">
+<span>def <span class="ident">poisson_viterbi</span></span>(<span>spikes, dt, PI, A, B)</span>
+</code></dt>
+<dd>
+<div class="desc"><h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>spikes</code></strong> :&ensp;<code>np.array, Neuron X Time matrix</code> of <code>spike counts</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>PI</code></strong> :&ensp;<code>np.array, nStates x 1 vector</code> of <code>initial state probabilities</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>A</code></strong> :&ensp;<code>np.array, nStates X nStates matric</code> of <code>state transition probabilities</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>B</code></strong> :&ensp;<code>np.array, Neuron X States matrix</code> of <code>estimated firing rates</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>dt</code></strong> :&ensp;<code>float, time step size in seconds</code></dt>
+<dd>&nbsp;</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>bestPath</code></strong> :&ensp;<code>np.array</code></dt>
+<dd>1 x Time vector of states representing the most likely hidden state
+sequence</dd>
+<dt><strong><code>maxPathLogProb</code></strong> :&ensp;<code>float</code></dt>
+<dd>Log probability of the most likely state sequence</dd>
+<dt><strong><code>T1</code></strong> :&ensp;<code>np.array</code></dt>
+<dd>State X Time matrix where each entry (i,j) gives the log probability of
+the the most likely path so far ending in state i that generates
+observations o1,&hellip;, oj</dd>
+<dt><strong><code>T2</code></strong> :&ensp;<code>np.array</code></dt>
+<dd>State X Time matrix of back pointers where each entry (i,j) gives the
+state x(j-1) on the most likely path so far ending in state i</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def poisson_viterbi(spikes, dt, PI, A, B):
+    &#39;&#39;&#39;
+    Parameters
+    ----------
+    spikes : np.array, Neuron X Time matrix of spike counts
+    PI : np.array, nStates x 1 vector of initial state probabilities
+    A : np.array, nStates X nStates matric of state transition probabilities
+    B : np.array, Neuron X States matrix of estimated firing rates
+    dt : float, time step size in seconds
+
+    Returns
+    -------
+    bestPath : np.array
+        1 x Time vector of states representing the most likely hidden state
+        sequence
+    maxPathLogProb : float
+        Log probability of the most likely state sequence
+    T1 : np.array
+        State X Time matrix where each entry (i,j) gives the log probability of
+        the the most likely path so far ending in state i that generates
+        observations o1,..., oj
+    T2: np.array
+        State X Time matrix of back pointers where each entry (i,j) gives the
+        state x(j-1) on the most likely path so far ending in state i
+    &#39;&#39;&#39;
+    if A.shape[0] != A.shape[1]:
+        raise ValueError(&#39;Transition matrix is not square&#39;)
+
+    nStates = A.shape[0]
+    nCells, nTimeSteps = spikes.shape
+    T1 = np.zeros((nStates, nTimeSteps))
+    T2 = np.zeros((nStates, nTimeSteps))
+    T1[:,1] = np.array([np.log(PI[i]) +
+                        np.log(np.prod(poisson(B[:,i], spikes[:, 1], dt)))
+                        for i in range(nStates)])
+    for t, s in it.product(range(1,nTimeSteps), range(nStates)):
+        probs = np.log(np.prod(poisson(B[:, s], spikes[:, t], dt)))
+        vec2 = T1[:, t-1] + np.log(A[:,s])
+        vec1 = vec2 + probs
+        T1[s, t] = np.max(vec1)
+        idx = np.argmax(vec2)
+        T2[s, t] = idx
+
+    bestPathEndState = np.argmax(T1[:, -1])
+    maxPathLogProb = T1[idx, -1]
+    bestPath = np.zeros((nTimeSteps,))
+    bestPath[-1] = bestPathEndState
+    tStep = list(range(nTimeSteps-1))
+    tStep.reverse()
+    for t in tStep:
+        bestPath[t] = T2[int(bestPath[t+1]), t+1]
+
+    return bestPath, maxPathLogProb, T1, T2</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.query_units"><code class="name flex">
+<span>def <span class="ident">query_units</span></span>(<span>dat, unit_type)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Returns the units names of all units in the dataset that match unit_type</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>dat</code></strong> :&ensp;<code>blechpy.dataset</code> or <code>str</code></dt>
+<dd>Can either be a dataset object or the str path to the recording
+directory containing that data .h5 object</dd>
+<dt><strong><code>unit_type</code></strong> :&ensp;<code>str, {'single', 'pyramidal', 'interneuron', 'all'}</code></dt>
+<dd>determines whether to return 'single' units, 'pyramidal' (regular
+spiking single) units, 'interneuron' (fast spiking single) units, or
+'all' units</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<pre><code>list of str : unit_names
+</code></pre></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def query_units(dat, unit_type):
+    &#39;&#39;&#39;Returns the units names of all units in the dataset that match unit_type
+
+    Parameters
+    ----------
+    dat : blechpy.dataset or str
+        Can either be a dataset object or the str path to the recording
+        directory containing that data .h5 object
+    unit_type : str, {&#39;single&#39;, &#39;pyramidal&#39;, &#39;interneuron&#39;, &#39;all&#39;}
+        determines whether to return &#39;single&#39; units, &#39;pyramidal&#39; (regular
+        spiking single) units, &#39;interneuron&#39; (fast spiking single) units, or
+        &#39;all&#39; units
+
+    Returns
+    -------
+        list of str : unit_names
+    &#39;&#39;&#39;
+    if isinstance(dat, str):
+        units = h5io.get_unit_table(dat)
+    else:
+        units = dat.get_unit_table()
+
+    u_str = unit_type.lower()
+    q_str = &#39;&#39;
+    if u_str == &#39;single&#39;:
+        q_str = &#39;single_unit == True&#39;
+    elif u_str == &#39;pyramidal&#39;:
+        q_str = &#39;single_unit == True and regular_spiking == True&#39;
+    elif u_str == &#39;interneuron&#39;:
+        q_str = &#39;single_unit == True and fast_spiking == True&#39;
+    elif u_str == &#39;all&#39;:
+        return units[&#39;unit_name&#39;].tolist()
+    else:
+        raise ValueError(&#39;Invalid unit_type %s. Must be &#39;
+                         &#39;single, pyramidal, interneuron or all&#39; % u_str)
+
+    return units.query(q_str)[&#39;unit_name&#39;].tolist()</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.read_hmm_from_hdf5"><code class="name flex">
+<span>def <span class="ident">read_hmm_from_hdf5</span></span>(<span>h5_file, hmm_id, rec_dir)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def read_hmm_from_hdf5(h5_file, hmm_id, rec_dir):
+    print(&#39;Loading HMM %i for hdf5&#39; % hmm_id)
+    with tables.open_file(h5_file, &#39;r&#39;) as hf5:
+        h_str = &#39;hmm_%i&#39; % hmm_id
+        if h_str not in hf5.root or len(hf5.list_nodes(&#39;/&#39;+h_str)) == 0:
+            return None
+
+        table = hf5.root.data_overview
+        row = list(table.where(&#39;hmm_id == id&#39;, condvars={&#39;id&#39;:hmm_id}))
+        if len(row) == 0:
+            raise ValueError(&#39;Parameters not found for hmm %i&#39; % hmm_id)
+        elif len(row) &gt; 1:
+            raise ValueError(&#39;Multiple parameters found for hmm %i&#39; % hmm_id)
+
+        row = row[0]
+        units = query_units(rec_dir, row[&#39;unit_type&#39;].decode(&#39;utf-8&#39;))
+        spikes, dt, time = get_spike_data(rec_dir, units, row[&#39;channel&#39;],
+                                          dt=row[&#39;dt&#39;],
+                                          time_start=row[&#39;time_start&#39;],
+                                          time_end=row[&#39;time_end&#39;])
+        tmp = hf5.root[h_str]
+        mats = {&#39;initial_distribution&#39;: tmp[&#39;initial_distribution&#39;][:],
+                &#39;transition&#39;: tmp[&#39;transition&#39;][:],
+                &#39;emission&#39;: tmp[&#39;emission&#39;][:],
+                &#39;fitted&#39;: row[&#39;fitted&#39;]}
+        hmm = PoissonHMM(row[&#39;n_states&#39;], spikes, dt, set_data=mats)
+
+    return hmm</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.rebin_spike_array"><code class="name flex">
+<span>def <span class="ident">rebin_spike_array</span></span>(<span>spikes, dt, time, new_dt)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def rebin_spike_array(spikes, dt, time, new_dt):
+    if spikes.ndim == 2:
+        spikes = np.expand_dims(spikes,0)
+
+    n_trials, n_cells, n_steps = spikes.shape
+    n_bins = int(new_dt/dt)
+    new_time = np.arange(time[0], time[-1], new_dt)
+    new_spikes = np.zeros((n_trials, n_cells, len(new_time)))
+    for i, w in enumerate(new_time):
+        idx = np.where((time &gt;= w) &amp; (time &lt; w+new_dt))[0]
+        new_spikes[:,:,i] = np.sum(spikes[:,:,idx], axis=-1)
+
+    return new_spikes, new_time</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.wrap_baum_welch"><code class="name flex">
+<span>def <span class="ident">wrap_baum_welch</span></span>(<span>trial_id, trial_dat, dt, PI, A, B)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def wrap_baum_welch(trial_id, trial_dat, dt, PI, A, B):
+    alpha, norms = forward(trial_dat, dt, PI, A, B)
+    beta = backward(trial_dat, dt, A, B, norms)
+    tmp_gamma, tmp_epsilons = baum_welch(trial_dat, dt, A, B, alpha, beta)
+    return trial_id, tmp_gamma, tmp_epsilons</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.write_hmm_to_hdf5"><code class="name flex">
+<span>def <span class="ident">write_hmm_to_hdf5</span></span>(<span>h5_file, hmm_id, hmm)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def write_hmm_to_hdf5(h5_file, hmm_id, hmm):
+    h_str = &#39;hmm_%i&#39; % hmm_id
+    print(&#39;Writing HMM %i to hdf5 file...&#39; % hmm_id)
+    with tables.open_file(h5_file, &#39;a&#39;) as hf5:
+        if h_str in hf5.root:
+            hf5.remove_node(&#39;/&#39;, h_str, recursive=True)
+
+        hf5.create_group(&#39;/&#39;, h_str, &#39;Data for HMM #%i&#39; % hmm_id)
+        hf5.create_array(&#39;/&#39;+h_str, &#39;initial_distribution&#39;,
+                         hmm.initial_distribution)
+        hf5.create_array(&#39;/&#39;+h_str, &#39;transition&#39;, hmm.transition)
+        hf5.create_array(&#39;/&#39;+h_str, &#39;emission&#39;, hmm.emission)
+
+        best_paths, _ = hmm.get_best_paths()
+        hf5.create_array(&#39;/&#39;+h_str, &#39;state_sequences&#39;, best_paths)</code></pre>
+</details>
+</dd>
+</dl>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="blechpy.analysis.poissonHMM_deprecated.HMMFit"><code class="flex name class">
+<span>class <span class="ident">HMMFit</span></span>
+<span>(</span><span>rec_dir, params)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class HMMFit(object):
+    def __init__(self, rec_dir, params):
+        self._rec_dir = rec_dir
+        self._params = params
+
+    def run(self, parallel=False):
+        params = self._params
+        spikes, dt, time = self.get_spike_data()
+        hmm = PoissonHMM(params[&#39;n_states&#39;], spikes, dt)
+        hmm.fit(max_iter=params[&#39;max_iter&#39;],
+                convergence_thresh=params[&#39;threshold&#39;],
+                parallel=parallel)
+        del spikes, dt, time
+        return params[&#39;hmm_id&#39;], hmm
+
+    def get_spike_data(self):
+        p = self._params
+        units = query_units(self._rec_dir, p[&#39;unit_type&#39;])
+        # Get stored spike array, time is in ms, dt is usually 1 ms
+        spike_array, dt, time = get_spike_data(self._rec_dir, units,
+                                               p[&#39;channel&#39;], dt=p[&#39;dt&#39;],
+                                               time_start=p[&#39;time_start&#39;],
+                                               time_end=p[&#39;time_end&#39;])
+        return spike_array, dt, time</code></pre>
+</details>
+<h3>Methods</h3>
+<dl>
+<dt id="blechpy.analysis.poissonHMM_deprecated.HMMFit.get_spike_data"><code class="name flex">
+<span>def <span class="ident">get_spike_data</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_spike_data(self):
+    p = self._params
+    units = query_units(self._rec_dir, p[&#39;unit_type&#39;])
+    # Get stored spike array, time is in ms, dt is usually 1 ms
+    spike_array, dt, time = get_spike_data(self._rec_dir, units,
+                                           p[&#39;channel&#39;], dt=p[&#39;dt&#39;],
+                                           time_start=p[&#39;time_start&#39;],
+                                           time_end=p[&#39;time_end&#39;])
+    return spike_array, dt, time</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.HMMFit.run"><code class="name flex">
+<span>def <span class="ident">run</span></span>(<span>self, parallel=False)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def run(self, parallel=False):
+    params = self._params
+    spikes, dt, time = self.get_spike_data()
+    hmm = PoissonHMM(params[&#39;n_states&#39;], spikes, dt)
+    hmm.fit(max_iter=params[&#39;max_iter&#39;],
+            convergence_thresh=params[&#39;threshold&#39;],
+            parallel=parallel)
+    del spikes, dt, time
+    return params[&#39;hmm_id&#39;], hmm</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.HmmHandler"><code class="flex name class">
+<span>class <span class="ident">HmmHandler</span></span>
+<span>(</span><span>dat, params=None, save_dir=None)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Takes a blechpy dataset object and fits HMMs for each tastant</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>dat</code></strong> :&ensp;<code>blechpy.dataset</code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>params</code></strong> :&ensp;<code>dict</code> or <code>list</code> of <code>dicts</code></dt>
+<dd>each dict must have fields:
+time_window: list of int, time window to cut around stimuli in ms
+convergence_thresh: float
+max_iter: int
+n_repeats: int
+unit_type: str, {'single', 'pyramidal', 'interneuron', 'all'}
+bin_size: time bin for spike array when fitting in seconds
+n_states: predicted number of states to fit</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class HmmHandler(object):
+    def __init__(self, dat, params=None, save_dir=None):
+        &#39;&#39;&#39;Takes a blechpy dataset object and fits HMMs for each tastant
+
+        Parameters
+        ----------
+        dat: blechpy.dataset
+        params: dict or list of dicts
+            each dict must have fields:
+                time_window: list of int, time window to cut around stimuli in ms
+                convergence_thresh: float
+                max_iter: int
+                n_repeats: int
+                unit_type: str, {&#39;single&#39;, &#39;pyramidal&#39;, &#39;interneuron&#39;, &#39;all&#39;}
+                bin_size: time bin for spike array when fitting in seconds
+                n_states: predicted number of states to fit
+        &#39;&#39;&#39;
+        if isinstance(params, dict):
+            params = [params]
+
+        if isinstance(dat, str):
+            dat = load_dataset(dat)
+            if dat is None:
+                raise FileNotFoundError(&#39;No dataset.p file found given directory&#39;)
+
+        if save_dir is None:
+            save_dir = os.path.join(dat.root_dir,
+                                    &#39;%s_analysis&#39; % dat.data_name)
+
+        self._dataset = dat
+        self.root_dir = dat.root_dir
+        self.save_dir = save_dir
+        self.h5_file = os.path.join(save_dir, &#39;%s_HMM_Analysis.hdf5&#39; % dat.data_name)
+        dim = dat.dig_in_mapping.query(&#39;exclude==False&#39;)
+        tastes = dim[&#39;name&#39;].tolist()
+        if params is None:
+            # Load params and fitted models
+            self.load_data()
+        else:
+            self.init_params(params)
+
+        self.params = params
+
+        if not os.path.isdir(save_dir):
+            os.makedirs(save_dir)
+
+        self.plot_dir = os.path.join(save_dir, &#39;HMM_Plots&#39;)
+        if not os.path.isdir(self.plot_dir):
+            os.makedirs(self.plot_dir)
+
+        self._setup_hdf5()
+
+    def init_params(self, params):
+        dat = self._dataset
+        dim = dat.dig_in_mapping.query(&#39;exclude == False&#39;)
+        tastes = dim[&#39;name&#39;].tolist()
+        dim = dim.set_index(&#39;name&#39;)
+        if not hasattr(dat, &#39;dig_in_trials&#39;):
+            dat.create_trial_list()
+
+        trials = dat.dig_in_trials
+        data_params = []
+        fit_objs = []
+        fit_params = []
+        for i, X in enumerate(it.product(params,tastes)):
+            p = X[0].copy()
+            t = X[1]
+            p[&#39;hmm_id&#39;] = i
+            p[&#39;taste&#39;] = t
+            p[&#39;channel&#39;] = dim.loc[t, &#39;channel&#39;]
+            unit_names = query_units(dat, p[&#39;unit_type&#39;])
+            p[&#39;n_cells&#39;] = len(unit_names)
+            p[&#39;n_trials&#39;] = len(trials.query(&#39;name == @t&#39;))
+
+            data_params.append(p)
+            # Make fit object for each repeat
+            # During fitting compare HMM as ones with the same ID are returned
+            for i in range(p[&#39;n_repeats&#39;]):
+                hmmFit = HMMFit(dat.root_dir, p)
+                fit_objs.append(hmmFit)
+                fit_params.append(p)
+
+        self._fit_objects = fit_objs
+        self._data_params = data_params
+        self._fit_params = fit_params
+        self._fitted_models = dict.fromkeys([x[&#39;hmm_id&#39;] for x in data_params])
+        self.write_overview_to_hdf5()
+
+    def load_data(self):
+        h5_file = self.h5_file
+        if not os.path.isfile(h5_file):
+            raise ValueError(&#39;No params to load&#39;)
+
+        rec_dir = self._dataset.root_dir
+        params = []
+        fit_objs = []
+        fit_params = []
+        fitted_models = {}
+        with tables.open_file(h5_file, &#39;r&#39;) as hf5:
+            table = hf5.root.data_overview
+            col_names = table.colnames
+            for row in table[:]:
+                p = {}
+                for k in col_names:
+                    if table.coltypes[k] == &#39;string&#39;:
+                        p[k] = row[k].decode(&#39;utf-8&#39;)
+                    else:
+                        p[k] = row[k]
+
+                params.append(p)
+                for i in range(p[&#39;n_repeats&#39;]):
+                    hmmFit = HMMFit(rec_dir, p)
+                    fit_objs.append(hmmFit)
+                    fit_params.append(p)
+
+        for p in params:
+            hmm_id = p[&#39;hmm_id&#39;]
+            fitted_models[hmm_id] = read_hmm_from_hdf5(h5_file, hmm_id, rec_dir)
+
+        self._data_params = params
+        self._fit_objects = fit_objs
+        self._fitted_models = fitted_models
+        self._fit_params = fit_params
+
+
+    def write_overview_to_hdf5(self):
+        params = self._data_params
+        h5_file = self.h5_file
+        if hasattr(self, &#39;_fitted_models&#39;):
+            models = self._fitted_models
+        else:
+            models = dict.fromkeys([x[&#39;hmm_id&#39;]
+                                    for x in data_params])
+            self._fitted_models = models
+
+
+        if not os.path.isfile(h5_file):
+            self._setup_hdf5()
+
+        print(&#39;Writing data overview table to hdf5...&#39;)
+        with tables.open_file(h5_file, &#39;a&#39;) as hf5:
+            table = hf5.root.data_overview
+            # Clear old table
+            table.remove_rows(start=0)
+
+            # Add new rows
+            for p in params:
+                row = table.row
+                for k, v in p.items():
+                    row[k] = v
+
+                if models[p[&#39;hmm_id&#39;]] is not None:
+                   hmm = models[p[&#39;hmm_id&#39;]]
+                   row[&#39;n_iterations&#39;] =  hmm.iterations
+                   row[&#39;BIC&#39;] = hmm.BIC
+                   row[&#39;cost&#39;] = hmm.cost
+                   row[&#39;converged&#39;] = hmm.isConverged(p[&#39;threshold&#39;])
+                   row[&#39;fitted&#39;] = hmm.fitted
+
+                row.append()
+
+            table.flush()
+            hf5.flush()
+
+        print(&#39;Done!&#39;)
+
+    def _setup_hdf5(self):
+        h5_file = self.h5_file
+
+        with tables.open_file(h5_file, &#39;a&#39;) as hf5:
+            # Taste -&gt; PI, A, B, BIC, state_sequences, nStates, nCells, dt
+            if not &#39;data_overview&#39; in hf5.root:
+                # Contains taste, channel, n_cells, n_trials, n_states, dt, BIC
+                table = hf5.create_table(&#39;/&#39;, &#39;data_overview&#39;, HMMInfoParticle,
+                                         &#39;Basic info for each digital_input&#39;)
+                table.flush()
+
+
+            if hasattr(self, &#39;_data_params&#39;) and self._data_params is not None:
+                for p in self._data_params:
+                    hmm_str = &#39;hmm_%i&#39; % p[&#39;hmm_id&#39;]
+                    if hmm_str not in hf5.root:
+                        hf5.create_group(&#39;/&#39;, hmm_str, &#39;Data for HMM #%i&#39; % p[&#39;hmm_id&#39;])
+
+            hf5.flush()
+
+    def run(self, parallel=True):
+        self.write_overview_to_hdf5()
+        h5_file = self.h5_file
+        rec_dir = self._dataset.root_dir
+        fit_objs = self._fit_objects
+        fit_params = self._fit_params
+        self._fitted_models = dict.fromkeys([x[&#39;hmm_id&#39;] for x in self._data_params])
+        errors = []
+
+        # def update(ans):
+        #     hmm_id = ans[0]
+        #     hmm = ans[1]
+        #     if self._fitted_models[hmm_id] is not None:
+        #         best_hmm = pick_best_hmm([HMMs[hmm_id], hmm])
+        #         self._fitted_models[hmm_id] = best_hmm
+        #         write_hmm_to_hdf5(h5_file, hmm_id, best_hmm)
+        #         del hmm, best_hmm
+        #     else:
+        #         # Check history for lowest BIC
+        #         self._fitted_models[hmm_id] = hmm.set_to_lowest_BIC()
+        #         write_hmm_to_hdf5(h5_file, hmm_id, hmm)
+        #         del hmm
+
+        # def error_call(e):
+        #     errors.append(e)
+
+        # if parallel:
+        #     n_cpu = np.min((mp.cpu_count()-1, len(fit_objs)))
+        #     if n_cpu &gt; 10:
+        #         pool = mp.get_context(&#39;spawn&#39;).Pool(n_cpu)
+        #     else:
+        #         pool = mp.Pool(n_cpu)
+
+        #     for f in fit_objs:
+        #         pool.apply_async(f.run, callback=update, error_callback=error_call)
+
+        #     pool.close()
+        #     pool.join()
+        # else:
+        #     for f in fit_objs:
+        #         try:
+        #             ans = f.run()
+        #             update(ans)
+        #         except Exception as e:
+        #             raise Exception(e)
+        #             error_call(e)
+        print(&#39;Running fittings&#39;)
+        if parallel:
+            n_cpu = np.min((mp.cpu_count()-1, len(fit_params)))
+        else:
+            n_cpu = 1
+
+        results = Parallel(n_jobs=n_cpu, verbose=20)(delayed(hmm_fit_mp)(rec_dir, p) for p in fit_params)
+        for hmm_id, hmm in zip(*results):
+            if self._fitted_models[hmm_id] is None:
+                self._fitted_models[hmm_id] = hmm
+            else:
+                new_hmm = pick_best_hmm([hmm, self._fitted_models[hmm_id]])
+                self._fitted_models[hmm_id] = new_hmm
+
+        self.write_overview_to_hdf5()
+        self.save_fitted_models()
+        # if len(errors) &gt; 0:
+        #     print(&#39;Encountered errors: &#39;)
+        #     for e in errors:
+        #         print(e)
+
+    def save_fitted_models(self):
+        models = self._fitted_models
+        for k, v in models.items():
+            write_hmm_to_hdf5(self.h5_file, k, v)
+            plot_dir = os.path.join(self.plot_dir, &#39;HMM_%i&#39; % k)
+            if not os.path.isdir(plot_dir):
+                os.makedirs(plot_dir)
+
+            ids = [x[&#39;hmm_id&#39;] for x in self._data_params]
+            idx = ids.index(k)
+            params = self._data_params[idx]
+            time_window = [params[&#39;time_start&#39;], params[&#39;time_end&#39;]]
+            hmmplt.plot_hmm_figures(v, time_window, save_dir=plot_dir)</code></pre>
+</details>
+<h3>Methods</h3>
+<dl>
+<dt id="blechpy.analysis.poissonHMM_deprecated.HmmHandler.init_params"><code class="name flex">
+<span>def <span class="ident">init_params</span></span>(<span>self, params)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def init_params(self, params):
+    dat = self._dataset
+    dim = dat.dig_in_mapping.query(&#39;exclude == False&#39;)
+    tastes = dim[&#39;name&#39;].tolist()
+    dim = dim.set_index(&#39;name&#39;)
+    if not hasattr(dat, &#39;dig_in_trials&#39;):
+        dat.create_trial_list()
+
+    trials = dat.dig_in_trials
+    data_params = []
+    fit_objs = []
+    fit_params = []
+    for i, X in enumerate(it.product(params,tastes)):
+        p = X[0].copy()
+        t = X[1]
+        p[&#39;hmm_id&#39;] = i
+        p[&#39;taste&#39;] = t
+        p[&#39;channel&#39;] = dim.loc[t, &#39;channel&#39;]
+        unit_names = query_units(dat, p[&#39;unit_type&#39;])
+        p[&#39;n_cells&#39;] = len(unit_names)
+        p[&#39;n_trials&#39;] = len(trials.query(&#39;name == @t&#39;))
+
+        data_params.append(p)
+        # Make fit object for each repeat
+        # During fitting compare HMM as ones with the same ID are returned
+        for i in range(p[&#39;n_repeats&#39;]):
+            hmmFit = HMMFit(dat.root_dir, p)
+            fit_objs.append(hmmFit)
+            fit_params.append(p)
+
+    self._fit_objects = fit_objs
+    self._data_params = data_params
+    self._fit_params = fit_params
+    self._fitted_models = dict.fromkeys([x[&#39;hmm_id&#39;] for x in data_params])
+    self.write_overview_to_hdf5()</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.HmmHandler.load_data"><code class="name flex">
+<span>def <span class="ident">load_data</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def load_data(self):
+    h5_file = self.h5_file
+    if not os.path.isfile(h5_file):
+        raise ValueError(&#39;No params to load&#39;)
+
+    rec_dir = self._dataset.root_dir
+    params = []
+    fit_objs = []
+    fit_params = []
+    fitted_models = {}
+    with tables.open_file(h5_file, &#39;r&#39;) as hf5:
+        table = hf5.root.data_overview
+        col_names = table.colnames
+        for row in table[:]:
+            p = {}
+            for k in col_names:
+                if table.coltypes[k] == &#39;string&#39;:
+                    p[k] = row[k].decode(&#39;utf-8&#39;)
+                else:
+                    p[k] = row[k]
+
+            params.append(p)
+            for i in range(p[&#39;n_repeats&#39;]):
+                hmmFit = HMMFit(rec_dir, p)
+                fit_objs.append(hmmFit)
+                fit_params.append(p)
+
+    for p in params:
+        hmm_id = p[&#39;hmm_id&#39;]
+        fitted_models[hmm_id] = read_hmm_from_hdf5(h5_file, hmm_id, rec_dir)
+
+    self._data_params = params
+    self._fit_objects = fit_objs
+    self._fitted_models = fitted_models
+    self._fit_params = fit_params</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.HmmHandler.run"><code class="name flex">
+<span>def <span class="ident">run</span></span>(<span>self, parallel=True)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def run(self, parallel=True):
+    self.write_overview_to_hdf5()
+    h5_file = self.h5_file
+    rec_dir = self._dataset.root_dir
+    fit_objs = self._fit_objects
+    fit_params = self._fit_params
+    self._fitted_models = dict.fromkeys([x[&#39;hmm_id&#39;] for x in self._data_params])
+    errors = []
+
+    # def update(ans):
+    #     hmm_id = ans[0]
+    #     hmm = ans[1]
+    #     if self._fitted_models[hmm_id] is not None:
+    #         best_hmm = pick_best_hmm([HMMs[hmm_id], hmm])
+    #         self._fitted_models[hmm_id] = best_hmm
+    #         write_hmm_to_hdf5(h5_file, hmm_id, best_hmm)
+    #         del hmm, best_hmm
+    #     else:
+    #         # Check history for lowest BIC
+    #         self._fitted_models[hmm_id] = hmm.set_to_lowest_BIC()
+    #         write_hmm_to_hdf5(h5_file, hmm_id, hmm)
+    #         del hmm
+
+    # def error_call(e):
+    #     errors.append(e)
+
+    # if parallel:
+    #     n_cpu = np.min((mp.cpu_count()-1, len(fit_objs)))
+    #     if n_cpu &gt; 10:
+    #         pool = mp.get_context(&#39;spawn&#39;).Pool(n_cpu)
+    #     else:
+    #         pool = mp.Pool(n_cpu)
+
+    #     for f in fit_objs:
+    #         pool.apply_async(f.run, callback=update, error_callback=error_call)
+
+    #     pool.close()
+    #     pool.join()
+    # else:
+    #     for f in fit_objs:
+    #         try:
+    #             ans = f.run()
+    #             update(ans)
+    #         except Exception as e:
+    #             raise Exception(e)
+    #             error_call(e)
+    print(&#39;Running fittings&#39;)
+    if parallel:
+        n_cpu = np.min((mp.cpu_count()-1, len(fit_params)))
+    else:
+        n_cpu = 1
+
+    results = Parallel(n_jobs=n_cpu, verbose=20)(delayed(hmm_fit_mp)(rec_dir, p) for p in fit_params)
+    for hmm_id, hmm in zip(*results):
+        if self._fitted_models[hmm_id] is None:
+            self._fitted_models[hmm_id] = hmm
+        else:
+            new_hmm = pick_best_hmm([hmm, self._fitted_models[hmm_id]])
+            self._fitted_models[hmm_id] = new_hmm
+
+    self.write_overview_to_hdf5()
+    self.save_fitted_models()</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.HmmHandler.save_fitted_models"><code class="name flex">
+<span>def <span class="ident">save_fitted_models</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def save_fitted_models(self):
+    models = self._fitted_models
+    for k, v in models.items():
+        write_hmm_to_hdf5(self.h5_file, k, v)
+        plot_dir = os.path.join(self.plot_dir, &#39;HMM_%i&#39; % k)
+        if not os.path.isdir(plot_dir):
+            os.makedirs(plot_dir)
+
+        ids = [x[&#39;hmm_id&#39;] for x in self._data_params]
+        idx = ids.index(k)
+        params = self._data_params[idx]
+        time_window = [params[&#39;time_start&#39;], params[&#39;time_end&#39;]]
+        hmmplt.plot_hmm_figures(v, time_window, save_dir=plot_dir)</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.HmmHandler.write_overview_to_hdf5"><code class="name flex">
+<span>def <span class="ident">write_overview_to_hdf5</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def write_overview_to_hdf5(self):
+    params = self._data_params
+    h5_file = self.h5_file
+    if hasattr(self, &#39;_fitted_models&#39;):
+        models = self._fitted_models
+    else:
+        models = dict.fromkeys([x[&#39;hmm_id&#39;]
+                                for x in data_params])
+        self._fitted_models = models
+
+
+    if not os.path.isfile(h5_file):
+        self._setup_hdf5()
+
+    print(&#39;Writing data overview table to hdf5...&#39;)
+    with tables.open_file(h5_file, &#39;a&#39;) as hf5:
+        table = hf5.root.data_overview
+        # Clear old table
+        table.remove_rows(start=0)
+
+        # Add new rows
+        for p in params:
+            row = table.row
+            for k, v in p.items():
+                row[k] = v
+
+            if models[p[&#39;hmm_id&#39;]] is not None:
+               hmm = models[p[&#39;hmm_id&#39;]]
+               row[&#39;n_iterations&#39;] =  hmm.iterations
+               row[&#39;BIC&#39;] = hmm.BIC
+               row[&#39;cost&#39;] = hmm.cost
+               row[&#39;converged&#39;] = hmm.isConverged(p[&#39;threshold&#39;])
+               row[&#39;fitted&#39;] = hmm.fitted
+
+            row.append()
+
+        table.flush()
+        hf5.flush()
+
+    print(&#39;Done!&#39;)</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.PoissonHMM"><code class="flex name class">
+<span>class <span class="ident">PoissonHMM</span></span>
+<span>(</span><span>n_predicted_states, spikes, dt, max_history=500, cost_window=0.25, set_data=None)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Poisson implementation of Hidden Markov Model for fitting spike data
+from a neuronal population
+Author: Roshan Nanu
+Adpated from code by Ben Ballintyn</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class PoissonHMM(object):
+    &#39;&#39;&#39;Poisson implementation of Hidden Markov Model for fitting spike data
+    from a neuronal population
+    Author: Roshan Nanu
+    Adpated from code by Ben Ballintyn
+    &#39;&#39;&#39;
+    def __init__(self, n_predicted_states, spikes, dt,
+                 max_history=500, cost_window=0.25, set_data=None):
+        if len(spikes.shape) == 2:
+            spikes = np.array([spikes])
+
+        self.data = spikes.astype(&#39;int32&#39;)
+        self.dt = dt
+        self._rate_data = None
+        self.n_states = n_predicted_states
+        self._cost_window = cost_window
+        self._max_history = max_history
+        self.cost = None
+        self.BIC = None
+        self.best_sequences = None
+        self.max_log_prob = None
+        self._rate_data = None
+        self.history = None
+        self._compute_data_rate_array()
+        if set_data is None:
+            self.randomize()
+        else:
+            self.fitted = set_data[&#39;fitted&#39;]
+            self.initial_distribution = set_data[&#39;initial_distribution&#39;]
+            self.transition = set_data[&#39;transition&#39;]
+            self.emission = set_data[&#39;emission&#39;]
+            self.iteration = 0
+            self._update_cost()
+
+
+    def randomize(self):
+        nStates = self.n_states
+        spikes = self.data
+        dt = self.dt
+        n_trials, n_cells, n_steps = spikes.shape
+        total_time = n_steps * dt
+
+        # Initialize transition matrix with high stay probability
+        print(&#39;Randomizing&#39;)
+        diag = np.abs(np.random.normal(.99, .01, nStates))
+        A = np.abs(np.random.normal(0.01/(nStates-1), 0.01, (nStates, nStates)))
+        for i in range(nStates):
+            A[i, i] = diag[i]
+            A[i,:] = A[i,:] / np.sum(A[i,:])
+
+        # Initialize rate matrix (&#34;Emission&#34; matrix)
+        spike_counts = np.sum(spikes, axis=2) / total_time
+        mean_rates = np.mean(spike_counts, axis=0)
+        std_rates = np.std(spike_counts, axis=0)
+        B = np.vstack([np.abs(np.random.normal(x, y, nStates))
+                       for x,y in zip(mean_rates, std_rates)])
+        # B = np.random.rand(nCells, nStates)
+
+        self.transition = A
+        self.emission = B
+        self.initial_distribution = np.ones((nStates,)) / nStates
+        self.iteration = 0
+        self.fitted = False
+        self.history = None
+        self._update_cost()
+
+    def fit(self, spikes=None, dt=None, max_iter = 1000, convergence_thresh = 1e-4,
+            parallel=False):
+        &#39;&#39;&#39;using parallels for processing trials actually seems to slow down
+        processing (with 15 trials). Might still be useful if there is a very
+        large nubmer of trials
+        &#39;&#39;&#39;
+        if self.fitted:
+            return
+
+        if spikes is not None:
+            spikes = spikes.astype(&#39;int32&#39;)
+            self.data = spikes
+            self.dt = dt
+        else:
+            spikes = self.data
+            dt = self.dt
+
+        while (not self.isConverged(convergence_thresh) and
+               (self.iteration &lt; max_iter)):
+            self._step(spikes, dt, parallel=parallel)
+            print(&#39;Iter #%i complete.&#39; % self.iteration)
+
+        self.fitted = True
+
+    def _step(self, spikes, dt, parallel=False):
+        if len(spikes.shape) == 2:
+            spikes = np.array([spikes])
+
+        nTrials, nCells, nTimeSteps = spikes.shape
+
+        A = self.transition
+        B = self.emission
+        PI = self.initial_distribution
+        nStates = self.n_states
+
+        # For multiple trials need to cmpute gamma and epsilon for every trial
+        # and then update
+        gammas = np.zeros((nTrials, nStates, nTimeSteps))
+        epsilons = np.zeros((nTrials, nStates, nStates, nTimeSteps-1))
+        if parallel:
+            def update(ans):
+                idx = ans[0]
+                gammas[idx, :, :] = ans[1]
+                epsilons[idx, :, :, :] = ans[2]
+
+            def error(ans):
+                raise RuntimeError(ans)
+
+            n_cores = mp.cpu_count() - 1
+            pool = mp.get_context(&#39;spawn&#39;).Pool(n_cores)
+            for i, trial in enumerate(spikes):
+                pool.apply_async(wrap_baum_welch,
+                                 (i, trial, dt, PI, A, B),
+                                 callback=update, error_callback=error)
+
+            pool.close()
+            pool.join()
+        else:
+            for i, trial in enumerate(spikes):
+                _, tmp_gamma, tmp_epsilons = wrap_baum_welch(i, trial, dt, PI, A, B)
+                gammas[i, :, :] = tmp_gamma
+                epsilons[i, :, :, :] = tmp_epsilons
+
+        # Store old parameters for convergence check
+        self.update_history()
+
+        PI, A, B = compute_new_matrices(spikes, dt, gammas, epsilons)
+        self.transition = A
+        self.emission = B
+        self.initial_distribution = PI
+        self.iteration += 1
+        self._update_cost()
+
+    def update_history(self):
+        A = self.transition
+        B = self.emission
+        PI = self.initial_distribution
+        BIC = self.BIC
+        cost = self.cost
+        iteration = self.iteration
+
+        if self.history is None:
+            self.history = {}
+            self.history[&#39;A&#39;] = [A]
+            self.history[&#39;B&#39;] = [B]
+            self.history[&#39;PI&#39;] = [PI]
+            self.history[&#39;iterations&#39;] = [iteration]
+            self.history[&#39;cost&#39;] = [cost]
+            self.history[&#39;BIC&#39;] = [BIC]
+        else:
+            if iteration in self.history[&#39;iterations&#39;]:
+                return self.history
+
+            self.history[&#39;A&#39;].append(A)
+            self.history[&#39;B&#39;].append(B)
+            self.history[&#39;PI&#39;].append(PI)
+            self.history[&#39;iterations&#39;].append(iteration)
+            self.history[&#39;cost&#39;].append(cost)
+            self.history[&#39;BIC&#39;].append(BIC)
+
+        if len(self.history[&#39;iterations&#39;]) &gt; self._max_history:
+            nmax = self._max_history
+            for k, v in self.history.items():
+                self.history[k] = v[-nmax:]
+
+        return self.history
+
+    def isConverged(self, thresh):
+        if self.history is None:
+            return False
+
+        oldPI = self.history[&#39;PI&#39;][-1]
+        oldA = self.history[&#39;A&#39;][-1]
+        oldB = self.history[&#39;B&#39;][-1]
+        oldCost = self.history[&#39;cost&#39;][-1]
+
+        PI = self.initial_distribution
+        A = self.transition
+        B = self.emission
+        cost = self.cost
+
+        dPI = np.sqrt(np.sum(np.power(oldPI - PI, 2)))
+        dA = np.sqrt(np.sum(np.power(oldA - A, 2)))
+        dB = np.sqrt(np.sum(np.power(oldB - B, 2)))
+        dCost = cost-oldCost
+        print(&#39;dPI = %f,  dA = %f,  dB = %f, dCost = %f, cost = %f&#39;
+              % (dPI, dA, dB, dCost, cost))
+
+        # TODO: determine if this is reasonable
+        # dB takes waaaaay longer to converge than the rest, i&#39;m going to
+        # double the thresh just for that
+        dB = dB/2
+
+        if not all([x &lt; thresh for x in [dPI, dA, dB]]):
+            return False
+        else:
+            return True
+
+    def get_best_paths(self):
+        if self.best_sequences is not None:
+            return self.best_sequences, self.max_log_prob
+
+        spikes = self.data
+        dt = self.dt
+        PI = self.initial_distribution
+        A = self.transition
+        B = self.emission
+
+        bestPaths, pathProbs = compute_best_paths(spikes, dt, PI, A, B)
+        self.best_sequences = bestPaths
+        self.max_log_prob = np.max(pathProbs)
+        return bestPaths, self.max_log_prob
+
+    def get_forward_probabilities(self):
+        alphas = []
+        for trial in self.data:
+            tmp, _ = forward(trial, self.dt, self.initial_distribution,
+                             self.transition, self.emission)
+            alphas.append(tmp)
+
+        return np.array(alphas)
+
+    def get_backward_probabilities(self):
+        PI = self.initial_distribution
+        A = self.transition
+        B = self.emission
+        betas = []
+        for trial in self.data:
+            alpha, norms = forward(trial, self.dt, PI, A, B)
+            tmp = backward(trial, self.dt, A, B, norms)
+            betas.append(tmp)
+
+        return np.array(betas)
+
+    def get_gamma_probabilities(self):
+        PI = self.initial_distribution
+        A = self.transition
+        B = self.emission
+        gammas = []
+        for i, trial in enumerate(self.data):
+            _, tmp, _ = wrap_baum_welch(i, trial, self.dt, PI, A, B)
+            gammas.append(tmp)
+
+        return np.array(gammas)
+
+    def get_BIC(self):
+        if self.BIC is not None:
+            return self.BIC
+
+        PI = self.initial_distribution
+        A = self.transition
+        B = self.emission
+        BIC, bestPaths, max_log_prob = compute_BIC(self.data, self.dt, PI, A, B)
+        self.BIC = BIC
+        self.best_sequences = bestPaths
+        self.max_log_prob = max_log_prob
+        return BIC, bestPaths, max_log_prob
+
+    def _compute_data_rate_array(self):
+        if self._rate_data is not None:
+            return self._rate_data
+
+        win_size = self._cost_window
+        rate_array = convert_spikes_to_rates(self.data, self.dt,
+                                             win_size, step_size=win_size)
+        self._rate_data = rate_array
+
+    def _compute_predicted_rate_array(self):
+        B = self.emission
+        bestPaths, _ = self.get_best_paths()
+        bestPaths = bestPaths.astype(&#39;int32&#39;)
+        win_size = self._cost_window
+        dt = self.dt
+        mean_rates = generate_rate_array_from_state_seq(bestPaths, B,
+                                                        dt, win_size,
+                                                        step_size=win_size)
+        return mean_rates
+
+    def set_to_lowest_cost(self):
+        hist = self.update_history()
+        idx = np.argmin(hist[&#39;cost&#39;])
+        iteration = hist[&#39;iterations&#39;][idx]
+        self.roll_back(iteration)
+
+    def set_to_lowest_BIC(self):
+        hist = self.update_history()
+        idx = np.argmin(hist[&#39;BIC&#39;])
+        iteration = hist[&#39;iterations&#39;][idx]
+        self.roll_back(iteration)
+
+    def find_best_in_history(self):
+        hist = self.update_history()
+        PIs = hist[&#39;PI&#39;]
+        As = hist[&#39;A&#39;]
+        Bs = hist[&#39;B&#39;]
+        iters = hist[&#39;iterations&#39;]
+        BICs = hist[&#39;BIC&#39;]
+        idx = np.argmin(BICs)
+        out = {&#39;PI&#39;: PIs[idx], &#39;A&#39;: As[idx], &#39;B&#39;: Bs[idx]}
+        return out, iters[idx], BICs
+
+    def roll_back(self, iteration):
+        hist = self.history
+        try:
+            idx = hist[&#39;iterations&#39;].index(iteration)
+        except ValueError:
+            raise ValueError(&#39;Iteration %i not found in history&#39; % iteration)
+
+        self.initial_distribution = hist[&#39;PI&#39;][idx]
+        self.transition = hist[&#39;A&#39;][idx]
+        self.emission = hist[&#39;B&#39;][idx]
+        self.iteration = iteration
+        self._update_cost()
+
+    def set_matrices(self, new_mats):
+        self.initial_distribution = new_mats[&#39;PI&#39;]
+        self.transition = new_mats[&#39;A&#39;]
+        self.emission = new_mats[&#39;B&#39;]
+        if &#39;iteration&#39; in new_mats:
+            self.iteration = new_mats[&#39;iteration&#39;]
+        self._update_cost()
+
+    def set_data(self, new_data, dt):
+        self.data = new_data
+        self.dt = dt
+        self._compute_data_rate_array()
+        self._update_cost()
+
+    def plot_state_raster(self, ax=None, state_map=None):
+        bestPaths, _ = self.get_best_paths()
+        if state_map is not None:
+            bestPaths = convert_path_state_numbers(bestPaths, state_map)
+
+        data = self.data
+        fig, ax = plot_state_raster(data, bestPaths, self.dt, ax=ax)
+        return fig, ax
+
+    def plot_state_rates(self, ax=None, state_map=None):
+        rates = self.emission
+        if state_map:
+            idx = [state_map[k] for k in sorted(state_map.keys())]
+            maxState = np.max(list(state_map.values()))
+            newRates = np.zeros((rates.shape[0], maxState+1))
+            for k, v in state_map.items():
+                newRates[:, v] = rates[:, k]
+
+            rates = newRates
+
+        fig, ax = plot_state_rates(rates, ax=ax)
+        return fig, ax
+
+    def reorder_states(self, state_map):
+        idx = [state_map[k] for k in sorted(state_map.keys())]
+        PI = self.initial_distribution
+        A = self.transition
+        B = self.emission
+
+        newPI = PI[idx]
+        newB = B[:, idx]
+        newA = np.zeros(A.shape)
+        for x in range(A.shape[0]):
+            for y in range(A.shape[1]):
+                i = state_map[x]
+                j = state_map[y]
+                newA[i,j] = A[x,y]
+
+        self.initial_distribution = newPI
+        self.transition = newA
+        self.emission = newB
+        self._update_cost()
+
+    def _update_cost(self):
+        spikes = self.data
+        win_size = self._cost_window
+        dt = self.dt
+        PI = self.initial_distribution
+        A  = self.transition
+        B  = self.emission
+        true_rates = self._rate_data
+        cost, BIC, bestPaths, maxLogProb = compute_hmm_cost(spikes, dt, PI, A, B,
+                                                            win_size=win_size,
+                                                            true_rates=true_rates)
+        self.cost = cost
+        self.BIC = BIC
+        self.best_sequences = bestPaths
+        self.max_log_prob = maxLogProb
+
+    def get_cost(self):
+        if self.cost is None:
+            self._update_cost()
+
+        return self.cost</code></pre>
+</details>
+<h3>Methods</h3>
+<dl>
+<dt id="blechpy.analysis.poissonHMM_deprecated.PoissonHMM.find_best_in_history"><code class="name flex">
+<span>def <span class="ident">find_best_in_history</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def find_best_in_history(self):
+    hist = self.update_history()
+    PIs = hist[&#39;PI&#39;]
+    As = hist[&#39;A&#39;]
+    Bs = hist[&#39;B&#39;]
+    iters = hist[&#39;iterations&#39;]
+    BICs = hist[&#39;BIC&#39;]
+    idx = np.argmin(BICs)
+    out = {&#39;PI&#39;: PIs[idx], &#39;A&#39;: As[idx], &#39;B&#39;: Bs[idx]}
+    return out, iters[idx], BICs</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.PoissonHMM.fit"><code class="name flex">
+<span>def <span class="ident">fit</span></span>(<span>self, spikes=None, dt=None, max_iter=1000, convergence_thresh=0.0001, parallel=False)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>using parallels for processing trials actually seems to slow down
+processing (with 15 trials). Might still be useful if there is a very
+large nubmer of trials</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def fit(self, spikes=None, dt=None, max_iter = 1000, convergence_thresh = 1e-4,
+        parallel=False):
+    &#39;&#39;&#39;using parallels for processing trials actually seems to slow down
+    processing (with 15 trials). Might still be useful if there is a very
+    large nubmer of trials
+    &#39;&#39;&#39;
+    if self.fitted:
+        return
+
+    if spikes is not None:
+        spikes = spikes.astype(&#39;int32&#39;)
+        self.data = spikes
+        self.dt = dt
+    else:
+        spikes = self.data
+        dt = self.dt
+
+    while (not self.isConverged(convergence_thresh) and
+           (self.iteration &lt; max_iter)):
+        self._step(spikes, dt, parallel=parallel)
+        print(&#39;Iter #%i complete.&#39; % self.iteration)
+
+    self.fitted = True</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.PoissonHMM.get_BIC"><code class="name flex">
+<span>def <span class="ident">get_BIC</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_BIC(self):
+    if self.BIC is not None:
+        return self.BIC
+
+    PI = self.initial_distribution
+    A = self.transition
+    B = self.emission
+    BIC, bestPaths, max_log_prob = compute_BIC(self.data, self.dt, PI, A, B)
+    self.BIC = BIC
+    self.best_sequences = bestPaths
+    self.max_log_prob = max_log_prob
+    return BIC, bestPaths, max_log_prob</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.PoissonHMM.get_backward_probabilities"><code class="name flex">
+<span>def <span class="ident">get_backward_probabilities</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_backward_probabilities(self):
+    PI = self.initial_distribution
+    A = self.transition
+    B = self.emission
+    betas = []
+    for trial in self.data:
+        alpha, norms = forward(trial, self.dt, PI, A, B)
+        tmp = backward(trial, self.dt, A, B, norms)
+        betas.append(tmp)
+
+    return np.array(betas)</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.PoissonHMM.get_best_paths"><code class="name flex">
+<span>def <span class="ident">get_best_paths</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_best_paths(self):
+    if self.best_sequences is not None:
+        return self.best_sequences, self.max_log_prob
+
+    spikes = self.data
+    dt = self.dt
+    PI = self.initial_distribution
+    A = self.transition
+    B = self.emission
+
+    bestPaths, pathProbs = compute_best_paths(spikes, dt, PI, A, B)
+    self.best_sequences = bestPaths
+    self.max_log_prob = np.max(pathProbs)
+    return bestPaths, self.max_log_prob</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.PoissonHMM.get_cost"><code class="name flex">
+<span>def <span class="ident">get_cost</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_cost(self):
+    if self.cost is None:
+        self._update_cost()
+
+    return self.cost</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.PoissonHMM.get_forward_probabilities"><code class="name flex">
+<span>def <span class="ident">get_forward_probabilities</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_forward_probabilities(self):
+    alphas = []
+    for trial in self.data:
+        tmp, _ = forward(trial, self.dt, self.initial_distribution,
+                         self.transition, self.emission)
+        alphas.append(tmp)
+
+    return np.array(alphas)</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.PoissonHMM.get_gamma_probabilities"><code class="name flex">
+<span>def <span class="ident">get_gamma_probabilities</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_gamma_probabilities(self):
+    PI = self.initial_distribution
+    A = self.transition
+    B = self.emission
+    gammas = []
+    for i, trial in enumerate(self.data):
+        _, tmp, _ = wrap_baum_welch(i, trial, self.dt, PI, A, B)
+        gammas.append(tmp)
+
+    return np.array(gammas)</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.PoissonHMM.isConverged"><code class="name flex">
+<span>def <span class="ident">isConverged</span></span>(<span>self, thresh)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def isConverged(self, thresh):
+    if self.history is None:
+        return False
+
+    oldPI = self.history[&#39;PI&#39;][-1]
+    oldA = self.history[&#39;A&#39;][-1]
+    oldB = self.history[&#39;B&#39;][-1]
+    oldCost = self.history[&#39;cost&#39;][-1]
+
+    PI = self.initial_distribution
+    A = self.transition
+    B = self.emission
+    cost = self.cost
+
+    dPI = np.sqrt(np.sum(np.power(oldPI - PI, 2)))
+    dA = np.sqrt(np.sum(np.power(oldA - A, 2)))
+    dB = np.sqrt(np.sum(np.power(oldB - B, 2)))
+    dCost = cost-oldCost
+    print(&#39;dPI = %f,  dA = %f,  dB = %f, dCost = %f, cost = %f&#39;
+          % (dPI, dA, dB, dCost, cost))
+
+    # TODO: determine if this is reasonable
+    # dB takes waaaaay longer to converge than the rest, i&#39;m going to
+    # double the thresh just for that
+    dB = dB/2
+
+    if not all([x &lt; thresh for x in [dPI, dA, dB]]):
+        return False
+    else:
+        return True</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.PoissonHMM.plot_state_raster"><code class="name flex">
+<span>def <span class="ident">plot_state_raster</span></span>(<span>self, ax=None, state_map=None)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def plot_state_raster(self, ax=None, state_map=None):
+    bestPaths, _ = self.get_best_paths()
+    if state_map is not None:
+        bestPaths = convert_path_state_numbers(bestPaths, state_map)
+
+    data = self.data
+    fig, ax = plot_state_raster(data, bestPaths, self.dt, ax=ax)
+    return fig, ax</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.PoissonHMM.plot_state_rates"><code class="name flex">
+<span>def <span class="ident">plot_state_rates</span></span>(<span>self, ax=None, state_map=None)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def plot_state_rates(self, ax=None, state_map=None):
+    rates = self.emission
+    if state_map:
+        idx = [state_map[k] for k in sorted(state_map.keys())]
+        maxState = np.max(list(state_map.values()))
+        newRates = np.zeros((rates.shape[0], maxState+1))
+        for k, v in state_map.items():
+            newRates[:, v] = rates[:, k]
+
+        rates = newRates
+
+    fig, ax = plot_state_rates(rates, ax=ax)
+    return fig, ax</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.PoissonHMM.randomize"><code class="name flex">
+<span>def <span class="ident">randomize</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def randomize(self):
+    nStates = self.n_states
+    spikes = self.data
+    dt = self.dt
+    n_trials, n_cells, n_steps = spikes.shape
+    total_time = n_steps * dt
+
+    # Initialize transition matrix with high stay probability
+    print(&#39;Randomizing&#39;)
+    diag = np.abs(np.random.normal(.99, .01, nStates))
+    A = np.abs(np.random.normal(0.01/(nStates-1), 0.01, (nStates, nStates)))
+    for i in range(nStates):
+        A[i, i] = diag[i]
+        A[i,:] = A[i,:] / np.sum(A[i,:])
+
+    # Initialize rate matrix (&#34;Emission&#34; matrix)
+    spike_counts = np.sum(spikes, axis=2) / total_time
+    mean_rates = np.mean(spike_counts, axis=0)
+    std_rates = np.std(spike_counts, axis=0)
+    B = np.vstack([np.abs(np.random.normal(x, y, nStates))
+                   for x,y in zip(mean_rates, std_rates)])
+    # B = np.random.rand(nCells, nStates)
+
+    self.transition = A
+    self.emission = B
+    self.initial_distribution = np.ones((nStates,)) / nStates
+    self.iteration = 0
+    self.fitted = False
+    self.history = None
+    self._update_cost()</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.PoissonHMM.reorder_states"><code class="name flex">
+<span>def <span class="ident">reorder_states</span></span>(<span>self, state_map)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def reorder_states(self, state_map):
+    idx = [state_map[k] for k in sorted(state_map.keys())]
+    PI = self.initial_distribution
+    A = self.transition
+    B = self.emission
+
+    newPI = PI[idx]
+    newB = B[:, idx]
+    newA = np.zeros(A.shape)
+    for x in range(A.shape[0]):
+        for y in range(A.shape[1]):
+            i = state_map[x]
+            j = state_map[y]
+            newA[i,j] = A[x,y]
+
+    self.initial_distribution = newPI
+    self.transition = newA
+    self.emission = newB
+    self._update_cost()</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.PoissonHMM.roll_back"><code class="name flex">
+<span>def <span class="ident">roll_back</span></span>(<span>self, iteration)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def roll_back(self, iteration):
+    hist = self.history
+    try:
+        idx = hist[&#39;iterations&#39;].index(iteration)
+    except ValueError:
+        raise ValueError(&#39;Iteration %i not found in history&#39; % iteration)
+
+    self.initial_distribution = hist[&#39;PI&#39;][idx]
+    self.transition = hist[&#39;A&#39;][idx]
+    self.emission = hist[&#39;B&#39;][idx]
+    self.iteration = iteration
+    self._update_cost()</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.PoissonHMM.set_data"><code class="name flex">
+<span>def <span class="ident">set_data</span></span>(<span>self, new_data, dt)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def set_data(self, new_data, dt):
+    self.data = new_data
+    self.dt = dt
+    self._compute_data_rate_array()
+    self._update_cost()</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.PoissonHMM.set_matrices"><code class="name flex">
+<span>def <span class="ident">set_matrices</span></span>(<span>self, new_mats)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def set_matrices(self, new_mats):
+    self.initial_distribution = new_mats[&#39;PI&#39;]
+    self.transition = new_mats[&#39;A&#39;]
+    self.emission = new_mats[&#39;B&#39;]
+    if &#39;iteration&#39; in new_mats:
+        self.iteration = new_mats[&#39;iteration&#39;]
+    self._update_cost()</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.PoissonHMM.set_to_lowest_BIC"><code class="name flex">
+<span>def <span class="ident">set_to_lowest_BIC</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def set_to_lowest_BIC(self):
+    hist = self.update_history()
+    idx = np.argmin(hist[&#39;BIC&#39;])
+    iteration = hist[&#39;iterations&#39;][idx]
+    self.roll_back(iteration)</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.PoissonHMM.set_to_lowest_cost"><code class="name flex">
+<span>def <span class="ident">set_to_lowest_cost</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def set_to_lowest_cost(self):
+    hist = self.update_history()
+    idx = np.argmin(hist[&#39;cost&#39;])
+    iteration = hist[&#39;iterations&#39;][idx]
+    self.roll_back(iteration)</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.PoissonHMM.update_history"><code class="name flex">
+<span>def <span class="ident">update_history</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def update_history(self):
+    A = self.transition
+    B = self.emission
+    PI = self.initial_distribution
+    BIC = self.BIC
+    cost = self.cost
+    iteration = self.iteration
+
+    if self.history is None:
+        self.history = {}
+        self.history[&#39;A&#39;] = [A]
+        self.history[&#39;B&#39;] = [B]
+        self.history[&#39;PI&#39;] = [PI]
+        self.history[&#39;iterations&#39;] = [iteration]
+        self.history[&#39;cost&#39;] = [cost]
+        self.history[&#39;BIC&#39;] = [BIC]
+    else:
+        if iteration in self.history[&#39;iterations&#39;]:
+            return self.history
+
+        self.history[&#39;A&#39;].append(A)
+        self.history[&#39;B&#39;].append(B)
+        self.history[&#39;PI&#39;].append(PI)
+        self.history[&#39;iterations&#39;].append(iteration)
+        self.history[&#39;cost&#39;].append(cost)
+        self.history[&#39;BIC&#39;].append(BIC)
+
+    if len(self.history[&#39;iterations&#39;]) &gt; self._max_history:
+        nmax = self._max_history
+        for k, v in self.history.items():
+            self.history[k] = v[-nmax:]
+
+    return self.history</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.TestData"><code class="flex name class">
+<span>class <span class="ident">TestData</span></span>
+<span>(</span><span>params=None)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class TestData(object):
+    def __init__(self, params=None):
+        if params is None:
+            params = TEST_PARAMS.copy()
+            param_str = &#39;\t&#39;+&#39;\n\t&#39;.join(repr(params)[1:-1].split(&#39;, &#39;))
+            print(&#39;Using default parameters:\n%s&#39; % param_str)
+
+        self.params = params.copy()
+        self.generate()
+
+    def generate(self, params=None):
+        print(&#39;-&#39;*80)
+        print(&#39;Simulating Data&#39;)
+        print(&#39;-&#39;*80)
+        if params is not None:
+            self.params.update(params)
+
+        params = self.params
+        param_str = &#39;\t&#39;+&#39;\n\t&#39;.join(repr(params)[1:-1].split(&#39;, &#39;))
+        print(&#39;Parameters:\n%s&#39; % param_str)
+
+        self._generate_ground_truth()
+        self._generate_spike_trains()
+
+    def _generate_ground_truth(self):
+        print(&#39;Generating ground truth state sequence...&#39;)
+        params = self.params
+        nStates = params[&#39;n_states&#39;]
+        seqLen = params[&#39;state_seq_length&#39;]
+        minSeqDur = params[&#39;min_state_dur&#39;]
+        baseline_dur = params[&#39;baseline_dur&#39;]
+        maxFR = params[&#39;max_rate&#39;]
+        nCells = params[&#39;n_cells&#39;]
+        trialTime = params[&#39;trial_time&#39;]
+        nTrials = params[&#39;n_trials&#39;]
+        dt = params[&#39;dt&#39;]
+        nTimeSteps = int(trialTime/dt)
+
+        T = trialTime
+        # Figure out a random state sequence and state durations
+        stateSeq = np.random.randint(0, nStates, seqLen)
+        stateSeq = np.array([0, *np.random.randint(0,nStates, seqLen-1)])
+        stateDurs = np.zeros((nTrials, seqLen))
+        for i in range(nTrials):
+            tmp = np.abs(np.random.rand(seqLen-1))
+            tmp = tmp * ((trialTime - baseline_dur) / np.sum(tmp))
+            stateDurs[i, :] = np.array([baseline_dur, *tmp])
+
+        # Make vector of state at each time point
+        stateVec = np.zeros((nTrials, nTimeSteps))
+        for trial in range(nTrials):
+            t0 = 0
+            for state, dur in zip(stateSeq, stateDurs[trial]):
+                tn = int(dur/dt)
+                stateVec[trial, t0:t0+tn] = state
+                t0 += tn
+
+        # Determine firing rates per neuron per state
+        # For each neuron generate a mean firing rate and then draw state
+        # firing rates from a normal distribution around that with 10Hz
+        # variance
+        mean_rates = np.random.rand(nCells, 1) * maxFR
+        stateRates = np.zeros((nCells, nStates))
+        for i, r in enumerate(mean_rates):
+            stateRates[i, :] = np.array([r, *np.abs(np.random.normal(r, .5*r, nStates-1))])
+
+        self.ground_truth = {&#39;state_sequence&#39;: stateSeq,
+                             &#39;state_durations&#39;: stateDurs,
+                             &#39;firing_rates&#39;: stateRates,
+                             &#39;state_vectors&#39;: stateVec}
+
+    def _generate_spike_trains(self):
+        print(&#39;Generating new spike trains...&#39;)
+        params = self.params
+        nCells = params[&#39;n_cells&#39;]
+        trialTime = params[&#39;trial_time&#39;]
+        dt = params[&#39;dt&#39;]
+        nTrials = params[&#39;n_trials&#39;]
+        noise = params[&#39;noise&#39;]
+        nTimeSteps = int(trialTime/dt)
+
+        stateRates = self.ground_truth[&#39;firing_rates&#39;]
+        stateVec = self.ground_truth[&#39;state_vectors&#39;]
+
+
+        # Make spike arrays
+        # Trial x Neuron x Time
+        random_nums = np.abs(np.random.rand(nTrials, nCells, nTimeSteps))
+        rate_arr = np.zeros((nTrials, nCells, nTimeSteps))
+        for trial, cell, t in  it.product(range(nTrials), range(nCells), range(nTimeSteps)):
+            state = int(stateVec[trial, t])
+            mean_rate = stateRates[cell, state]
+            # draw noisy rates from normal distrib with mean rate from ground
+            # truth and width as noise*mean_rate
+            r = np.random.normal(mean_rate, mean_rate*noise)
+            rate_arr[trial, cell, t] = r
+
+        spikes = (random_nums &lt;= rate_arr *dt).astype(&#39;int&#39;)
+
+        self.spike_trains = spikes
+
+    def get_spike_trains(self):
+        if not hasattr(self, &#39;spike_trains&#39;):
+            self._generate_spike_trains()
+
+        return self.spike_trains
+
+    def get_ground_truth(self):
+        if not hasattr(self, &#39;ground_truth&#39;):
+            self._generate_ground_truth()
+
+        return self.ground_truth
+
+    def plot_state_rates(self, ax=None):
+        fig, ax = plot_state_rates(self.ground_truth[&#39;firing_rates&#39;], ax=ax)
+        return fig, ax
+
+    def plot_state_raster(self, ax=None):
+        fig, ax = plot_state_raster(self.spike_trains,
+                                    self.ground_truth[&#39;state_vectors&#39;],
+                                    self.params[&#39;dt&#39;], ax=ax)
+        return fig, ax</code></pre>
+</details>
+<h3>Methods</h3>
+<dl>
+<dt id="blechpy.analysis.poissonHMM_deprecated.TestData.generate"><code class="name flex">
+<span>def <span class="ident">generate</span></span>(<span>self, params=None)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def generate(self, params=None):
+    print(&#39;-&#39;*80)
+    print(&#39;Simulating Data&#39;)
+    print(&#39;-&#39;*80)
+    if params is not None:
+        self.params.update(params)
+
+    params = self.params
+    param_str = &#39;\t&#39;+&#39;\n\t&#39;.join(repr(params)[1:-1].split(&#39;, &#39;))
+    print(&#39;Parameters:\n%s&#39; % param_str)
+
+    self._generate_ground_truth()
+    self._generate_spike_trains()</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.TestData.get_ground_truth"><code class="name flex">
+<span>def <span class="ident">get_ground_truth</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_ground_truth(self):
+    if not hasattr(self, &#39;ground_truth&#39;):
+        self._generate_ground_truth()
+
+    return self.ground_truth</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.TestData.get_spike_trains"><code class="name flex">
+<span>def <span class="ident">get_spike_trains</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_spike_trains(self):
+    if not hasattr(self, &#39;spike_trains&#39;):
+        self._generate_spike_trains()
+
+    return self.spike_trains</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.TestData.plot_state_raster"><code class="name flex">
+<span>def <span class="ident">plot_state_raster</span></span>(<span>self, ax=None)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def plot_state_raster(self, ax=None):
+    fig, ax = plot_state_raster(self.spike_trains,
+                                self.ground_truth[&#39;state_vectors&#39;],
+                                self.params[&#39;dt&#39;], ax=ax)
+    return fig, ax</code></pre>
+</details>
+</dd>
+<dt id="blechpy.analysis.poissonHMM_deprecated.TestData.plot_state_rates"><code class="name flex">
+<span>def <span class="ident">plot_state_rates</span></span>(<span>self, ax=None)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def plot_state_rates(self, ax=None):
+    fig, ax = plot_state_rates(self.ground_truth[&#39;firing_rates&#39;], ax=ax)
+    return fig, ax</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<h1>Index</h1>
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="blechpy.analysis" href="index.html">blechpy.analysis</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.backward" href="#blechpy.analysis.poissonHMM_deprecated.backward">backward</a></code></li>
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.baum_welch" href="#blechpy.analysis.poissonHMM_deprecated.baum_welch">baum_welch</a></code></li>
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.compare_hmm_to_truth" href="#blechpy.analysis.poissonHMM_deprecated.compare_hmm_to_truth">compare_hmm_to_truth</a></code></li>
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.compute_BIC" href="#blechpy.analysis.poissonHMM_deprecated.compute_BIC">compute_BIC</a></code></li>
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.compute_best_paths" href="#blechpy.analysis.poissonHMM_deprecated.compute_best_paths">compute_best_paths</a></code></li>
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.compute_hmm_cost" href="#blechpy.analysis.poissonHMM_deprecated.compute_hmm_cost">compute_hmm_cost</a></code></li>
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.compute_new_matrices" href="#blechpy.analysis.poissonHMM_deprecated.compute_new_matrices">compute_new_matrices</a></code></li>
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.compute_rate_rmse" href="#blechpy.analysis.poissonHMM_deprecated.compute_rate_rmse">compute_rate_rmse</a></code></li>
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.convert_path_state_numbers" href="#blechpy.analysis.poissonHMM_deprecated.convert_path_state_numbers">convert_path_state_numbers</a></code></li>
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.convert_spikes_to_rates" href="#blechpy.analysis.poissonHMM_deprecated.convert_spikes_to_rates">convert_spikes_to_rates</a></code></li>
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.euclidean" href="#blechpy.analysis.poissonHMM_deprecated.euclidean">euclidean</a></code></li>
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.fast_factorial" href="#blechpy.analysis.poissonHMM_deprecated.fast_factorial">fast_factorial</a></code></li>
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.fit_hmm_mp" href="#blechpy.analysis.poissonHMM_deprecated.fit_hmm_mp">fit_hmm_mp</a></code></li>
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.forward" href="#blechpy.analysis.poissonHMM_deprecated.forward">forward</a></code></li>
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.generate_rate_array_from_state_seq" href="#blechpy.analysis.poissonHMM_deprecated.generate_rate_array_from_state_seq">generate_rate_array_from_state_seq</a></code></li>
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.get_hmm_spike_data" href="#blechpy.analysis.poissonHMM_deprecated.get_hmm_spike_data">get_hmm_spike_data</a></code></li>
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.get_spike_data" href="#blechpy.analysis.poissonHMM_deprecated.get_spike_data">get_spike_data</a></code></li>
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.hmm_fit_mp" href="#blechpy.analysis.poissonHMM_deprecated.hmm_fit_mp">hmm_fit_mp</a></code></li>
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.isNotConverged" href="#blechpy.analysis.poissonHMM_deprecated.isNotConverged">isNotConverged</a></code></li>
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.levenshtein" href="#blechpy.analysis.poissonHMM_deprecated.levenshtein">levenshtein</a></code></li>
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.levenshtein_mp" href="#blechpy.analysis.poissonHMM_deprecated.levenshtein_mp">levenshtein_mp</a></code></li>
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.match_states" href="#blechpy.analysis.poissonHMM_deprecated.match_states">match_states</a></code></li>
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.pick_best_hmm" href="#blechpy.analysis.poissonHMM_deprecated.pick_best_hmm">pick_best_hmm</a></code></li>
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.plot_state_raster" href="#blechpy.analysis.poissonHMM_deprecated.plot_state_raster">plot_state_raster</a></code></li>
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.plot_state_rates" href="#blechpy.analysis.poissonHMM_deprecated.plot_state_rates">plot_state_rates</a></code></li>
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.poisson" href="#blechpy.analysis.poissonHMM_deprecated.poisson">poisson</a></code></li>
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.poisson_viterbi" href="#blechpy.analysis.poissonHMM_deprecated.poisson_viterbi">poisson_viterbi</a></code></li>
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.query_units" href="#blechpy.analysis.poissonHMM_deprecated.query_units">query_units</a></code></li>
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.read_hmm_from_hdf5" href="#blechpy.analysis.poissonHMM_deprecated.read_hmm_from_hdf5">read_hmm_from_hdf5</a></code></li>
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.rebin_spike_array" href="#blechpy.analysis.poissonHMM_deprecated.rebin_spike_array">rebin_spike_array</a></code></li>
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.wrap_baum_welch" href="#blechpy.analysis.poissonHMM_deprecated.wrap_baum_welch">wrap_baum_welch</a></code></li>
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.write_hmm_to_hdf5" href="#blechpy.analysis.poissonHMM_deprecated.write_hmm_to_hdf5">write_hmm_to_hdf5</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="blechpy.analysis.poissonHMM_deprecated.HMMFit" href="#blechpy.analysis.poissonHMM_deprecated.HMMFit">HMMFit</a></code></h4>
+<ul class="">
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.HMMFit.get_spike_data" href="#blechpy.analysis.poissonHMM_deprecated.HMMFit.get_spike_data">get_spike_data</a></code></li>
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.HMMFit.run" href="#blechpy.analysis.poissonHMM_deprecated.HMMFit.run">run</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="blechpy.analysis.poissonHMM_deprecated.HmmHandler" href="#blechpy.analysis.poissonHMM_deprecated.HmmHandler">HmmHandler</a></code></h4>
+<ul class="">
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.HmmHandler.init_params" href="#blechpy.analysis.poissonHMM_deprecated.HmmHandler.init_params">init_params</a></code></li>
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.HmmHandler.load_data" href="#blechpy.analysis.poissonHMM_deprecated.HmmHandler.load_data">load_data</a></code></li>
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.HmmHandler.run" href="#blechpy.analysis.poissonHMM_deprecated.HmmHandler.run">run</a></code></li>
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.HmmHandler.save_fitted_models" href="#blechpy.analysis.poissonHMM_deprecated.HmmHandler.save_fitted_models">save_fitted_models</a></code></li>
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.HmmHandler.write_overview_to_hdf5" href="#blechpy.analysis.poissonHMM_deprecated.HmmHandler.write_overview_to_hdf5">write_overview_to_hdf5</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="blechpy.analysis.poissonHMM_deprecated.PoissonHMM" href="#blechpy.analysis.poissonHMM_deprecated.PoissonHMM">PoissonHMM</a></code></h4>
+<ul class="">
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.PoissonHMM.find_best_in_history" href="#blechpy.analysis.poissonHMM_deprecated.PoissonHMM.find_best_in_history">find_best_in_history</a></code></li>
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.PoissonHMM.fit" href="#blechpy.analysis.poissonHMM_deprecated.PoissonHMM.fit">fit</a></code></li>
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.PoissonHMM.get_BIC" href="#blechpy.analysis.poissonHMM_deprecated.PoissonHMM.get_BIC">get_BIC</a></code></li>
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.PoissonHMM.get_backward_probabilities" href="#blechpy.analysis.poissonHMM_deprecated.PoissonHMM.get_backward_probabilities">get_backward_probabilities</a></code></li>
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.PoissonHMM.get_best_paths" href="#blechpy.analysis.poissonHMM_deprecated.PoissonHMM.get_best_paths">get_best_paths</a></code></li>
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.PoissonHMM.get_cost" href="#blechpy.analysis.poissonHMM_deprecated.PoissonHMM.get_cost">get_cost</a></code></li>
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.PoissonHMM.get_forward_probabilities" href="#blechpy.analysis.poissonHMM_deprecated.PoissonHMM.get_forward_probabilities">get_forward_probabilities</a></code></li>
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.PoissonHMM.get_gamma_probabilities" href="#blechpy.analysis.poissonHMM_deprecated.PoissonHMM.get_gamma_probabilities">get_gamma_probabilities</a></code></li>
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.PoissonHMM.isConverged" href="#blechpy.analysis.poissonHMM_deprecated.PoissonHMM.isConverged">isConverged</a></code></li>
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.PoissonHMM.plot_state_raster" href="#blechpy.analysis.poissonHMM_deprecated.PoissonHMM.plot_state_raster">plot_state_raster</a></code></li>
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.PoissonHMM.plot_state_rates" href="#blechpy.analysis.poissonHMM_deprecated.PoissonHMM.plot_state_rates">plot_state_rates</a></code></li>
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.PoissonHMM.randomize" href="#blechpy.analysis.poissonHMM_deprecated.PoissonHMM.randomize">randomize</a></code></li>
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.PoissonHMM.reorder_states" href="#blechpy.analysis.poissonHMM_deprecated.PoissonHMM.reorder_states">reorder_states</a></code></li>
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.PoissonHMM.roll_back" href="#blechpy.analysis.poissonHMM_deprecated.PoissonHMM.roll_back">roll_back</a></code></li>
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.PoissonHMM.set_data" href="#blechpy.analysis.poissonHMM_deprecated.PoissonHMM.set_data">set_data</a></code></li>
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.PoissonHMM.set_matrices" href="#blechpy.analysis.poissonHMM_deprecated.PoissonHMM.set_matrices">set_matrices</a></code></li>
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.PoissonHMM.set_to_lowest_BIC" href="#blechpy.analysis.poissonHMM_deprecated.PoissonHMM.set_to_lowest_BIC">set_to_lowest_BIC</a></code></li>
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.PoissonHMM.set_to_lowest_cost" href="#blechpy.analysis.poissonHMM_deprecated.PoissonHMM.set_to_lowest_cost">set_to_lowest_cost</a></code></li>
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.PoissonHMM.update_history" href="#blechpy.analysis.poissonHMM_deprecated.PoissonHMM.update_history">update_history</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="blechpy.analysis.poissonHMM_deprecated.TestData" href="#blechpy.analysis.poissonHMM_deprecated.TestData">TestData</a></code></h4>
+<ul class="">
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.TestData.generate" href="#blechpy.analysis.poissonHMM_deprecated.TestData.generate">generate</a></code></li>
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.TestData.get_ground_truth" href="#blechpy.analysis.poissonHMM_deprecated.TestData.get_ground_truth">get_ground_truth</a></code></li>
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.TestData.get_spike_trains" href="#blechpy.analysis.poissonHMM_deprecated.TestData.get_spike_trains">get_spike_trains</a></code></li>
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.TestData.plot_state_raster" href="#blechpy.analysis.poissonHMM_deprecated.TestData.plot_state_raster">plot_state_raster</a></code></li>
+<li><code><a title="blechpy.analysis.poissonHMM_deprecated.TestData.plot_state_rates" href="#blechpy.analysis.poissonHMM_deprecated.TestData.plot_state_rates">plot_state_rates</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc"><cite>pdoc</cite> 0.9.2</a>.</p>
+</footer>
+</body>
+</html>

@@ -1,0 +1,567 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+<meta name="generator" content="pdoc 0.9.2" />
+<title>blechpy.utils.tk_widgets API documentation</title>
+<meta name="description" content="" />
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
+<link rel="stylesheet preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/styles/github.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/highlight.min.js" integrity="sha256-Uv3H6lx7dJmRfRvH8TH6kJD1TSK1aFcwgx+mdg3epi8=" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => hljs.initHighlighting())</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>blechpy.utils.tk_widgets</code></h1>
+</header>
+<section id="section-intro">
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">import tkinter as tk
+from tkinter import ttk
+import sys
+
+class ScrollFrame(ttk.Frame):
+    def __init__(self,parent,*args,**kwargs):
+        ttk.Frame.__init__(self,parent,*args,**kwargs)
+        self.parent= parent
+        self.initUI()
+
+    def initUI(self):
+        # Create canvas with scroll bars (x &amp; y)
+        self.canvas_frame = ttk.Frame(self)
+        self.canvas_frame.pack(side=&#39;top&#39;,fill=&#39;both&#39;,expand=True)
+        self.xscrollbar = ttk.Scrollbar(self.canvas_frame,orient=&#39;horizontal&#39;)
+        self.canvas = tk.Canvas(self.canvas_frame,relief=&#39;sunken&#39;)
+        self.canvas.config(scrollregion=(0,0,500,9000))
+        self.xscrollbar.config(command=self.canvas.xview)
+        self.yscrollbar = ttk.Scrollbar(self.canvas_frame,orient=&#39;vertical&#39;)
+        self.yscrollbar.config(command=self.canvas.yview)
+        self.canvas.config(yscrollcommand=self.yscrollbar.set,xscrollcommand=self.xscrollbar.set)
+        self.yscrollbar.pack(side=&#39;right&#39;,fill=&#39;y&#39;)
+        self.xscrollbar.pack(side=&#39;bottom&#39;,fill=&#39;x&#39;)
+        self.canvas.pack(side=&#39;left&#39;,fill=&#39;both&#39;,expand=True)
+        
+        self.viewport = ttk.Frame(self.canvas)
+        self.viewport.parent=self
+        self.canvas.create_window((0,0),anchor=&#39;nw&#39;,window=self.viewport,tags=&#39;self.viewport&#39;)
+        self.bind_children_to_mouse()
+        self.viewport.bind(&#34;&lt;Configure&gt;&#34;,self.onFrameConfigure)
+
+    def onFrameConfigure(self,event):
+        self.canvas.configure(scrollregion=self.canvas.bbox(&#39;all&#39;))
+
+    def _on_mousewheel(self,event):
+        if sys.platform==&#39;linux&#39;:
+            if event.num==4:
+                delta = -1
+            else:
+                delta = 1
+        else:
+            delta = -1*int(event.delta/120)
+        self.canvas.yview_scroll(delta,&#39;units&#39;)
+
+    def bind_children_to_mouse(self,scroll_func=None):
+        if scroll_func is None:
+            scroll_func = self._on_mousewheel
+
+        children = self.winfo_children()
+        for child in children:
+            if child.winfo_children():
+                children.extend(child.winfo_children())
+            if sys.platform==&#39;linux&#39;:
+                child.bind(&#39;&lt;Button-4&gt;&#39;,scroll_func)
+                child.bind(&#39;&lt;Button-5&gt;&#39;,scroll_func)
+            else:
+                child.bind(&#39;&lt;MouseWheel&gt;&#39;,scroll_func)
+
+def window_center(win):
+    win.update_idletasks()
+    width = win.winfo_width()
+    height = win.winfo_height()
+    x = (win.winfo_screenwidth() // 2) - (width // 2)
+    y = (win.winfo_screenheight() // 2) - (height // 2)
+    win.geometry(&#39;{}x{}+{}+{}&#39;.format(width, height, x, y))
+
+
+class ListSelectFrame(ttk.Frame):
+    def __init__(self, parent, choices, multi_select=False):
+        self.root = parent
+        self.choices = choices
+        ttk.Frame.__init__(self, parent)
+        if multi_select:
+            self.select_mode = select = &#39;extended&#39;
+        else:
+            self.select_mode = select = &#39;single&#39;
+
+        scroll = ttk.Scrollbar(self, orient=&#39;vertical&#39;)
+        self.listbox = tk.Listbox(self, exportselection=False,
+                                  selectmode=select, width=15,
+                                  yscrollcommand=scroll.set)
+        scroll.config(command=self.listbox.yview)
+        self.listbox.pack(side=&#39;left&#39;, fill=&#39;both&#39;, expand=True)
+        scroll.pack(side=&#39;left&#39;,fill=&#39;y&#39;)
+
+        for item in choices:
+            self.listbox.insert(&#39;end&#39;, item)
+
+    def get_selection(self):
+        idx = map(int, self.listbox.curselection())
+        chosen = [self.choices[i] for i in idx]
+        return chosen
+
+class ListSelectPopup(object):
+    def __init__(self, choices, master=None, prompt=None, multi_select=False):
+        if master is None:
+            self.root = root = tk.Tk()
+        else:
+            self.root = root = tk.Toplevel()
+
+        root.style = ttk.Style()
+        root.style.theme_use(&#39;clam&#39;)
+        self.output = []
+        self.cancelled = False
+
+        if multi_select:
+            txt = &#39;(shift or ctrl to select multiple)&#39;
+            if prompt:
+                prompt += &#39;\n&#39; + txt
+            else:
+                prompt = txt
+
+        if prompt:
+            prompt_label = ttk.Label(root, text=prompt)
+            prompt_label.pack(side=&#39;top&#39;, fill=&#39;x&#39;, expand=&#39;True&#39;)
+            ttk.Separator(root, orient=&#39;horizontal&#39;).pack(side=&#39;top&#39;, fill=&#39;x&#39;,
+                                                          expand=True, pady=10)
+
+        self.listframe = ListSelectFrame(root, choices, multi_select=multi_select)
+        self.listframe.pack(side=&#39;top&#39;, fill=&#39;both&#39;, expand=True)
+        line = ttk.Frame(root)
+        submit = ttk.Button(line, text=&#39;Submit&#39;, command=self.submit)
+        cancel = ttk.Button(line, text=&#39;Cancel&#39;, command=self.cancel)
+        submit.pack(side=&#39;left&#39;)
+        cancel.pack(side=&#39;right&#39;)
+        line.pack(side=&#39;bottom&#39;, anchor=&#39;e&#39;, pady=5)
+        window_center(root)
+
+        if master is None:
+            root.mainloop()
+
+    def submit(self):
+        self.output = self.listframe.get_selection()
+        self.root.destroy()
+
+    def cancel(self):
+        self.cancelled = True
+        self.root.destroy()</code></pre>
+</details>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="blechpy.utils.tk_widgets.window_center"><code class="name flex">
+<span>def <span class="ident">window_center</span></span>(<span>win)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def window_center(win):
+    win.update_idletasks()
+    width = win.winfo_width()
+    height = win.winfo_height()
+    x = (win.winfo_screenwidth() // 2) - (width // 2)
+    y = (win.winfo_screenheight() // 2) - (height // 2)
+    win.geometry(&#39;{}x{}+{}+{}&#39;.format(width, height, x, y))</code></pre>
+</details>
+</dd>
+</dl>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="blechpy.utils.tk_widgets.ListSelectFrame"><code class="flex name class">
+<span>class <span class="ident">ListSelectFrame</span></span>
+<span>(</span><span>parent, choices, multi_select=False)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Ttk Frame widget is a container, used to group other widgets
+together.</p>
+<p>Construct a Ttk Frame with parent master.</p>
+<p>STANDARD OPTIONS</p>
+<pre><code>class, cursor, style, takefocus
+</code></pre>
+<p>WIDGET-SPECIFIC OPTIONS</p>
+<pre><code>borderwidth, relief, padding, width, height
+</code></pre></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ListSelectFrame(ttk.Frame):
+    def __init__(self, parent, choices, multi_select=False):
+        self.root = parent
+        self.choices = choices
+        ttk.Frame.__init__(self, parent)
+        if multi_select:
+            self.select_mode = select = &#39;extended&#39;
+        else:
+            self.select_mode = select = &#39;single&#39;
+
+        scroll = ttk.Scrollbar(self, orient=&#39;vertical&#39;)
+        self.listbox = tk.Listbox(self, exportselection=False,
+                                  selectmode=select, width=15,
+                                  yscrollcommand=scroll.set)
+        scroll.config(command=self.listbox.yview)
+        self.listbox.pack(side=&#39;left&#39;, fill=&#39;both&#39;, expand=True)
+        scroll.pack(side=&#39;left&#39;,fill=&#39;y&#39;)
+
+        for item in choices:
+            self.listbox.insert(&#39;end&#39;, item)
+
+    def get_selection(self):
+        idx = map(int, self.listbox.curselection())
+        chosen = [self.choices[i] for i in idx]
+        return chosen</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>tkinter.ttk.Frame</li>
+<li>tkinter.ttk.Widget</li>
+<li>tkinter.Widget</li>
+<li>tkinter.BaseWidget</li>
+<li>tkinter.Misc</li>
+<li>tkinter.Pack</li>
+<li>tkinter.Place</li>
+<li>tkinter.Grid</li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="blechpy.utils.tk_widgets.ListSelectFrame.get_selection"><code class="name flex">
+<span>def <span class="ident">get_selection</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_selection(self):
+    idx = map(int, self.listbox.curselection())
+    chosen = [self.choices[i] for i in idx]
+    return chosen</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="blechpy.utils.tk_widgets.ListSelectPopup"><code class="flex name class">
+<span>class <span class="ident">ListSelectPopup</span></span>
+<span>(</span><span>choices, master=None, prompt=None, multi_select=False)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ListSelectPopup(object):
+    def __init__(self, choices, master=None, prompt=None, multi_select=False):
+        if master is None:
+            self.root = root = tk.Tk()
+        else:
+            self.root = root = tk.Toplevel()
+
+        root.style = ttk.Style()
+        root.style.theme_use(&#39;clam&#39;)
+        self.output = []
+        self.cancelled = False
+
+        if multi_select:
+            txt = &#39;(shift or ctrl to select multiple)&#39;
+            if prompt:
+                prompt += &#39;\n&#39; + txt
+            else:
+                prompt = txt
+
+        if prompt:
+            prompt_label = ttk.Label(root, text=prompt)
+            prompt_label.pack(side=&#39;top&#39;, fill=&#39;x&#39;, expand=&#39;True&#39;)
+            ttk.Separator(root, orient=&#39;horizontal&#39;).pack(side=&#39;top&#39;, fill=&#39;x&#39;,
+                                                          expand=True, pady=10)
+
+        self.listframe = ListSelectFrame(root, choices, multi_select=multi_select)
+        self.listframe.pack(side=&#39;top&#39;, fill=&#39;both&#39;, expand=True)
+        line = ttk.Frame(root)
+        submit = ttk.Button(line, text=&#39;Submit&#39;, command=self.submit)
+        cancel = ttk.Button(line, text=&#39;Cancel&#39;, command=self.cancel)
+        submit.pack(side=&#39;left&#39;)
+        cancel.pack(side=&#39;right&#39;)
+        line.pack(side=&#39;bottom&#39;, anchor=&#39;e&#39;, pady=5)
+        window_center(root)
+
+        if master is None:
+            root.mainloop()
+
+    def submit(self):
+        self.output = self.listframe.get_selection()
+        self.root.destroy()
+
+    def cancel(self):
+        self.cancelled = True
+        self.root.destroy()</code></pre>
+</details>
+<h3>Methods</h3>
+<dl>
+<dt id="blechpy.utils.tk_widgets.ListSelectPopup.cancel"><code class="name flex">
+<span>def <span class="ident">cancel</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def cancel(self):
+    self.cancelled = True
+    self.root.destroy()</code></pre>
+</details>
+</dd>
+<dt id="blechpy.utils.tk_widgets.ListSelectPopup.submit"><code class="name flex">
+<span>def <span class="ident">submit</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def submit(self):
+    self.output = self.listframe.get_selection()
+    self.root.destroy()</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="blechpy.utils.tk_widgets.ScrollFrame"><code class="flex name class">
+<span>class <span class="ident">ScrollFrame</span></span>
+<span>(</span><span>parent, *args, **kwargs)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Ttk Frame widget is a container, used to group other widgets
+together.</p>
+<p>Construct a Ttk Frame with parent master.</p>
+<p>STANDARD OPTIONS</p>
+<pre><code>class, cursor, style, takefocus
+</code></pre>
+<p>WIDGET-SPECIFIC OPTIONS</p>
+<pre><code>borderwidth, relief, padding, width, height
+</code></pre></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ScrollFrame(ttk.Frame):
+    def __init__(self,parent,*args,**kwargs):
+        ttk.Frame.__init__(self,parent,*args,**kwargs)
+        self.parent= parent
+        self.initUI()
+
+    def initUI(self):
+        # Create canvas with scroll bars (x &amp; y)
+        self.canvas_frame = ttk.Frame(self)
+        self.canvas_frame.pack(side=&#39;top&#39;,fill=&#39;both&#39;,expand=True)
+        self.xscrollbar = ttk.Scrollbar(self.canvas_frame,orient=&#39;horizontal&#39;)
+        self.canvas = tk.Canvas(self.canvas_frame,relief=&#39;sunken&#39;)
+        self.canvas.config(scrollregion=(0,0,500,9000))
+        self.xscrollbar.config(command=self.canvas.xview)
+        self.yscrollbar = ttk.Scrollbar(self.canvas_frame,orient=&#39;vertical&#39;)
+        self.yscrollbar.config(command=self.canvas.yview)
+        self.canvas.config(yscrollcommand=self.yscrollbar.set,xscrollcommand=self.xscrollbar.set)
+        self.yscrollbar.pack(side=&#39;right&#39;,fill=&#39;y&#39;)
+        self.xscrollbar.pack(side=&#39;bottom&#39;,fill=&#39;x&#39;)
+        self.canvas.pack(side=&#39;left&#39;,fill=&#39;both&#39;,expand=True)
+        
+        self.viewport = ttk.Frame(self.canvas)
+        self.viewport.parent=self
+        self.canvas.create_window((0,0),anchor=&#39;nw&#39;,window=self.viewport,tags=&#39;self.viewport&#39;)
+        self.bind_children_to_mouse()
+        self.viewport.bind(&#34;&lt;Configure&gt;&#34;,self.onFrameConfigure)
+
+    def onFrameConfigure(self,event):
+        self.canvas.configure(scrollregion=self.canvas.bbox(&#39;all&#39;))
+
+    def _on_mousewheel(self,event):
+        if sys.platform==&#39;linux&#39;:
+            if event.num==4:
+                delta = -1
+            else:
+                delta = 1
+        else:
+            delta = -1*int(event.delta/120)
+        self.canvas.yview_scroll(delta,&#39;units&#39;)
+
+    def bind_children_to_mouse(self,scroll_func=None):
+        if scroll_func is None:
+            scroll_func = self._on_mousewheel
+
+        children = self.winfo_children()
+        for child in children:
+            if child.winfo_children():
+                children.extend(child.winfo_children())
+            if sys.platform==&#39;linux&#39;:
+                child.bind(&#39;&lt;Button-4&gt;&#39;,scroll_func)
+                child.bind(&#39;&lt;Button-5&gt;&#39;,scroll_func)
+            else:
+                child.bind(&#39;&lt;MouseWheel&gt;&#39;,scroll_func)</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>tkinter.ttk.Frame</li>
+<li>tkinter.ttk.Widget</li>
+<li>tkinter.Widget</li>
+<li>tkinter.BaseWidget</li>
+<li>tkinter.Misc</li>
+<li>tkinter.Pack</li>
+<li>tkinter.Place</li>
+<li>tkinter.Grid</li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="blechpy.utils.tk_widgets.ScrollFrame.bind_children_to_mouse"><code class="name flex">
+<span>def <span class="ident">bind_children_to_mouse</span></span>(<span>self, scroll_func=None)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def bind_children_to_mouse(self,scroll_func=None):
+    if scroll_func is None:
+        scroll_func = self._on_mousewheel
+
+    children = self.winfo_children()
+    for child in children:
+        if child.winfo_children():
+            children.extend(child.winfo_children())
+        if sys.platform==&#39;linux&#39;:
+            child.bind(&#39;&lt;Button-4&gt;&#39;,scroll_func)
+            child.bind(&#39;&lt;Button-5&gt;&#39;,scroll_func)
+        else:
+            child.bind(&#39;&lt;MouseWheel&gt;&#39;,scroll_func)</code></pre>
+</details>
+</dd>
+<dt id="blechpy.utils.tk_widgets.ScrollFrame.initUI"><code class="name flex">
+<span>def <span class="ident">initUI</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def initUI(self):
+    # Create canvas with scroll bars (x &amp; y)
+    self.canvas_frame = ttk.Frame(self)
+    self.canvas_frame.pack(side=&#39;top&#39;,fill=&#39;both&#39;,expand=True)
+    self.xscrollbar = ttk.Scrollbar(self.canvas_frame,orient=&#39;horizontal&#39;)
+    self.canvas = tk.Canvas(self.canvas_frame,relief=&#39;sunken&#39;)
+    self.canvas.config(scrollregion=(0,0,500,9000))
+    self.xscrollbar.config(command=self.canvas.xview)
+    self.yscrollbar = ttk.Scrollbar(self.canvas_frame,orient=&#39;vertical&#39;)
+    self.yscrollbar.config(command=self.canvas.yview)
+    self.canvas.config(yscrollcommand=self.yscrollbar.set,xscrollcommand=self.xscrollbar.set)
+    self.yscrollbar.pack(side=&#39;right&#39;,fill=&#39;y&#39;)
+    self.xscrollbar.pack(side=&#39;bottom&#39;,fill=&#39;x&#39;)
+    self.canvas.pack(side=&#39;left&#39;,fill=&#39;both&#39;,expand=True)
+    
+    self.viewport = ttk.Frame(self.canvas)
+    self.viewport.parent=self
+    self.canvas.create_window((0,0),anchor=&#39;nw&#39;,window=self.viewport,tags=&#39;self.viewport&#39;)
+    self.bind_children_to_mouse()
+    self.viewport.bind(&#34;&lt;Configure&gt;&#34;,self.onFrameConfigure)</code></pre>
+</details>
+</dd>
+<dt id="blechpy.utils.tk_widgets.ScrollFrame.onFrameConfigure"><code class="name flex">
+<span>def <span class="ident">onFrameConfigure</span></span>(<span>self, event)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def onFrameConfigure(self,event):
+    self.canvas.configure(scrollregion=self.canvas.bbox(&#39;all&#39;))</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<h1>Index</h1>
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="blechpy.utils" href="index.html">blechpy.utils</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="blechpy.utils.tk_widgets.window_center" href="#blechpy.utils.tk_widgets.window_center">window_center</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="blechpy.utils.tk_widgets.ListSelectFrame" href="#blechpy.utils.tk_widgets.ListSelectFrame">ListSelectFrame</a></code></h4>
+<ul class="">
+<li><code><a title="blechpy.utils.tk_widgets.ListSelectFrame.get_selection" href="#blechpy.utils.tk_widgets.ListSelectFrame.get_selection">get_selection</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="blechpy.utils.tk_widgets.ListSelectPopup" href="#blechpy.utils.tk_widgets.ListSelectPopup">ListSelectPopup</a></code></h4>
+<ul class="">
+<li><code><a title="blechpy.utils.tk_widgets.ListSelectPopup.cancel" href="#blechpy.utils.tk_widgets.ListSelectPopup.cancel">cancel</a></code></li>
+<li><code><a title="blechpy.utils.tk_widgets.ListSelectPopup.submit" href="#blechpy.utils.tk_widgets.ListSelectPopup.submit">submit</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="blechpy.utils.tk_widgets.ScrollFrame" href="#blechpy.utils.tk_widgets.ScrollFrame">ScrollFrame</a></code></h4>
+<ul class="">
+<li><code><a title="blechpy.utils.tk_widgets.ScrollFrame.bind_children_to_mouse" href="#blechpy.utils.tk_widgets.ScrollFrame.bind_children_to_mouse">bind_children_to_mouse</a></code></li>
+<li><code><a title="blechpy.utils.tk_widgets.ScrollFrame.initUI" href="#blechpy.utils.tk_widgets.ScrollFrame.initUI">initUI</a></code></li>
+<li><code><a title="blechpy.utils.tk_widgets.ScrollFrame.onFrameConfigure" href="#blechpy.utils.tk_widgets.ScrollFrame.onFrameConfigure">onFrameConfigure</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc"><cite>pdoc</cite> 0.9.2</a>.</p>
+</footer>
+</body>
+</html>
