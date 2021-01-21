@@ -693,7 +693,11 @@ def fit_hmm_mp(rec_dir, params, h5_file=None, constraint_func=None):
 
 def load_hmm_from_hdf5(h5_file, hmm_id):
     hmm_id = int(hmm_id)
-    existing_hmm = hmmIO.read_hmm_from_hdf5(h5_file, hmm_id)
+    try:
+        existing_hmm = hmmIO.read_hmm_from_hdf5(h5_file, hmm_id)
+    except:
+        existing_hmm = None
+
     if existing_hmm is None:
         return None, None, None
 
