@@ -1186,7 +1186,7 @@ class HmmHandler(object):
     def get_data_overview(self):
         return hmmIO.get_hmm_overview_from_hdf5(self.h5_file)
 
-    def run(self, parallel=True, overwrite=False, constraint_func=None):
+    def run(self, parallel=True, overwrite=False, constraint_func=None, n_cpu=None):
         h5_file = self.h5_file
         rec_dir = self.root_dir
         if overwrite:
@@ -1198,10 +1198,15 @@ class HmmHandler(object):
             return
 
         print('Running fittings')
-        if parallel:
-            n_cpu = np.min((cpu_count()-1, len(fit_params)))
-        else:
+        max_cpu = cpu_count()
+        if parallel and n_cpu is None:
+            n_cpu = int(np.min((cpu_count()-1, len(fit_params))))
+        elif not parallel:
             n_cpu = 1
+        else:
+            n_cpu = int(np.min((n_cpu, len(fit_params))))
+
+        assert (1 <= n_cpu <= max_cpu), f'n_cpu must be a valid integer 1 <= n_cpu <= {max_cpu}'
 
         results = Parallel(n_jobs=n_cpu, verbose=100)(delayed(fit_hmm_mp)
                                                      (rec_dir, p, h5_file,
