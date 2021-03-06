@@ -1,3 +1,7 @@
+v2.0.68 (2021-3-6)
+-------------------
+- Undo last change, remove njit from baum_welch
+
 v2.0.67 (2021-3-6)
 -------------------
 - Added jit expected type definition for poissonHMM.baum_welch to solve
