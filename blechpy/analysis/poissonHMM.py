@@ -210,7 +210,7 @@ def compute_baum_welch(spikes, dt, A, B, alpha, beta):
     return gamma, epsilons
 
 
-@njit
+@njit('Tuple((float64[:,:], float64[:,:,:],float64[:]))(float64[:,:], float64, float64[:], float64[:,:], float64[:,:])') 
 def baum_welch(trial_dat, dt, PI, A, B):
     alpha, norms = forward(trial_dat, dt, PI, A, B)
     beta = backward(trial_dat, dt, A, B, norms)

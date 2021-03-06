@@ -1,3 +1,8 @@
+v2.0.67 (2021-3-6)
+-------------------
+- Added jit expected type definition for poissonHMM.baum_welch to solve
+  unexpected type error, possibly due to jit update
+
 v2.0.66 (2021-1-21)
 -------------------
 - can specify number of cores to use when fitting hmms
