@@ -36,7 +36,7 @@ FACTORIAL_LOOKUP = np.array([math.factorial(x) for x in range(20)])
 MIN_PROB = 1e-100
 
 
-@njit
+#@njit
 def fast_factorial(x):
     if x < len(FACTORIAL_LOOKUP):
         return FACTORIAL_LOOKUP[x]
@@ -48,7 +48,7 @@ def fast_factorial(x):
         return y
 
 
-@njit
+#@njit
 def poisson(rate, n, dt):
     '''Gives probability of each neurons spike count assuming poisson spiking
     '''
@@ -58,12 +58,12 @@ def poisson(rate, n, dt):
     tmp = tmp - rate*dt
     return np.exp(tmp)
 
-@njit
+#@njit
 def log_emission(rate, n , dt):
     return np.sum(np.log(poisson(rate, n, dt)))
 
 
-@njit
+#@njit
 def fix_arrays(PI,A,B):
     '''copy and remove zero values so that log probabilities can be computed
     '''
@@ -89,7 +89,7 @@ def fix_arrays(PI,A,B):
     return PI, A, B
 
 
-@njit
+#@njit
 def forward(spikes, dt, PI, A, B):
     '''Run forward algorithm to compute alpha = P(Xt = i| o1...ot, pi)
     Gives the probabilities of being in a specific state at each time point
@@ -150,7 +150,7 @@ def forward(spikes, dt, PI, A, B):
     return alpha, norms
 
 
-@njit
+#@njit
 def backward(spikes, dt, A, B, norms):
     ''' Runs the backward algorithm to compute beta = P(ot+1...oT | Xt=s)
     Computes the probability of observing all future observations given the
@@ -186,7 +186,7 @@ def backward(spikes, dt, A, B, norms):
     return beta
 
 
-@njit
+#@njit
 def compute_baum_welch(spikes, dt, A, B, alpha, beta):
     _, A, B = fix_arrays(np.array([0]), A, B)
     nTimeSteps = spikes.shape[1]
@@ -393,7 +393,7 @@ def compute_best_paths(spikes, dt, PI, A, B):
     return bestPaths, pathProbs
 
 
-@njit
+#@njit
 def compute_rate_rmse(rates1, rates2):
     # Compute RMSE per trial
     # Mean over trials
@@ -449,7 +449,7 @@ def match_states(emission1, emission2):
 
 
 @memory.cache
-@njit
+#@njit
 def convert_spikes_to_rates(spikes, dt, win_size, step_size=None):
     if step_size is None:
         step_size = win_size
@@ -466,7 +466,7 @@ def convert_spikes_to_rates(spikes, dt, win_size, step_size=None):
 
 
 @memory.cache
-@njit
+#@njit
 def generate_rate_array_from_state_seq(bestPaths, B, dt, win_size,
                                        step_size=None):
     if not step_size:
@@ -490,7 +490,7 @@ def generate_rate_array_from_state_seq(bestPaths, B, dt, win_size,
 
 
 @memory.cache
-@njit
+#@njit
 def rebin_spike_array(spikes, dt, time, new_dt):
     if dt == new_dt:
         return spikes, time

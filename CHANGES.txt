@@ -1,5 +1,9 @@
 v2.0.68 (2021-3-6)
 -------------------
+- removing njit entirely form poissonHMM
+
+v2.0.68 (2021-3-6)
+-------------------
 - Undo last change, remove njit from baum_welch
 
 v2.0.67 (2021-3-6)
