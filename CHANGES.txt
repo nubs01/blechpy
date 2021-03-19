@@ -1,4 +1,8 @@
-v2.0.68 (2021-3-6)
+v2.0.70 (2021-3-19)
+-------------------
+- putting njit back into poissonHMM
+
+v2.0.69 (2021-3-6) -- this is the version made for use on Jetstream
 -------------------
 - removing njit entirely form poissonHMM
 
