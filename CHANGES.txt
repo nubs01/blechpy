@@ -1,3 +1,7 @@
+v2.0.71 (2021-4-7)
+-------------------
+- added function to package HMM and spike data from many recordings into a single file
+
 v2.0.70 (2021-3-19)
 -------------------
 - putting njit back into poissonHMM

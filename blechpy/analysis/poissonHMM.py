@@ -1537,3 +1537,90 @@ class ConstrainedHMM(PoissonHMM):
 
     def get_late_states(self):
         return np.arange(self.n_baseline+1, self.n_states, 2)
+
+
+def package_project_data(hmm_df, save_file, **kwargs):
+    '''packages project info, spike trains and selected hmms into a single hdf5 store
+
+    Parameters
+    ----------
+    hmm_df: pandas.DataFrame
+        dataframe with references to all hmms to store in hdf5
+        must have columns: rec_dir, exp_name, channel, hmm_id
+        all additional columns will also be stored, it is recommended to have
+        columns corresponding to hmm fitting parameters
+        all hmms stored will have their IDs changed to their index in the
+        dataframe so that hmm_ids are unique
+    save_file: str, file to save data to
+    kwargs: any additional dataframes provided will be stored with keys provided
+    '''
+    if os.path.isfile(save_file):
+        os.remove(save_file)
+
+    df = hmm_df.reset_index(drop=True)
+    with tables.open_file(save_file, 'a') as hf5:
+        for i, row in df.iterrows():
+            rd = row['rec_dir']
+            hmm_id = row['hmm_id']
+            channel = row['channel']
+            exp_name = row['exp_name']
+            dat = load_dataset(rd)
+            data_name = dat.data_name
+            din = dat.dig_in_mapping.set_index('channel').loc[channel, 'name']
+            din = din.replace(' ', '_')
+            hmm_h5 = hmmIO.get_hmm_h5(rd)
+            PI, A, B, stat_arrays, params = hmmIO.read_hmm_from_hdf5(hmm_h5, hmm_id)
+
+            path_str = '/'
+            if exp_name not in hf5.root:
+                hf5.create_group('/', exp_name, exp_name + ' Data and Models')
+
+            path_str += exp_name
+            if data_name not in hf5.root[exp_name]:
+                hf5.create_group(path_str, data_name, 'Single recording data')
+
+            path_str += '/' + data_name
+            if din not in hf5.root[path_str]:
+                hf5.create_group(path_str, din, 'data around digital input event')
+
+            path_str += '/' + din
+
+            # Store data
+            if 'spikes' not in hf5.root[path_str]:
+                spikes, dt, spike_time = get_hmm_spike_data(rd,
+                                                            params['unit_type'],
+                                                            channel,
+                                                            time_start=params['time_start'],
+                                                            time_end=params['time_end'],
+                                                            area=params['area'])
+                hf5.create_array(path_str, 'spikes', spikes)
+                hf5.create_array(path_str, 'spike_time', spike_time)
+
+
+            h_str = 'hmm_%i' % i
+            hf5.create_group(path_str, h_str, 'Fitted Hidden Markov Model Parameters')
+            path_str += '/' + h_str
+            hf5.create_group(path_str, 'model_params', 'HMM model parameters')
+            p_str = path_str + '/model_params'
+            hf5.create_group(path_str, 'model_data', 'outputs of the model')
+            d_str = path_str + '/model_data'
+
+            hf5.create_array(d_str, 'hmm_time', stat_arrays['time'])
+            hf5.create_array(d_str, 'state_sequences', stat_arrays['best_sequences'])
+            hf5.create_array(d_str, 'state_probabilities',
+                             stat_arrays['gamma_probabilities'])
+            hf5.create_array(d_str, 'row_id', stat_arrays['row_id'])
+
+            hf5.create_array(p_str, 'initial_probabilties', PI)
+            hf5.create_array(p_str, 'transition', A)
+            hf5.create_array(p_str, 'emission', B)
+            hf5.flush()
+
+        df['hmm_id'] = df.index
+        df.to_hdf(save_file, 'hmm_overview')
+        for k,v in kwargs.items():
+            if isinstance(v, pd.DataFrame):
+                v.to_hdf(save_file, k)
+            else:
+                print(f'Invalid datatype for {k}. Must be pandas.DataFrame. Not written to HDF5') 
+

@@ -4,6 +4,8 @@ import numpy as np
 import pandas as pd
 from blechpy.utils.particles import HMMInfoParticle
 from copy import deepcopy
+import glob
+from blechpy import load_dataset
 
 def fix_hmm_overview(h5_file):
     '''made to add the area column to the hmm overview
@@ -73,6 +75,7 @@ def setup_hmm_hdf5(h5_file, infoParticle=HMMInfoParticle):
 
 
 def read_hmm_from_hdf5(h5_file, hmm_id):
+    hmm_id = int(hmm_id)
     with tables.open_file(h5_file, 'r') as hf5:
         h_str = 'hmm_%s' % hmm_id
         if h_str not in hf5.root or len(hf5.list_nodes('/'+h_str)) == 0:
@@ -286,6 +289,9 @@ def hash_channel_list(channels):
     channels.insert(0, len(channels)) # gives elements and array and prevent leading 0 from dropping
     return ''.join([str(x) for x in channels])
 
+
 def list_channel_hash(num):
     tmp = [int(x) for x in str(num)]
     return tmp[1:]
+
+
