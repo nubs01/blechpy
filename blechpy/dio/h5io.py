@@ -206,6 +206,13 @@ def read_files_into_arrays(file_name, rec_info, electrode_mapping, emg_mapping,
                                  rec_info['num_channels'], electrode_mapping,
                                  emg_mapping)
 
+def write_array_to_hdf5(h5_file, loc, name, arr):
+    with tables.open_file(h5_file, 'r+') as hf5:
+        tmp = hf5.create_array(loc, name, arr)
+        hf5.flush()
+
+    print(f'{name} added to {h5_file}')
+
 
 @Timer('Extracting Amplifier Signal Data')
 def read_in_amplifier_signal(hf5, file_dir, file_type, num_channels, el_map,
@@ -285,13 +292,15 @@ def read_in_amplifier_signal(hf5, file_dir, file_type, num_channels, el_map,
             hf5.flush()
 
 
-def get_unit_descriptor(rec_dir, unit_num):
+def get_unit_descriptor(rec_dir, unit_num, h5_file=None):
     '''Returns the unit description for a unit in the h5 file in rec_dir
     '''
     if isinstance(unit_num , str):
         unit_num = parse_unit_number(unit_num)
 
-    h5_file = get_h5_filename(rec_dir)
+    if h5_file is None:
+        h5_file = get_h5_filename(rec_dir)
+
     with tables.open_file(h5_file, 'r') as hf5:
         descrip = hf5.root.unit_descriptor[unit_num]
 
@@ -670,7 +679,7 @@ def parse_unit_number(unit_name):
     return out
 
 
-def get_unit_names(rec_dir):
+def get_unit_names(rec_dir, h5_file=None):
     '''Finds h5 file in dir, gets names of sorted units and returns
 
     Parameters
@@ -681,7 +690,8 @@ def get_unit_names(rec_dir):
     -------
     list of str
     '''
-    h5_file = get_h5_filename(rec_dir)
+    if h5_file is None:
+        h5_file = get_h5_filename(rec_dir)
 
     with tables.open_file(h5_file, 'r') as hf5:
         if '/sorted_units' in  hf5:
@@ -693,7 +703,7 @@ def get_unit_names(rec_dir):
     return unit_names
 
 
-def get_unit_table(rec_dir):
+def get_unit_table(rec_dir, h5_file=None):
     '''Returns pandas DataFrame with sorted unit info read from hdf5 store
 
     Parameters
@@ -710,7 +720,10 @@ def get_unit_table(rec_dir):
         - regular_spiking
         - fast_spiking
     '''
-    units = get_unit_names(rec_dir)
+    if h5_file is None:
+        h5_file = get_h5_filename(rec_dir)
+
+    units = get_unit_names(rec_dir, h5_file=h5_file)
     unit_table = pd.DataFrame(units, columns=['unit_name'])
     unit_table['unit_num'] = \
             unit_table['unit_name'].apply(lambda x: parse_unit_number(x))
@@ -753,7 +766,7 @@ def get_spike_data(rec_dir, units=None, din=None, trials=None):
     Parameters
     ----------
     rec_dir : str, path to recording directory
-    unit : str or int, unit name or unit number
+    units : str or int or list of str/int, unit names or unit numbers
     din : int, digital input channel
     trials: int or list-like
         if None (default), returns all trials, if int N returns first N-trials

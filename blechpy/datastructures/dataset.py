@@ -1080,7 +1080,7 @@ class dataset(data_object):
             unit_name, unit_num, electrode, single_unit,
             regular_spiking, fast_spiking
         '''
-        unit_table = dio.h5io.get_unit_table(self.root_dir)
+        unit_table = dio.h5io.get_unit_table(self.root_dir, h5_file=self.h5_file)
         return unit_table
 
     def circus_clust_run(self, shell=False):
@@ -1149,13 +1149,6 @@ def port_in_dataset(rec_dir=None, shell=False):
             print('Aborted')
             return None
 
-    # if os.path.isfile(dat.h5_file):
-    #     prompt = '%s already exists. Continuinlg will overwrite this. Continue?' % dat.h5_file
-    #     q = userIO.ask_user(prompt, shell=shell)
-    #     if q == 0:
-    #         print('Aborted')
-    #         return None
-
     if os.path.isfile(dat.log_file):
         prompt = '%s already exists. Continuing will append to this. Continue?' % dat.log_file
         q = userIO.ask_user(prompt, shell=shell)
@@ -1167,9 +1160,14 @@ def port_in_dataset(rec_dir=None, shell=False):
         print('\n==========\nPorting dataset into blechpy format\n==========\n', file=f)
         print(dat, file=f)
 
-    status = dat.process_status
-    dat.initParams(shell=shell)
+    # Check for info.rhd file or query needed info
+    info_rhd = os.path.join(dat.root_dir, 'info.rhd')
+    if os.path.isfile(info_rhd):
+        dat.initParams(shell=shell)
+    else:
+        raise FileNotFoundError(f'{info.rhd} is required for proper dataset creation') 
 
+    status = dat.process_status
 
     user_status = status.copy()
     user_status = userIO.fill_dict(user_status,
@@ -1196,8 +1194,27 @@ def port_in_dataset(rec_dir=None, shell=False):
 
     if (status['create_trial_list'] == False) and ('digital_in' in node_list):
         dat.create_trial_list()
+    else:
+        status['create_trial_list'] == True
 
     dat.save()
+
+    # Add array_time to spike_arrays/dig_in_#
+    if 'spike_trains' in node_list:
+        digs = set(x.split('.')[1] for x in node_list if 'spike_trains.' in x)
+        params = dat.spike_array_params
+        array_time = np.arange(-params['pre_stimulus'], params['post_stimulus'], 1)
+        for x in digs:
+            dio.h5io.write_array_to_hdf5(dat.h5_file, f'/spike_trains/{x}',
+                                         'array_time', array_time)
+
+        for x in dat.processing_steps:
+            status[x] = True
+            if x == 'make_unit_arrays':
+                break
+
+        dat.save()
+
     return dat
 
 
