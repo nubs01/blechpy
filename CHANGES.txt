@@ -1,3 +1,7 @@
+v2.0.72 (2021-8-2)
+-------------------
+- Finish implementing blechpy.port_in_dataset function
+
 v2.0.71 (2021-4-7)
 -------------------
 - added function to package HMM and spike data from many recordings into a single file
