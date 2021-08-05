@@ -40,6 +40,14 @@ Now you can deal with all of your data from within an ipython terminal:
 import blechpy
 ```
 
+### Ubuntu 20.04 LTS
+With Ubuntu 20, you may get a segmentation fault when importing blechpy. To resolve this simply import datashader before blechpy
+
+```python
+import datashader
+import blechpy
+```
+
 # Usage
 blechpy handles experimental metadata using data_objects which are tied to a directory encompassing some level of data. Existing types of data_objects include:
 * dataset
