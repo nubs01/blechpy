@@ -1,3 +1,7 @@
+v2.0.74 (2021-8-5)
+-------------------
+- Fix joblib calls
+
 v2.0.73 (2021-8-5)
 -------------------
 - Remove multiprocessing pacakge, and use joblib everywhere
