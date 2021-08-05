@@ -754,35 +754,22 @@ class dataset(data_object):
             electrodes = em.Electrode.tolist()
 
 
-        pbar = tqdm(total = len(electrodes))
-        results = [(None, None, None)] * (max(electrodes)+1)
-        def update_pbar(ans):
-            if isinstance(ans, tuple) and ans[0] is not None:
-                results[ans[0]] = ans
-            else:
-                print('Unexpected error when clustering an electrode')
-
-            pbar.update()
 
         spike_detectors = [clust.SpikeDetection(data_dir, x,
                                                 self.clustering_params)
                            for x in electrodes]
-        def run(sd, callback):
-            res = sd.run()
-            callback(res)
-
         if multi_process:
             if n_cores is None or n_cores > cpu_count():
                 n_cores = cpu_count() - 1
 
-            results = Parallel(n_jobs=n_cores)(delayed(run)(sd, update_pbar)
+            results = Parallel(n_jobs=n_cores)(delayed(run_joblib_process)(sd)
                                                for sd in spike_detectors)
+            results = zip(*results)
         else:
+            results = [(None, None, None)] * (max(electrodes)+1)
             for sd in spike_detectors:
                 res = sd.run()
-                update_pbar(res)
-
-        pbar.close()
+                results[res[0]] = res 
 
         print('Electrode    Result    Cutoff (s)')
         cutoffs = {}
@@ -848,14 +835,6 @@ class dataset(data_object):
             electrodes = em.Electrode.tolist()
 
 
-        pbar = tqdm(total = len(electrodes))
-        def update_pbar(ans):
-            pbar.update()
-
-        errors = []
-        def error_call(e):
-            errors.append(e)
-
         if not umap:
             clust_objs = [clust.BlechClust(self.root_dir, x, params=self.clustering_params)
                           for x in electrodes]
@@ -866,34 +845,24 @@ class dataset(data_object):
                                            n_pc=5)
                           for x in electrodes]
 
-        def run(x, callback, error_callback):
-            try:
-                res = x.run()
-                callback(res)
-            except Exception as e:
-                error_callback(e)
-
         if multi_process:
             if n_cores is None or n_cores > cpu_count():
                 n_cores = cpu_count() - 1
 
-            results = Parallel(n_jobs=n_cores)(delayed(run)(co, update_pbar, error_call)
+            results = Parallel(n_jobs=n_cores)(delayed(run_joblib_process)(co)
                                                for co in clust_objs)
+            results = zip(*results)
         else:
+            results = []
             for x in clust_objs:
                 res = x.run()
-                update_pbar(res)
-
-        pbar.close()
+                results.append(res)
 
         self.process_status['spike_clustering'] = True
         self.process_status['cleanup_clustering'] = False
         dio.h5io.write_electrode_map_to_h5(self.h5_file, em)
         self.save()
         print('Clustering Complete\n------------------')
-        if len(errors) > 0:
-            print('Errors encountered:')
-            print(errors)
 
     @Logger('Cleaning up clustering memory logs. Removing raw data and setting'
             'up hdf5 for unit sorting')
@@ -1135,6 +1104,9 @@ class dataset(data_object):
         self.units_similarity(shell=True)
         self.make_psth_arrays()
 
+def run_joblib_process(process):
+    res = process.run()
+    return res
 
 def port_in_dataset(rec_dir=None, shell=False):
     '''Import an existing dataset into this framework
