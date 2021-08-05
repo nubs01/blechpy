@@ -1,10 +1,11 @@
 import pandas as pd
+import numpy as np
 import datetime as dt
 import pickle
 import os
 import shutil
 import sys
-import multiprocessing
+from joblib import Parallel, delayed, cpu_count
 import subprocess
 from tqdm import tqdm
 from copy import deepcopy
@@ -766,16 +767,16 @@ class dataset(data_object):
         spike_detectors = [clust.SpikeDetection(data_dir, x,
                                                 self.clustering_params)
                            for x in electrodes]
+        def run(sd, callback):
+            res = sd.run()
+            callback(res)
+
         if multi_process:
-            if n_cores is None or n_cores > multiprocessing.cpu_count():
-                n_cores = multiprocessing.cpu_count() - 1
+            if n_cores is None or n_cores > cpu_count():
+                n_cores = cpu_count() - 1
 
-            pool = multiprocessing.get_context('spawn').Pool(n_cores)
-            for sd in spike_detectors:
-                pool.apply_async(sd.run, callback=update_pbar)
-
-            pool.close()
-            pool.join()
+            results = Parallel(n_jobs=n_cores)(delayed(run)(sd, update_pbar)
+                                               for sd in spike_detectors)
         else:
             for sd in spike_detectors:
                 res = sd.run()
@@ -865,16 +866,19 @@ class dataset(data_object):
                                            n_pc=5)
                           for x in electrodes]
 
+        def run(x, callback, error_callback):
+            try:
+                res = x.run()
+                callback(res)
+            except Exception as e:
+                error_callback(e)
+
         if multi_process:
-            if n_cores is None or n_cores > multiprocessing.cpu_count():
-                n_cores = multiprocessing.cpu_count() - 1
+            if n_cores is None or n_cores > cpu_count():
+                n_cores = cpu_count() - 1
 
-            pool = multiprocessing.get_context('spawn').Pool(n_cores)
-            for x in clust_objs:
-                pool.apply_async(x.run, callback=update_pbar, error_callback=error_call)
-
-            pool.close()
-            pool.join()
+            results = Parallel(n_jobs=n_cores)(delayed(run)(co, update_pbar, error_call)
+                                               for co in clust_objs)
         else:
             for x in clust_objs:
                 res = x.run()

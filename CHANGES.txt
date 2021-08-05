@@ -1,3 +1,7 @@
+v2.0.73 (2021-8-5)
+-------------------
+- Remove multiprocessing pacakge, and use joblib everywhere
+
 v2.0.72 (2021-8-2)
 -------------------
 - Finish implementing blechpy.port_in_dataset function
