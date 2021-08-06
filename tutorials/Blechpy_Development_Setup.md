@@ -24,7 +24,7 @@ conda create -n blech-dev python=3.7
 conda activate blech-dev
 conda install ipython
 cd /path/to/blechpy # This is the parent directory that contains the setup.py file
-pip install -e blechpy
+pip install -e .
 ```
 
 Now when this environment is activate, the version of blechpy being used is not the package from PyPi but instead the raw code on your machine. 
