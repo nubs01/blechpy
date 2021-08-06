@@ -755,19 +755,23 @@ class dataset(data_object):
 
 
 
-        spike_detectors = [clust.SpikeDetection(data_dir, x,
-                                                self.clustering_params)
-                           for x in electrodes]
         if multi_process:
             if n_cores is None or n_cores > cpu_count():
                 n_cores = cpu_count() - 1
 
-            results = Parallel(n_jobs=n_cores)(delayed(run_joblib_process)(sd)
-                                               for sd in spike_detectors)
+            results = Parallel(n_jobs=n_cores)(delayed(detect_spikes)
+                                               (data_dir, x,
+                                                self.clustering_params)
+                                               for x in electrodes)
+            # results = Parallel(n_jobs=n_cores)(delayed(run_joblib_process)(sd)
+            #                                    for sd in spike_detectors)
             results = zip(*results)
         else:
             results = [(None, None, None)] * (max(electrodes)+1)
-            for sd in spike_detectors:
+            spike_detectors = [clust.SpikeDetection(data_dir, x,
+                                                    self.clustering_params)
+                               for x in electrodes]
+            for sd in tqdm(spike_detectors):
                 res = sd.run()
                 results[res[0]] = res 
 
@@ -1103,6 +1107,12 @@ class dataset(data_object):
         self.make_unit_arrays()
         self.units_similarity(shell=True)
         self.make_psth_arrays()
+
+
+def detect_spikes(data_dir, electrode, params, overwrite=False):
+    sd = clust.SpikeDetection(data_dir, electrode, params=params, overwrite=overwrite)
+    res = sd.run()
+    return res
 
 def run_joblib_process(process):
     res = process.run()
