@@ -1,3 +1,7 @@
+v2.1.0 (2021-8-8)
+-------------------
+- Make joblib with spike detection and clustering actually work
+
 v2.0.74 (2021-8-5)
 -------------------
 - Fix joblib calls
