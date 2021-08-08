@@ -756,16 +756,18 @@ class dataset(data_object):
 
 
         if multi_process:
+            spike_detectors = [clust.SpikeDetection(data_dir, x,
+                                                    self.clustering_params)
+                               for x in electrodes]
+
             if n_cores is None or n_cores > cpu_count():
                 n_cores = cpu_count() - 1
 
-            results = Parallel(n_jobs=n_cores)(delayed(detect_spikes)
-                                               (data_dir, x,
-                                                self.clustering_params)
-                                               for x in electrodes)
+            results = Parallel(n_jobs=n_cores, verbose=10,
+                               backend='multiprocessing')(delayed(detect_spikes)
+                                                          (sd) for sd in spike_detectors)
             # results = Parallel(n_jobs=n_cores)(delayed(run_joblib_process)(sd)
             #                                    for sd in spike_detectors)
-            results = zip(*results)
         else:
             results = [(None, None, None)] * (max(electrodes)+1)
             spike_detectors = [clust.SpikeDetection(data_dir, x,
@@ -773,7 +775,7 @@ class dataset(data_object):
                                for x in electrodes]
             for sd in tqdm(spike_detectors):
                 res = sd.run()
-                results[res[0]] = res 
+                results[res[0]] = res
 
         print('Electrode    Result    Cutoff (s)')
         cutoffs = {}
@@ -853,9 +855,9 @@ class dataset(data_object):
             if n_cores is None or n_cores > cpu_count():
                 n_cores = cpu_count() - 1
 
-            results = Parallel(n_jobs=n_cores)(delayed(run_joblib_process)(co)
-                                               for co in clust_objs)
-            results = zip(*results)
+            results = Parallel(n_jobs=n_cores, verbose=10,
+                               backend='multiprocessing')(delayed(run_joblib_process)(co)
+                                                          for co in clust_objs)
         else:
             results = []
             for x in clust_objs:
@@ -877,7 +879,7 @@ class dataset(data_object):
         if self.process_status['cleanup_clustering']:
             return
 
-        h5_file = dio.h5io.cleanup_clustering(self.root_dir)
+        h5_file = dio.h5io.cleanup_clustering(self.root_dir, h5_file=self.h5_file)
         self.h5_file = h5_file
         self.process_status['cleanup_clustering'] = True
         self.save()
@@ -961,7 +963,7 @@ class dataset(data_object):
             print('No unit deleted')
             return
         else:
-            tmp = dio.h5io.delete_unit(self.root_dir, unit_num)
+            tmp = dio.h5io.delete_unit(self.root_dir, unit_num, h5_file=self.h5_file)
             if tmp is False:
                 userIO.tell_user('Unit %i not found in dataset. No unit deleted'
                                  % unit_num, shell=shell)
@@ -1034,7 +1036,7 @@ class dataset(data_object):
         remove = []
         spike_count = []
         for unit in unit_table['unit_num']:
-            waves, descrip, fs = dio.h5io.get_unit_waveforms(self.root_dir, unit)
+            waves, descrip, fs = dio.h5io.get_unit_waveforms(self.root_dir, unit, h5_file=self.h5_file)
             if waves.shape[0] < min_spikes:
                 spike_count.append(waves.shape[0])
                 remove.append(unit)
@@ -1109,10 +1111,14 @@ class dataset(data_object):
         self.make_psth_arrays()
 
 
-def detect_spikes(data_dir, electrode, params, overwrite=False):
-    sd = clust.SpikeDetection(data_dir, electrode, params=params, overwrite=overwrite)
+def detect_spikes(sd):
     res = sd.run()
     return res
+
+# def detect_spikes(data_dir, electrode, params, overwrite=False):
+#     sd = clust.SpikeDetection(data_dir, electrode, params=params, overwrite=overwrite)
+#     res = sd.run()
+#     return res
 
 def run_joblib_process(process):
     res = process.run()

@@ -992,7 +992,7 @@ class PoissonHMM(object):
         else:
             n_cores = 1
 
-        results = Parallel(n_jobs=n_cores)(delayed(baum_welch)(trial, dt, PI, A, B)
+        results = Parallel(n_jobs=n_cores, backend='multiprocessing')(delayed(baum_welch)(trial, dt, PI, A, B)
                                            for trial in spikes)
         gammas, epsilons, norms = zip(*results)
         gammas = np.array(gammas)
@@ -1036,7 +1036,7 @@ class PoissonHMM(object):
         else:
             n_cpu = 1
 
-        a_results = Parallel(n_jobs=n_cpu)(delayed(forward)
+        a_results = Parallel(n_jobs=n_cpu, backend='multiprocessing')(delayed(forward)
                                            (trial, dt, PI, A, B)
                                            for trial in spikes)
         alphas, norms = zip(*a_results)
@@ -1052,10 +1052,10 @@ class PoissonHMM(object):
         else:
             n_cpu = 1
 
-        a_results = Parallel(n_jobs=n_cpu)(delayed(forward)(trial, dt, PI, A, B)
+        a_results = Parallel(n_jobs=n_cpu, backend='multiprocessing')(delayed(forward)(trial, dt, PI, A, B)
                                          for trial in spikes)
         _, norms = zip(*a_results)
-        b_results = Parallel(n_jobs=n_cpu)(delayed(backward)(trial, dt, A, B, n)
+        b_results = Parallel(n_jobs=n_cpu, backend='multiprocessing')(delayed(backward)(trial, dt, A, B, n)
                                            for trial, n in zip(spikes, norms))
         betas = np.array(b_results)
 
@@ -1070,7 +1070,7 @@ class PoissonHMM(object):
         else:
             n_cpu = 1
 
-        results = Parallel(n_jobs=n_cpu)(delayed(baum_welch)(trial, dt, PI, A, B)
+        results = Parallel(n_jobs=n_cpu, backend='multiprocessing')(delayed(baum_welch)(trial, dt, PI, A, B)
                                          for trial in spikes)
         gammas, _, _ = zip(*results)
         return np.array(gammas)
@@ -1208,7 +1208,7 @@ class HmmHandler(object):
 
         assert (1 <= n_cpu <= max_cpu), f'n_cpu must be a valid integer 1 <= n_cpu <= {max_cpu}'
 
-        results = Parallel(n_jobs=n_cpu, verbose=100)(delayed(fit_hmm_mp)
+        results = Parallel(n_jobs=n_cpu, verbose=100, backend='multiprocessing')(delayed(fit_hmm_mp)
                                                      (rec_dir, p, h5_file,
                                                       constraint_func)
                                                      for p in fit_params)
