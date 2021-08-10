@@ -563,6 +563,9 @@ def create_trial_data_table(h5_file, digital_map, fs, dig_type='in'):
         exp_start_idx = 0
         exp_end_idx = 0
         dig_trace = get_raw_digital_signal(rec_dir, dig_type, row['channel'])
+        if dig_trace is None:
+            continue
+
         if len(dig_trace) > exp_end_idx:
             exp_end_idx = len(dig_trace)
 
