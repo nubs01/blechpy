@@ -1,3 +1,7 @@
+v2.1.1 (2021-8-9)
+-------------------
+- Fix bug in create_trial_list with blank digital_outs
+
 v2.1.0 (2021-8-8)
 -------------------
 - Make joblib with spike detection and clustering actually work
