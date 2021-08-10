@@ -151,8 +151,13 @@ class dataset(data_object):
             self.dig_in_mapping = None
 
         if rec_info.get('dig_out'):
-            self._setup_digital_mapping('out', dig_out_names, shell)
-            dom = self.dig_out_mapping.copy()
+            q = userIO.ask_user('Your info.rhd suggests you have digital '
+                                'outputs. Is this True?', shell=shell)
+            if q == 1:
+                self._setup_digital_mapping('out', dig_out_names, shell)
+                dom = self.dig_out_mapping.copy()
+            else:
+                self.dig_out_mapping = None
         else:
             self.dig_out_mapping = None
 
@@ -378,7 +383,7 @@ class dataset(data_object):
             dim.loc[[x in tmp['dig_ins_to_use'] for x in dim.channel],
                     'spike_array'] = True
 
-        dim['laser_channels'] = False
+        dim['laser'] = False
         if tmp['laser_channels'] != ['']:
             tmp['laser_channels'] = [int(x) for x in tmp['laser_channels']]
             dim.loc[[x in tmp['laser_channels'] for x in dim.channel],
@@ -387,6 +392,10 @@ class dataset(data_object):
         self.spike_array_params = tmp.copy()
         wt.write_params_to_json('spike_array_params',
                                 self.root_dir, tmp)
+        if os.path.isfile(self.h5_file):
+            dio.h5io.write_digital_map_to_h5(self.h5_file, self.dig_in_mapping, 'in')
+
+        self.save()
 
     def edit_clustering_params(self, shell=False):
         '''Allows user interface for editing clustering parameters
@@ -403,6 +412,8 @@ class dataset(data_object):
             self.clustering_params = tmp
             wt.write_params_to_json('clustering_params', self.root_dir, tmp)
 
+        self.save()
+
     def edit_psth_params(self, shell=False):
         '''Allows user interface for editing psth parameters
 
@@ -418,6 +429,8 @@ class dataset(data_object):
             self.psth_params = tmp
             wt.write_params_to_json('psth_params', self.root_dir, tmp)
 
+        self.save()
+
     def edit_pal_id_params(self, shell=False):
         '''Allows user interface for editing palatability/identity parameters
 
@@ -432,6 +445,8 @@ class dataset(data_object):
         if tmp:
             self.pal_id_params = tmp
             wt.write_params_to_json('pal_id_params', self.root_dir, tmp)
+
+        self.save()
 
     def __str__(self):
         '''Put all information about dataset in string format
@@ -764,7 +779,7 @@ class dataset(data_object):
                 n_cores = cpu_count() - 1
 
             results = Parallel(n_jobs=n_cores, verbose=10,
-                               backend='multiprocessing')(delayed(detect_spikes)
+                               backend='multiprocessing')(delayed(run_joblib_process)
                                                           (sd) for sd in spike_detectors)
             # results = Parallel(n_jobs=n_cores)(delayed(run_joblib_process)(sd)
             #                                    for sd in spike_detectors)
@@ -1111,18 +1126,10 @@ class dataset(data_object):
         self.make_psth_arrays()
 
 
-def detect_spikes(sd):
-    res = sd.run()
-    return res
-
-# def detect_spikes(data_dir, electrode, params, overwrite=False):
-#     sd = clust.SpikeDetection(data_dir, electrode, params=params, overwrite=overwrite)
-#     res = sd.run()
-#     return res
-
 def run_joblib_process(process):
     res = process.run()
     return res
+
 
 def port_in_dataset(rec_dir=None, shell=False):
     '''Import an existing dataset into this framework

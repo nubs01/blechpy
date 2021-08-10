@@ -1,3 +1,8 @@
+v2.1.2 (2021-8-10)
+-------------------
+- Fix typos is dataset parameter initialization
+- Add dummy-proofing to dataset parameter initialization
+
 v2.1.1 (2021-8-9)
 -------------------
 - Fix bug in create_trial_list with blank digital_outs
