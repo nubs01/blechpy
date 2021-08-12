@@ -140,13 +140,12 @@ class dataset(data_object):
         spike_array_params['sampling_rate'] = sampling_rate
         clustering_params['file_dir'] = file_dir
         clustering_params['sampling_rate'] = sampling_rate
+        self.spike_array_params = spike_array_params
 
         # Setup digital input mapping
         if rec_info.get('dig_in'):
             self._setup_digital_mapping('in', dig_in_names, shell)
             dim = self.dig_in_mapping.copy()
-            spike_array_params['laser_channels'] = dim.channel[dim['laser']].to_list()
-            spike_array_params['dig_ins_to_use'] = dim.channel[dim['spike_array']].to_list()
         else:
             self.dig_in_mapping = None
 
@@ -170,7 +169,6 @@ class dataset(data_object):
         self._set_CAR_groups(group_keyword=car_keyword, group_areas=car_group_areas, shell=shell)
 
         # Confirm parameters
-        self.spike_array_params = spike_array_params
         if not accept_params:
             conf = userIO.confirm_parameter_dict
             clustering_params = conf(clustering_params,
@@ -320,6 +318,10 @@ class dataset(data_object):
 
         if dig_type == 'in':
             self.dig_in_mapping = df2.copy()
+            self.spike_array_params['laser_channels'] = dim.channel[dim['laser']].to_list()
+            self.spike_array_params['dig_ins_to_use'] = dim.channel[dim['spike_array']].to_list()
+            wt.write_params_to_json('spike_array_params', self.root_dir,
+                                    self.spike_array_params)
         else:
             self.dig_out_mapping = df2.copy()
 
