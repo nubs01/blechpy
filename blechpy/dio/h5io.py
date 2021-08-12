@@ -146,13 +146,13 @@ def create_hdf_arrays(file_name, rec_info, electrode_mapping, emg_mapping,
                                   atom, (0, ))
 
         # Create arrays for digital inputs (if any exist)
-        if rec_info.get('dig_in'):
+        if rec_info.get('dig_in') is not None:
             for x in rec_info['dig_in']:
                 hf5.create_earray('/digital_in', 'dig_in_%i' % x,
                                   atom, (0, ))
 
         # Create arrays for digital outputs (if any exist)
-        if rec_info.get('dig_out'):
+        if rec_info.get('dig_out') is not None:
             for x in rec_info['dig_out']:
                 hf5.create_earray('/digital_out', 'dig_out_%i' % x,
                                   atom, (0, ))
@@ -194,11 +194,11 @@ def read_files_into_arrays(file_name, rec_info, electrode_mapping, emg_mapping,
         print('Done!')
 
         # Read in digital input data if it exists
-        if rec_info.get('dig_in'):
+        if rec_info.get('dig_in') is not None:
             read_in_digital_signal(hf5, file_dir, file_type,
                                    rec_info['dig_in'], 'in')
 
-        if rec_info.get('dig_out'):
+        if rec_info.get('dig_out') is not None:
             read_in_digital_signal(hf5, file_dir, file_type,
                                    rec_info['dig_out'], 'out')
 
@@ -560,10 +560,13 @@ def create_trial_data_table(h5_file, digital_map, fs, dig_type='in'):
           (dig_type, ', '.join([str(x) for x in
                                 digital_map['channel'].tolist()])))
     for i, row in digital_map.iterrows():
+        channel = row['channel']
         exp_start_idx = 0
         exp_end_idx = 0
         dig_trace = get_raw_digital_signal(rec_dir, dig_type, row['channel'])
         if dig_trace is None:
+            print(f'No signal trace found for digital {dig_type}put '
+                  '#{channel}. Skipping...')
             continue
 
         if len(dig_trace) > exp_end_idx:

@@ -157,6 +157,7 @@ class dataset(data_object):
                 self._setup_digital_mapping('out', dig_out_names, shell)
                 dom = self.dig_out_mapping.copy()
             else:
+                _ = rec_info.pop('dig_out')
                 self.dig_out_mapping = None
         else:
             self.dig_out_mapping = None
@@ -270,7 +271,7 @@ class dataset(data_object):
         if len(em['CAR_group'].unique()) != len(areas):
             raise ValueError('Number of items in areas must match number of CAR groups')
 
-        em['areas'] = em['CAR_group'].apply(lambda x: areas[int(x)])
+        em['area'] = em['CAR_group'].apply(lambda x: areas[int(x)])
         self.electrode_mapping = em.copy()
         dio.h5io.write_electrode_map_to_h5(self.h5_file, self.electrode_mapping)
         self.save()

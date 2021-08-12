@@ -28,6 +28,7 @@ def get_sampling_rate(rec_dir):
 
 def read_rec_info(file_dir, shell=True):
     '''Reads the info.rhd file to get relevant parameters.
+    TODO: Check for zero size files and exclude from rec_info and suggest deletion to users
     Parameters
     ----------
     file_dir : str, path to recording directory

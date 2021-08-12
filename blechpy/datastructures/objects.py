@@ -158,4 +158,8 @@ def load_project(file_dir=None, shell=False):
     return load_data('project', file_dir, shell=shell)
 
 
+def load_pickled_object(fn):
+    with open(fn, 'rb') as f:
+        out = pickle.load(f)
 
+    return out
