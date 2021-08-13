@@ -61,6 +61,9 @@ class dataset(data_object):
         h5_file = dio.h5io.get_h5_filename(self.root_dir)
         if h5_file is None:
             h5_file = os.path.join(self.root_dir, '%s.h5' % self.data_name)
+            print(f'No existing h5 file found. New h5 will be created at {h5_file}.')
+        else:
+            print(f'Existing h5 file found. Using {h5_file}.')
 
         self.h5_file = h5_file
 
@@ -317,7 +320,7 @@ class dataset(data_object):
             df2['palatability_rank'] = df2['palatability_rank'].fillna(-1).astype('int')
 
         if dig_type == 'in':
-            self.dig_in_mapping = df2.copy()
+            self.dig_in_mapping = dim = df2.copy()
             self.spike_array_params['laser_channels'] = dim.channel[dim['laser']].to_list()
             self.spike_array_params['dig_ins_to_use'] = dim.channel[dim['spike_array']].to_list()
             wt.write_params_to_json('spike_array_params', self.root_dir,
@@ -1184,17 +1187,19 @@ def port_in_dataset(rec_dir=None, shell=False):
         return dat
 
     # write eletrode map and digital input & output maps to hf5
-    dio.h5io.write_electrode_map_to_h5(dat.h5_file, dat.electrode_mapping)
-    if dat.rec_info.get('dig_in') is not None:
+    node_list = dio.h5io.get_node_list(dat.h5_file)
+
+    if 'electrode_map' not in node_list:
+        dio.h5io.write_electrode_map_to_h5(dat.h5_file, dat.electrode_mapping)
+
+    if dat.rec_info.get('dig_in') is not None and 'digital_input_map' not in node_list:
         dio.h5io.write_digital_map_to_h5(dat.h5_file, dat.dig_in_mapping, 'in')
 
-    if dat.rec_info.get('dig_out') is not None:
+    if dat.rec_info.get('dig_out') is not None and 'digital_output_map' not in node_list:
         dio.h5io.write_digital_map_to_h5(dat.h5_file, dat.dig_out_mapping, 'out')
 
 
-    node_list = dio.h5io.get_node_list(dat.h5_file)
-
-    if (status['create_trial_list'] == False) and ('digital_in' in node_list):
+    if ('trial_info' not in node_list) and ('digital_in' in node_list):
         dat.create_trial_list()
     else:
         status['create_trial_list'] == True
@@ -1207,8 +1212,9 @@ def port_in_dataset(rec_dir=None, shell=False):
         params = dat.spike_array_params
         array_time = np.arange(-params['pre_stimulus'], params['post_stimulus'], 1)
         for x in digs:
-            dio.h5io.write_array_to_hdf5(dat.h5_file, f'/spike_trains/{x}',
-                                         'array_time', array_time)
+            if f'spike_trains.{x}.array_time' not in node_list:
+                dio.h5io.write_array_to_hdf5(dat.h5_file, f'/spike_trains/{x}',
+                                             'array_time', array_time)
 
         for x in dat.processing_steps:
             status[x] = True
