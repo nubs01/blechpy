@@ -663,7 +663,7 @@ def fit_hmm_mp(rec_dir, params, h5_file=None, constraint_func=None):
         locked = True
         while locked:
             try:
-                os.mknod(lock_file)
+                open(lock_file, 'w').close()
                 locked=False
             except:
                 sys_time.sleep(10)
