@@ -577,12 +577,14 @@ def query_units(dat, unit_type, area=None):
     elif u_str == 'interneuron':
         q_str = 'single_unit == True and fast_spiking == True'
     elif u_str == 'all':
-        return units['unit_name'].tolist()
+        q_str = ''
     else:
         raise ValueError('Invalid unit_type %s. Must be '
                          'single, pyramidal, interneuron or all' % u_str)
 
-    units = units.query(q_str)
+    if q_str != '':
+        units = units.query(q_str)
+
     if area is None or area == '' or area == 'None':
         return units['unit_name'].to_list()
 
@@ -637,6 +639,7 @@ def fit_hmm_mp(rec_dir, params, h5_file=None, constraint_func=None):
         hmm = PoissonHMM(n_states, hmm_id=hmm_id)
     elif params['hmm_class'] == 'ConstrainedHMM':
         hmm = ConstrainedHMM(len(channels), hmm_id=hmm_id)
+    #TODO: Generalize to take a function/class as hmm_class and create text rep for hdf5
 
     hmm.randomize(spikes, dt, time, row_id=row_id, constraint_func=constraint_func)
     success = hmm.fit(spikes, dt, time, max_iter=max_iter, threshold=threshold)
