@@ -14,7 +14,7 @@ if os.path.isfile(requirementPath):
 
 setuptools.setup(
     name='blechpy',
-    version='2.1.7',
+    version='2.1.8',
     author='Roshan Nanu',
     author_email='roshan.nanu@gmail.com',
     description='Package for exrtacting, processing and analyzing Intan and OpenEphys data',

@@ -662,11 +662,12 @@ def fit_hmm_mp(rec_dir, params, h5_file=None, constraint_func=None):
 
         locked = True
         while locked:
-            try:
+            if os.path.exists(lock_file):
+                locked = True
+                sys_time.sleep(10)
+            else:
                 open(lock_file, 'w').close()
                 locked=False
-            except:
-                sys_time.sleep(10)
 
         try:
             old_hmm, _, old_params = load_hmm_from_hdf5(h5_file, hmm_id)
