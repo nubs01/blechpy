@@ -1,3 +1,7 @@
+v2.1.9 (2021-8-19)
+-------------------
+- Add bilateral64 default CAR param for Dan
+
 v2.1.8 (2021-8-19)
 -------------------
 - Make HmmHandler MacOSX compatible
