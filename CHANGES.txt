@@ -1,3 +1,7 @@
+v2.1.6 (2021-8-19)
+-------------------
+- Fix minor bugs
+
 v2.1.5 (2021-8-11)
 -------------------
 - Improve robustness and automation in port_in_dataset
