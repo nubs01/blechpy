@@ -536,6 +536,12 @@ def get_hmm_spike_data(rec_dir, unit_type, channel, time_start=None,
     area: str
         Brain area cells should be in. (Must match area str in dataset.electode_mapping)
         Can also be None, 'None' or '' to return units from all areas
+
+    Returns
+    -------
+    spike_array, dt, time
+    np.array, float, np.array
+
     '''
     if isinstance(unit_type, str):
         units = query_units(rec_dir, unit_type, area=area)
@@ -1070,8 +1076,8 @@ class PoissonHMM(object):
         self._update_cost(spikes, dt)
         return logl
 
-    def get_best_paths(self, spikes, dt):
-        if 'best_sequences' is self.stat_arrays.keys():
+    def get_best_paths(self, spikes, dt, recompute=False):
+        if 'best_sequences' is self.stat_arrays.keys() and recompute==False:
             return self.stat_arrays['best_sequences'], self.max_log_prob
 
         PI = self.initial_distribution
@@ -1336,6 +1342,7 @@ class HmmHandler(object):
             raise ValueError('Input must  be a dict or list of dicts')
 
         # Fill in blanks with defaults
+        params = deepcopy(params)
         for k, v in HMM_PARAMS.items():
             if k not in params.keys():
                 params[k] = v

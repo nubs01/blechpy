@@ -1,3 +1,7 @@
+v2.1.11 (2021-8-26)
+-------------------
+- fix minor bugs with parameter handling with HMM fitting
+
 v2.1.10 (2021-8-25)
 -------------------
 - Improvements and upgrades to HMM Fitting. Specifically, the ability to fit
