@@ -509,7 +509,34 @@ def rebin_spike_array(spikes, dt, time, new_dt):
 @memory.cache
 def get_hmm_spike_data(rec_dir, unit_type, channel, time_start=None,
                        time_end=None, dt=None, trials=None, area=None):
-    # unit type can be 'single', 'pyramidal', or 'interneuron', or a list of unit names
+    '''Grabs spike data and formats it for HMM fitting. Handles rebinning and trimming spike arrays.
+
+    Parameters
+    ----------
+    rec_dir: path to directory with h5 file
+    unit_type: str {'single', 'pyramidal', 'interneuron', 'all'} or list of str
+        designates which units to get data for. Can be a keyword from choices
+        above or a list of unit names
+    channel: digital input you're grabbing the spike trains for
+    time_start: float,
+        start time (relative to trial time) in ms. 0 is digital input off time.
+        If None, does not trim front of spike train, and uses whatever start
+        time was designated during spike array creation
+    time_end: float,
+        end time for spike trains, in ms. If None, does not trim end of spike array
+    dt: float
+        bin size in seconds. if None, returns with same binning as stored in h5
+        (1ms)
+    trials: int or List of int
+        If None, all trials are returned. If int, returns the first N trials.
+        If list, returns those specific trial numbers (for this digital input).
+        So if a trial is the 120th trial of a session, but only the 30th
+        Quinine trial then it is trial 29 in the List (because python indexing
+        starts at 0)
+    area: str
+        Brain area cells should be in. (Must match area str in dataset.electode_mapping)
+        Can also be None, 'None' or '' to return units from all areas
+    '''
     if isinstance(unit_type, str):
         units = query_units(rec_dir, unit_type, area=area)
     elif isinstance(unit_type, list):
@@ -598,6 +625,7 @@ def query_units(dat, unit_type, area=None):
 
 
 def fit_hmm_mp(rec_dir, params, h5_file=None, constraint_func=None):
+    params = params.copy()
     hmm_id = params['hmm_id']
     n_states = params['n_states']
     dt = params['dt']
@@ -609,6 +637,11 @@ def fit_hmm_mp(rec_dir, params, h5_file=None, constraint_func=None):
     channels = params['channel']
     tastes = params['taste']
     n_trials = params['n_trials']
+    if params.get('trial_nums') is not None:
+        custom_trial_nums = params.pop('trial_nums')
+    else:
+        custom_trial_nums = None
+
     if 'area' in params.keys():
         area = params['area']
     else:
@@ -624,11 +657,19 @@ def fit_hmm_mp(rec_dir, params, h5_file=None, constraint_func=None):
     row_id = []
     time = None
     for ch, tst in zip(channels, tastes):
-        tmp_s, _, time = get_hmm_spike_data(rec_dir, unit_type, ch,
-                                             time_start=time_start,
-                                             time_end=time_end, dt=dt,
-                                             trials=n_trials, area=area)
-        tmp_id = np.vstack([(hmm_id, ch, tst, x) for x in range(tmp_s.shape[0])])
+        if custom_trial_nums is None:
+            tmp_s, _, time = get_hmm_spike_data(rec_dir, unit_type, ch,
+                                                 time_start=time_start,
+                                                 time_end=time_end, dt=dt,
+                                                 trials=n_trials, area=area)
+            tmp_id = np.vstack([(hmm_id, ch, tst, x) for x in range(tmp_s.shape[0])])
+        else:
+            tmp_s, _, time = get_hmm_spike_data(rec_dir, unit_type, ch,
+                                                 time_start=time_start,
+                                                 time_end=time_end, dt=dt,
+                                                 trials=custom_trial_nums, area=area)
+            tmp_id = np.vstack([(hmm_id, ch, tst, x) for x in custom_trial_nums])
+
         spikes.append(tmp_s)
         row_id.append(tmp_id)
 
@@ -643,6 +684,11 @@ def fit_hmm_mp(rec_dir, params, h5_file=None, constraint_func=None):
 
     hmm.randomize(spikes, dt, time, row_id=row_id, constraint_func=constraint_func)
     success = hmm.fit(spikes, dt, time, max_iter=max_iter, threshold=threshold)
+    if custom_trial_nums is not None:
+        hmm.stat_arrays['trial_nums'] = np.array(custom_trial_nums)
+    # else:
+    #     hmm.stat_arrays['trial_nums'] = np.array(range(n_trials))
+
     if not success:
         print('%s: Fitting Aborted for hmm %s' % (os.getpid(), hmm_id))
         if h5_file:
@@ -650,7 +696,6 @@ def fit_hmm_mp(rec_dir, params, h5_file=None, constraint_func=None):
         else:
             return hmm_id, hmm
 
-    # hmm = roll_back_hmm_to_best(hmm, spikes, dt, threshold)
     print('%s: Done Fitting for hmm %s' % (os.getpid(), hmm_id))
     written = False
     if h5_file:
@@ -724,6 +769,8 @@ def load_hmm_from_hdf5(h5_file, hmm_id):
     hmm.cost = params.pop('cost')
     hmm.fit_LL = params.pop('log_likelihood')
     hmm.max_log_prob = params.pop('max_log_prob')
+    if stat_arrays.get('trial_nums') is not None:
+        params['trial_nums'] = list(stat_arrays['trial_nums'])
 
     return hmm, stat_arrays['time'], params
 
@@ -772,6 +819,9 @@ def roll_back_hmm_to_best(hmm, spikes, dt, thresh):
     '''Looks at the log likelihood over fitting and determines the best
     iteration to have stopped at by choosing a local maxima during a period
     where the smoothed LL trace has plateaued
+    This was necessary when HMM fitting algorithm was flawed, fixed now, so
+    last iteration is always best iteration (max log likelihood).
+    So this is basically deprecated, not even sure if it will still work.
     '''
     ll_hist = np.array(hmm.stat_arrays['max_log_prob'])
     idx = np.where(np.isfinite(ll_hist))[0]
@@ -1176,10 +1226,13 @@ class HmmHandler(object):
             return
 
         for i in overview.hmm_id:
-            _, _, _, _, p = hmmIO.read_hmm_from_hdf5(h5_file, i)
+            _, _, _, stat_arrays, p = hmmIO.read_hmm_from_hdf5(h5_file, i)
             for k in list(p.keys()):
                 if k not in HMM_PARAMS.keys():
                     _ = p.pop(k)
+
+            if stat_arrays.get('trial_nums') is not None:
+                p['trial_nums'] = list(stat_arrays.get('trial_nums'))
 
             self.add_params(p)
 
@@ -1250,6 +1303,30 @@ class HmmHandler(object):
             hmmplt.plot_hmm_figures(hmm, spikes, dt, time, save_dir=plot_dir)
 
     def add_params(self, params):
+        '''params may include any subset of the parameters defined in
+        blechpy.analysis.poisonHMM.HMM_PARAMS, any undefined parameters will be
+        taken from that dictionary
+
+        TO FIT SPECFIC TRIALS: you may include an optional parameter
+        'trial_nums', the value of which should be a List of integers denoting
+        trial numbers. Trials are numbered per digital input and starting from
+        index 0. So if a trial was the 120th trial in a session, and the 30th
+        Quinine trial that session then in this list it will be trial 29 for
+        the digital input channel correspoding to quinine trials.
+
+        Also if n_trials is specficied with an integer N then the first N
+        trials will be used for each input (or taste). The use of the
+        'trial_nums' parameter overrides this.
+
+        If 'taste' is left as None then all digital inputs with spike arrays (spike_array == True in dat.dig_in_mapping) will be fit separately.
+        Alternatively 'taste' can be specfied as a single taste (str) by name present in dat.dig_in_mapping. Channel will be filled automatically. 
+        Finally, 'taste' can be a list of tastes or 'all' which will attempt to fit your model using trials corresponding to all those tastes together.
+        So to be clear, if you have 3 tastes: 'water', 'NaCl', and 'CA', then
+        params['taste'] == None will fit 3 HMMs, one for each taste.
+        params['taste'] == "water" will fit one HMM using only water trials.
+        And params['taste'] == ['water', 'NaCl'] will fit 1 HMM using trials
+        from both water and NaCl. 
+        '''
         if isinstance(params, list):
             for p in params:
                 self.add_params(p)
@@ -1296,6 +1373,12 @@ class HmmHandler(object):
                 p = params.copy()
 
                 p['taste'] = t
+                if p['n_trials'] is None:
+                    p['n_trials'] = len(trials.query('name == @t'))
+
+                if p.get('trial_nums') is not None:
+                    p['n_trials'] = len(p['trial_nums'])
+
                 # Skip if parameter is already in parameter set
                 if any([hmmIO.compare_hmm_params(p, dp) for dp in data_params]):
                     print('Parameter set already in data_params, '
@@ -1314,42 +1397,45 @@ class HmmHandler(object):
                 p['channel'] = dim.loc[t, 'channel']
                 unit_names = query_units(dat, p['unit_type'], area=p['area'])
                 p['n_cells'] = len(unit_names)
-                if p['n_trials'] is None:
-                    p['n_trials'] = len(trials.query('name == @t'))
 
                 data_params.append(p)
                 for i in range(p['n_repeats']):
                     fit_params.append(p.copy())
 
         else:
+            p = params.copy()
+            if p['n_trials'] is None:
+                p['n_trials'] = sum([len(trials.query('name == @t'))
+                                     for t in tastes])
+
+            if p.get('trial_nums') is not None:
+                p['n_trials'] = len(tastes) * len(p['trial_nums'])
+
             if any([hmmIO.compare_hmm_params(p, dp) for dp in data_params]):
                 print('Parameter set already in data_params, '
                       'to re-fit run with overwrite=True')
                 return
 
             channels = [dim.loc[x,'channel'] for x in tastes]
-            params['taste'] = tastes
-            params['channel'] = channels
+            p['channel'] = channels
 
             # this is basically meaningless right now, since this if clause
             # should only be used with ConstrainedHMM which will fit 5
             # baseline states and 2 states per taste
-            params['n_states'] = params['n_states']*len(tastes)
+            p['n_states'] = p['n_states']*len(tastes)
 
-            if params['hmm_id'] is None:
+            if p['hmm_id'] is None:
                 hid = get_new_id(hmm_ids)
-                params['hmm_id'] = hid
+                p['hmm_id'] = hid
                 hmm_ids.append(hid)
 
-            unit_names = query_units(dat, params['unit_type'],
-                                     area=params['area'])
-            params['n_cells'] = len(unit_names)
-            if params['n_trials'] is None:
-                params['n_trials'] = len(trials.query('name == @t'))
+            unit_names = query_units(dat, p['unit_type'],
+                                     area=p['area'])
+            p['n_cells'] = len(unit_names)
 
-            data_params.append(params)
+            data_params.append(p)
             for i in range(params['n_repeats']):
-                fit_params.append(params.copy())
+                fit_params.append(p.copy())
 
         self._data_params = data_params
         self._fit_params = fit_params

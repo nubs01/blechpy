@@ -1,3 +1,8 @@
+v2.1.10 (2021-8-25)
+-------------------
+- Improvements and upgrades to HMM Fitting. Specifically, the ability to fit
+  HMMs using HmmHandler with specfic trials and/or multiple tastes.
+
 v2.1.9 (2021-8-19)
 -------------------
 - Add bilateral64 default CAR param for Dan

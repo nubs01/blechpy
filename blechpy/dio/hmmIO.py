@@ -254,9 +254,10 @@ def delete_hmm_from_hdf5(h5_file, **kwargs):
 
 def compare_hmm_params(p1, p2):
     compare_keys = ['taste', 'unit_type', 'dt', 'max_iter', 'time_start',
-                    'time_end', 'n_states', 'n_trials', 'hmm_class', 'area', 'notes']
+                    'time_end', 'n_states', 'n_trials', 'hmm_class', 'area',
+                    'notes', 'trial_nums']
     for k in compare_keys:
-        if p1[k] != p2[k]:
+        if p1.get(k) != p2.get(k):
             return False
 
     return True

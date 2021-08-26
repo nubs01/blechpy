@@ -19,11 +19,14 @@ pip install --user --upgrade setuptools wheel twine pdoc3
 This is a separate conda environment where you install blechpy in editable mode so you can test your changes before delpoying. 
 
 First close the (blechpy)[https://github.com/nubs01/blechpy] repo from github.
+I actually rename the directory to blech_pipeline on my PC to avoid confusion with the blechpy folder inside which houses all of the code.
+- Also, fi you're planning to develop and push back to github, close using ssh
 ```bash
+git clone git@gihtub.com:nubs01/blechpy ~/path/where/you_want/blech_pipline
 conda create -n blech-dev python=3.7
 conda activate blech-dev
 conda install ipython
-cd /path/to/blechpy # This is the parent directory that contains the setup.py file
+cd /path/to/blech_pipeline # This is the parent directory that contains the setup.py file
 pip install -e .
 ```
 
