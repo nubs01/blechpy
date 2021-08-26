@@ -6,6 +6,7 @@ import pandas as pd
 import tables
 import time as sys_time
 from numba import njit
+from copy import deepcopy
 from scipy.ndimage.filters import gaussian_filter1d
 from blechpy.utils.particles import HMMInfoParticle
 from blechpy import load_dataset
