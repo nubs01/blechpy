@@ -254,6 +254,8 @@ class dataset(data_object):
 
         self.CAR_electrodes = group_electrodes
         self.electrode_mapping = em.copy()
+        if os.path.isfile(self.h5_file):
+            dio.h5io.write_electrode_map_to_h5(self.h5_file, self.electrode_mapping)
 
     @Logger('Re-labelling CAR group areas')
     def set_electrode_areas(self, areas):
