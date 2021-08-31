@@ -1,3 +1,8 @@
+v2.1.14 (2021-8-31)
+-------------------
+- Add ability to remove unfitted parameter sets from HmmHandler
+- Fix HMM plotting to account for specific trials if HMM was fit only with specific trials
+
 v2.1.13 (2021-8-30)
 -------------------
 - fix minor bugs with parameter handling with HMM fitting

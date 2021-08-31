@@ -1250,6 +1250,30 @@ class HmmHandler(object):
     def get_data_overview(self):
         return hmmIO.get_hmm_overview_from_hdf5(self.h5_file)
 
+    def remove_params(self, index):
+        '''removes unfitted parameter set from HmmHandler and prevents it from
+        being fit on next run
+        
+        Parameters
+        ----------
+        index: int,
+            index of parameter set to remove based on the dataframe output from
+            get_parameter_overview()
+        '''
+        params = self._data_params[index]
+        if params['fitted']:
+            print(f'Parameter set {index} is already fitted. '
+                   'Please use delete_hmm to remove')
+            return
+
+        print(f'Deleting parameter set {index} from handler:')
+        print(pprint.pprint(params))
+        _ = self._data_params.pop(index)
+        
+        self._fit_params = [x for x in self._fit_params
+                            if not hmmIO.compare_hmm_params(params, x)]
+        return
+
     def run(self, parallel=True, overwrite=False, constraint_func=None, n_cpu=None):
         h5_file = self.h5_file
         rec_dir = self.root_dir
@@ -1295,12 +1319,17 @@ class HmmHandler(object):
         rec_dir = self.root_dir
         for i, row in data.iterrows():
             hmm, _, params = load_hmm_from_hdf5(self.h5_file, i)
+            if params.get('trial_nums') is not None:
+                trials = params['trial_nums']
+            else:
+                trials = params['n_trials']
+
             spikes, dt, time = get_hmm_spike_data(rec_dir, params['unit_type'],
                                                   params['channel'],
                                                   time_start=params['time_start'],
                                                   time_end=params['time_end'],
                                                   dt=params['dt'],
-                                                  trials=params['n_trials'],
+                                                  trials=trials,
                                                   area=params['area'])
             plot_dir = os.path.join(self.plot_dir, 'hmm_%s' % i)
             if not os.path.isdir(plot_dir):
