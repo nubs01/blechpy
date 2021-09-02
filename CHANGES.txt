@@ -1,3 +1,7 @@
+v2.1.15 (2021-9-2)
+-------------------
+- Added function to fix unit numbering in h5 files
+
 v2.1.14 (2021-8-31)
 -------------------
 - Add ability to remove unfitted parameter sets from HmmHandler

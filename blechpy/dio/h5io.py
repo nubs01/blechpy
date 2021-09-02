@@ -1372,3 +1372,49 @@ def delete_unit(file_dir, unit_num, h5_file=None):
     # compress_and_repack(h5_file)
     print('Finished deleting unit\n----------')
     return True
+
+
+def fix_unit_numbering(file_dir):
+    '''checks all units in an h5 file and makes sure all numbers are
+    continuous. Corrects if not.
+
+    Parameters
+    ----------
+    file_dir : str, path to recording dir that contains h5 file
+    '''
+    print('\n----------\nCorrecting unit names in dataset\n----------\n')
+
+    unit_table = get_unit_table(file_dir)
+    if all(unit_table.unit_num == unit_table.index):
+        print('No Unit Names Changed. All good!')
+        return True
+
+    change_map = {x:y for x,y in zip(unit_table.unit_num, unit_table.index)}
+    h5_file = get_h5_filename(file_dir)
+
+    metrics_dir = os.path.join(file_dir, 'sorted_unit_metrics')
+    plot_dir = os.path.join(file_dir, 'unit_waveforms_plots')
+
+    with tables.open_file(h5_file, 'a') as hf5:
+        for x,y in change_map.items():
+            u1 = 'unit%03d' % x
+            u2 = 'unit%03d' % y
+            print(f'Renaming {u1} to {u2}')
+            hf5.rename_node('/sorted_units', newname=u2, name=u1)
+            os.rename(os.path.join(metrics_dir, u1),
+                      os.path.join(metrics_dir, u2))
+            p1 = os.path.join(plot_dir, f'Unit{x}.png')
+            p2 = os.path.join(plot_dir, f'Unit{y}.png')
+            q1 = os.path.join(plot_dir, f'Unit{x}_mean_sd.png')
+            q2 = os.path.join(plot_dir, f'Unit{y}_mean_sd.png')
+            if os.path.isfile(p1):
+                os.rename(p1,p2)
+            if os.path.isfile(q1):
+                os.rename(q1,q2)
+
+        hf5.flush()
+
+    print('Finished correcting unit names\n----------')
+    return True
+
+
