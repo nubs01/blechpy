@@ -1399,10 +1399,16 @@ def fix_unit_numbering(file_dir):
         for x,y in change_map.items():
             u1 = 'unit%03d' % x
             u2 = 'unit%03d' % y
+            if x == y:
+                continue
+
             print(f'Renaming {u1} to {u2}')
             hf5.rename_node('/sorted_units', newname=u2, name=u1)
-            os.rename(os.path.join(metrics_dir, u1),
-                      os.path.join(metrics_dir, u2))
+            m1 = os.path.join(metrics_dir, u1)
+            m2 = os.path.join(metrics_dir, u2)
+            if os.path.isidir(m1):
+                os.rename(m1,m2)
+
             p1 = os.path.join(plot_dir, f'Unit{x}.png')
             p2 = os.path.join(plot_dir, f'Unit{y}.png')
             q1 = os.path.join(plot_dir, f'Unit{x}_mean_sd.png')
