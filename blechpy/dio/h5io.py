@@ -1406,7 +1406,7 @@ def fix_unit_numbering(file_dir):
             hf5.rename_node('/sorted_units', newname=u2, name=u1)
             m1 = os.path.join(metrics_dir, u1)
             m2 = os.path.join(metrics_dir, u2)
-            if os.path.isidir(m1):
+            if os.path.isdir(m1):
                 os.rename(m1,m2)
 
             p1 = os.path.join(plot_dir, f'Unit{x}.png')
