@@ -95,7 +95,7 @@ def load_data(data_type, file_dir=None, shell=False):
         file_dir = userIO.get_filedirs('Select %s directory or .p file' % data_type,
                                        shell=shell)
 
-    if os.path.isfile(file_dir) and f'{data_type}.p' is in file_dir:
+    if os.path.isfile(file_dir) and f'{data_type}.p' in file_dir:
         data_file = [file_dir]
         file_dir = os.path.dirname(file_dir)
     elif not os.path.isdir(file_dir):
