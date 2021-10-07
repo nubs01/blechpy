@@ -1,3 +1,7 @@
+v2.1.21 (2021-10-6)
+-------------------
+- increase notes size for HMM info particle
+
 v2.1.20 (2021-10-6)
 -------------------
 - Fix delete_hmms to handle edge case of no matches found
