@@ -3,6 +3,7 @@ import tables
 import numpy as np
 import pandas as pd
 from blechpy.utils.particles import HMMInfoParticle
+from blechpy.utils import userIO
 from copy import deepcopy
 import glob
 from blechpy import load_dataset
@@ -231,12 +232,19 @@ def delete_hmm_from_hdf5(h5_file, **kwargs):
 
             if v in tmp:
                 idx = np.where(tmp == v)[0]
-                ids.append(idx)
+                ids.extend(idx)
 
         for x in ids:
             rmv = [y for y in rmv if y in x]
 
         rmv.sort()
+        to_delete = table[rmv]['hmm_id']
+        print('Found %i HMMs meeting deletion criteria' % len(rmv))
+        print('\n'.join(['hmm %i' % i for i in to_delete]))
+        q = userIO.ask_user('Do you wish to proceed?', shell=True)
+        if q != 1:
+            return
+
         for x in reversed(rmv):
             hmm_id = table[x]['hmm_id']
             h_str = 'hmm_%s' % hmm_id

@@ -1,3 +1,8 @@
+v2.1.18 (2021-10-6)
+-------------------
+- allow datastructure loading with path to .p file
+- attempt to debug delete_hmms function
+
 v2.1.17 (2021-9-6)
 -------------------
 - debug last update

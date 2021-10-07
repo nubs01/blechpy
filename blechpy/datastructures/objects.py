@@ -78,6 +78,7 @@ def load_data(data_type, file_dir=None, shell=False):
         dataset, experiment or object
     file_dir : str (optional)
         path to file dir that the .p file is saved in
+        or path to .p file
 
     Returns
     -------
@@ -91,13 +92,16 @@ def load_data(data_type, file_dir=None, shell=False):
         shell = True
 
     if file_dir is None:
-        file_dir = userIO.get_filedirs('Select %s directory' % data_type,
+        file_dir = userIO.get_filedirs('Select %s directory or .p file' % data_type,
                                        shell=shell)
 
-    if not os.path.isdir(file_dir):
+    if os.path.isfile(file_dir) and f'{data_type}.p' is in file_dir:
+        data_file = [file_dir]
+        file_dir = os.path.dirname(file_dir)
+    elif not os.path.isdir(file_dir):
         raise NotADirectoryError('%s not found.' % file_dir)
-
-    data_file = [x for x in os.listdir(file_dir) if x.endswith('%s.p' % data_type)]
+    else:
+        data_file = [x for x in os.listdir(file_dir) if x.endswith('%s.p' % data_type)]
 
     if len(data_file) == 0:
         return None
@@ -118,6 +122,7 @@ def load_data(data_type, file_dir=None, shell=False):
 
     return out
 
+
 def load_experiment(file_dir=None, shell=False):
     '''Loads experiment.p file from file_dir
 
@@ -131,6 +136,7 @@ def load_experiment(file_dir=None, shell=False):
     '''
     return load_data('experiment', file_dir, shell=shell)
 
+
 def load_dataset(file_dir=None, shell=False):
     '''Loads dataset.p file from file_dir
 
@@ -143,6 +149,7 @@ def load_dataset(file_dir=None, shell=False):
     blechpy.dataset or None if no file found
     '''
     return load_data('dataset', file_dir, shell=shell)
+
 
 def load_project(file_dir=None, shell=False):
     '''Loads project.p file from file_dir
