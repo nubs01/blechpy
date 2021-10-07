@@ -232,7 +232,11 @@ def delete_hmm_from_hdf5(h5_file, **kwargs):
 
             if v in tmp:
                 idx = np.where(tmp == v)[0]
-                ids.extend(idx)
+                ids.append(idx)
+
+        if len(ids) == 0:
+            print('No matching HMMs found to delete')
+            return
 
         for x in ids:
             rmv = [y for y in rmv if y in x]
