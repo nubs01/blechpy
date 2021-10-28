@@ -1208,6 +1208,69 @@ def port_in_dataset(rec_dir=None, shell=False):
 
     dat.save()
 
+    if status['spike_clustering'] and not status['sort_units']:
+        # Move files into correct structure to support spike sorting
+        for i, row in dat.electrode_mapping.iterrows():
+            el = row['Electrode']
+            src = [os.path.join(dat.root_dir, 'clustering_results', f'electrode{el}'),
+                   os.path.join(dat.root_dir, 'Plots', f'{el}', 'Plots'),
+                   os.path.join(dat.root_dir, 'Plots', f'{el}', 'Plots', 'cutoff_time.png'),
+                   os.path.join(dat.root_dir, 'Plots', f'{el}', 'Plots', 'pca_variance.png'),
+                   os.path.join(dat.root_dir, 'spike_waveforms', f'electrode{el}'),
+                   os.path.join(dat.root_dir, 'spike_times', f'electrode{el}', 'spike_times.npy')]
+            clust_dir = os.path.join(dat.root_dir, 'BlechClust', f'electrode_{el}')
+            detect_dir = os.path.join(dat.root_dir, 'spike_detection', f'electrode_{el}')
+            dest = [os.path.join(clust_dir, 'clustering_results'),
+                    os.path.join(clust_dir, 'plots'),
+                    os.path.join(detect_dir, 'plots'),
+                    os.path.join(detect_dir, 'plots'),
+                    os.path.join(detect_dir, 'data'),
+                    os.path.join(detect_dir, 'data')]
+            for s,d in zip(src, dest):
+                if not os.path.exists(s):
+                    continue
+
+                if not os.path.isdir(os.path.dirname(d)):
+                    os.makedirs(os.path.dirname(d))
+
+                shutil.copytree(s,d)
+
+            # Make params files
+            params = dat.clustering_params.copy()
+
+            sd_fn = os.path.join(dat.root_dir, 'analysis_params', 'spike_detection_params.json')
+            if not os.path.isfile(sd_fn):
+                sd_params = {}
+                sd_params['voltage_cutoff'] = params['data_params']['V_cutoff for disconnected headstage']
+                sd_params['max_breach_rate'] = params['data_params']['Max rate of cutoff breach per second']
+                sd_params['max_secs_above_cutoff'] = params['data_params']['Max allowed seconds with a breach']
+                sd_params['max_mean_breach_rate_persec'] = params['data_params']['Max allowed breaches per second']
+                band_lower = params['bandpass_params']['Lower freq cutoff']
+                band_upper = params['bandpass_params']['Upper freq cutoff']
+                sd_params['bandpass'] = [band_lower, band_upper]
+                snapshot_pre = params['spike_snapshot']['Time before spike (ms)']
+                snapshot_post = params['spike_snapshot']['Time after spike (ms)']
+                sd_params['spike_snapshot'] = [snapshot_pre, snapshot_post]
+                sd_params['sampling_rate'] = params['sampling_rate']
+                blechpy.utils.write_tools.write_dict_to_json(sd_params, sd_fn)
+
+            c_fn = os.path.join(clust_dir, 'BlechClust_params.json')
+            if not os.path.isfile(c_fn):
+                c_params = params.copy()
+                c_params['max_clusters'] = params['clustering_params']['Max Number of Clusters']
+                c_params['max_iterations'] = params['clustering_params']['Max Number of Iterations']
+                c_params['threshold'] = params['clustering_params']['Convergence Criterion']
+                c_params['num_restarts'] = params['clustering_params']['GMM random restarts']
+                c_params['wf_amplitude_sd_cutoff'] = params['data_params']['Intra-cluster waveform amp SD cutoff']
+                blechpy.utils.write_tools.write_dict_to_json(c_params, c_fn)
+
+            # To make: clust_dir/clustering_results/ clustering_results.json, rec_key.json, spike_id.npy
+            # To make: detect_dir/data/cutoff_time.txt and detection_threshold.txt
+            sd = clust.SpikeDetection(dat.root_dir, el, overwrite=False)
+            sd.run() # should only filter referenced electrode trace and get cutoff and threshold
+            bc = clust.BlechClust(dat.root_dir, el)
+
+
     # Add array_time to spike_arrays/dig_in_#
     if 'spike_trains' in node_list:
         digs = set(x.split('.')[1] for x in node_list if 'spike_trains.' in x)

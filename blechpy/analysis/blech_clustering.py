@@ -20,7 +20,12 @@ from blechpy.plotting import data_plot as dplt
 import datetime as dt
 
 
-def detect_spikes(filt_el, spike_snapshot = [0.5, 1.0], fs = 30000.0):
+def get_detection_threshold(filt_el):
+    m = np.mean(filt_el)
+    th = 5.0*np.median(np.abs(filt_el)/0.6745)
+    return m-th
+
+def detect_spikes(filt_el, spike_snapshot = [0.5, 1.0], fs = 30000.0, thresh = None):
     '''Detects spikes in the filtered electrode trace and return the waveforms
     and spike_times
 
@@ -45,9 +50,10 @@ def detect_spikes(filt_el, spike_snapshot = [0.5, 1.0], fs = 30000.0):
     # get indices of spike snapshot, expand by .1 ms in each direction
     snapshot = np.arange(-(spike_snapshot[0]+0.1)*fs/1000,
                          1+(spike_snapshot[1]+0.1)*fs/1000).astype('int64')
-    m = np.mean(filt_el)
-    th = 5.0*np.median(np.abs(filt_el)/0.6745)
-    pos = np.where(filt_el <= m-th)[0]
+    if thresh is None:
+        thresh = get_detection_threshold(filt_el)
+
+    pos = np.where(filt_el <= thresh)[0]
     consecutive = mt.group_consecutives(pos)
 
     waves = []
@@ -63,7 +69,7 @@ def detect_spikes(filt_el, spike_snapshot = [0.5, 1.0], fs = 30000.0):
         return None, None
 
     waves_dj, times_dj = clustering.dejitter(np.array(waves), np.array(times), spike_snapshot, fs)
-    return waves_dj, times_dj, m-th
+    return waves_dj, times_dj, thresh
 
 
 def implement_pca(scaled_slices):
@@ -458,6 +464,14 @@ class SpikeDetection(object):
 
         filt_el = filt_el[:int(self.recording_cutoff*fs)]
 
+        if not stats['detection_threshold']:
+            threshold = get_detection_threshold(filt_el)
+            self.detection_threshold = threshold
+            with open(self._files['detection_threshold'], 'w') as f:
+                f.write(str(threshold))
+
+            status['detection_threshold'] = True
+
         if status['spike_waveforms'] and status['spike_times']:
             waves = np.load(self._files['spike_waveforms'])
             times = np.load(self._files['spike_times'])
@@ -465,8 +479,7 @@ class SpikeDetection(object):
             # Detect spikes and get dejittered times and waveforms
             # detect_spikes returns waveforms upsampled by 10x and times in units
             # of samples
-            waves, times, threshold = detect_spikes(filt_el, params['spike_snapshot'], fs)
-            self.detection_threshold = threshold
+            waves, times, threshold = detect_spikes(filt_el, params['spike_snapshot'], fs, thresh=self.detection_threshold)
             if waves is None:
                 print('No waveforms detected on electrode %i' % electrode)
                 return electrode, 0, self.recording_cutoff
@@ -474,10 +487,6 @@ class SpikeDetection(object):
             # Save waveforms and times
             np.save(self._files['spike_waveforms'], waves)
             np.save(self._files['spike_times'], times)
-            with open(self._files['detection_threshold'], 'w') as f:
-                f.write(str(threshold))
-
-            status['detection_threshold'] = True
             status['spike_waveforms'] = True
             status['spike_times'] = True
 

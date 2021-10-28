@@ -1,3 +1,7 @@
+v2.1.22 (2021-10-28)
+-------------------
+- update port_in_dataset to deal with clustered but not sorted data
+
 v2.1.21 (2021-10-6)
 -------------------
 - increase notes size for HMM info particle
