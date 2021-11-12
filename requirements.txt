@@ -1,7 +1,7 @@
 easygui>=0.98.1
 tables>=3.5.1
 numpy<1.20.0,>=1.16.2
-datashader>=0.6.9
+datashader>=0.6.9,<=0.10.0
 scipy<1.4,>=1.2.1
 scikit-learn>=0.20.3
 tqdm>=4.36.1
@@ -22,3 +22,5 @@ joblib>=0.14.1
 prompt-toolkit>=2.0.9
 pywavelets>=1.1.1
 imageio>=2.5.0
+PyYAML==5.3
+
