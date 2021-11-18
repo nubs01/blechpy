@@ -22,5 +22,5 @@ joblib>=0.14.1
 prompt-toolkit>=2.0.9
 pywavelets>=1.1.1
 imageio>=2.5.0
-PyYAML==5.3
+PyYAML==5.4
 
