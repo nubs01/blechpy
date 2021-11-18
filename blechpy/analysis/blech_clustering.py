@@ -464,7 +464,7 @@ class SpikeDetection(object):
 
         filt_el = filt_el[:int(self.recording_cutoff*fs)]
 
-        if not stats['detection_threshold']:
+        if not status['detection_threshold']:
             threshold = get_detection_threshold(filt_el)
             self.detection_threshold = threshold
             with open(self._files['detection_threshold'], 'w') as f:
