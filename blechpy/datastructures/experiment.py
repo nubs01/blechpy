@@ -12,6 +12,7 @@ from blechpy.analysis import held_unit_analysis as hua, blech_clustering as bclu
 from blechpy.plotting import data_plot as dplt
 from blechpy.utils.decorators import Logger
 
+
 class experiment(data_object):
     def __init__(self, exp_dir=None, exp_name=None, shell=False, order_dict=None):
         '''Setup for analysis across recording sessions
@@ -28,7 +29,7 @@ class experiment(data_object):
         '''
         if 'SSH_CONNECTION' in os.environ:
             shell = True
-        #super-inherits objects.data_object class
+
         super().__init__('experiment', root_dir=exp_dir, data_name=exp_name, shell=shell)
 
         fd = [os.path.join(exp_dir, x) for x in os.listdir(exp_dir)]
@@ -123,8 +124,7 @@ class experiment(data_object):
             file_dirs = [os.path.join(top_dirs.get(x), x) for x in file_dirs]
         else:
             file_dirs = sorted(self.recording_dirs, key=order_dict.get)
-            
-        self.order_dict = order_dict
+
         self.recording_dirs = file_dirs
 
     def _setup_taste_map(self):
@@ -238,7 +238,6 @@ class experiment(data_object):
         self.save()
 
     @Logger('Detecting held units')
-
     def detect_held_units(self, percent_criterion=95, raw_waves=False, shell=False):
         '''Determine which units are held across recording sessions
         Grabs single units from each recording and compares consecutive
