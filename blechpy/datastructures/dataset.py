@@ -877,9 +877,13 @@ class dataset(data_object):
         if multi_process:
             if n_cores is None or n_cores > cpu_count():
                 n_cores = cpu_count() - 1
+                
+            # results = Parallel(n_jobs=n_cores, verbose = 10)(delayed(run_joblib_process)(co)
+            #                                    for co in clust_objs)
+            # results = zip(*results)
 
             results = Parallel(n_jobs=n_cores, verbose=10,
-                               backend='multiprocessing')(delayed(run_joblib_process)(co)
+                                backend='multiprocessing')(delayed(run_joblib_process)(co)
                                                           for co in clust_objs)
         else:
             results = []
