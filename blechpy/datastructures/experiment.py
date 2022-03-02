@@ -124,7 +124,8 @@ class experiment(data_object):
             file_dirs = [os.path.join(top_dirs.get(x), x) for x in file_dirs]
         else:
             file_dirs = sorted(self.recording_dirs, key=order_dict.get)
-
+            
+        self.order_dict = order_dict
         self.recording_dirs = file_dirs
 
     def _setup_taste_map(self):
@@ -148,7 +149,7 @@ class experiment(data_object):
                 tmp = din['channel'][din['name'] == t]
                 if not tmp.empty:
                     taste_map[t][rl] = tmp.values[0]
-
+                    
         self.taste_map = taste_map
 
     def add_recording(self, new_dir=None, shell=None):
