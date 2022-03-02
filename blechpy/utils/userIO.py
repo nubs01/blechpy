@@ -517,7 +517,6 @@ def get_filedirs(prompt='', root=None, multi=False, shell=False):
         print('----------')
 
     while go:
-        print('test')
         if shell:
             if root is None:
                 root = ''
@@ -529,7 +528,6 @@ def get_filedirs(prompt='', root=None, multi=False, shell=False):
                 break
 
         else:
-            print('yes')
             tmp = eg.diropenbox(prompt + ' (cancel to stop collection)', default=root)
 
         if tmp == '' or tmp is None:
