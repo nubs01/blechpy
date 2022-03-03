@@ -51,6 +51,8 @@ class project(data_object):
         else:
             # TODO: Load defaults and allow user edit
             pass
+        
+        self.make_rec_groups()
 
         self.save()
 
@@ -121,3 +123,27 @@ class project(data_object):
 
         self._exp_info = df.drop(index=idx)
         self.save()
+        
+    def make_rec_groups(self): 
+        rec_groups = pd.DataFrame(columns=['exp_name', 'rec_name', 'exp_group', 'session', 'rec_dir'])
+        for i, row in self._exp_info.iterrows():
+            exp_name = row['exp_name']
+            exp_group = row['exp_group']
+            exp_dir = row['exp_dir']
+            exp = load_experiment(exp_dir)
+            for rec_name, rec_dir in exp.rec_labels.items():
+                try: 
+                    session = exp.order_dict.get(rec_name)
+                    group_row = {'exp_name': exp_name,
+                                 'rec_name': rec_name, 
+                                 'exp_group': exp_group,
+                                 'session': session,
+                                 'rec_dir': rec_dir}
+                    rec_groups = rec_groups.append(group_row, ignore_index=True)
+                except:
+                    print('error: session number not in experiment ', rec_name)
+                
+        self.rec_groups = rec_groups
+        self.save()
+        
+        
