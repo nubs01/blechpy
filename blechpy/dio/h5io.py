@@ -852,7 +852,7 @@ def get_raw_digital_signal(rec_dir, dig_type, channel, h5_file=None):
     file_type = rawIO.get_recording_filetype(rec_dir)
     if file_type == 'one file per signal type':
         println('Reading all digital%s data...' % dig_type)
-        all_data = rawIO.read_digital_dat(rec_dir, channels, dig_type)
+        all_data = rawIO.read_digital_dat(rec_dir, channel, dig_type)
         return all_data[channel]
     elif file_type == 'one file per channel':
         file_name = os.path.join(rec_dir, 'board-DIN-%02d.dat' % channel)
@@ -1087,7 +1087,7 @@ def get_unit_as_cluster(file_dirs, unit, rec_key=None):
     offsets = dict.fromkeys(rec_key.keys())
     offset = 0
     for k in sorted(rec_key.keys()):
-        v = rec_keys[k]
+        v = rec_key[k]
         tmp_waves, descriptor, tmp_fs = get_unit_waveforms(v, unit)
         tmp_times, _, _ = get_unit_spike_times(v, unit)
         waves.append(tmp_waves)

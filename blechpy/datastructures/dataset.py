@@ -786,11 +786,11 @@ class dataset(data_object):
             if n_cores is None or n_cores > cpu_count():
                 n_cores = cpu_count() - 1
 
-            results = Parallel(n_jobs=n_cores, verbose=10,
-                               backend='multiprocessing')(delayed(run_joblib_process)
-                                                          (sd) for sd in spike_detectors)
-            # results = Parallel(n_jobs=n_cores)(delayed(run_joblib_process)(sd)
-            #                                    for sd in spike_detectors)
+            # results = Parallel(n_jobs=n_cores, verbose=10,
+            #                    backend='multiprocessing')(delayed(run_joblib_process)
+            #                                               (sd) for sd in spike_detectors)
+            results = Parallel(n_jobs=n_cores)(delayed(run_joblib_process)(sd)
+                                                for sd in spike_detectors)
         else:
             results = [(None, None, None)] * (max(electrodes)+1)
             spike_detectors = [clust.SpikeDetection(data_dir, x,
@@ -878,9 +878,10 @@ class dataset(data_object):
             if n_cores is None or n_cores > cpu_count():
                 n_cores = cpu_count() - 1
 
-            results = Parallel(n_jobs=n_cores, verbose=10,
-                               backend='multiprocessing')(delayed(run_joblib_process)(co)
-                                                          for co in clust_objs)
+            results = Parallel(n_jobs=n_cores, verbose=10)(delayed(run_joblib_process)
+                                                          (co) for co in clust_objs)
+          
+                               
         else:
             results = []
             for x in clust_objs:
