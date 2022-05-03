@@ -35,6 +35,7 @@ class project(data_object):
         self._exp_info = pd.DataFrame({'exp_name': exp_names,
                                        'exp_group': exp_groups,
                                        'exp_dir': exp_dirs})
+        self.rec_info= self.get_rec_info(self)
 
         # Make list of all major files managed by this object
         self._files = {'params':
@@ -52,7 +53,6 @@ class project(data_object):
             # TODO: Load defaults and allow user edit
             pass
         
-        self.make_rec_groups()
 
         self.save()
 
@@ -124,8 +124,18 @@ class project(data_object):
         self._exp_info = df.drop(index=idx)
         self.save()
         
-    def make_rec_groups(self): 
-        rec_groups = pd.DataFrame(columns=['exp_name', 'rec_name', 'exp_group', 'session', 'rec_dir'])
+    def make_rec_info_table(self):
+        self.rec_info = self.get_rec_info()
+        self.save()
+        
+    def get_rec_info(self): 
+        rec_info = pd.DataFrame(columns=['exp_name',
+                                         'rec_name',
+                                         'exp_group',
+                                         'rec_num',
+                                         'rec_group',
+                                         'exp_dir',
+                                         'rec_dir'])
         for i, row in self._exp_info.iterrows():
             exp_name = row['exp_name']
             exp_group = row['exp_group']
@@ -133,17 +143,18 @@ class project(data_object):
             exp = load_experiment(exp_dir)
             for rec_name, rec_dir in exp.rec_labels.items():
                 try: 
-                    session = exp.order_dict.get(rec_name)
-                    group_row = {'exp_name': exp_name,
+                    rec_num = exp.order_dict.get(rec_name)
+                    rec_group = str(exp_group)+'_'+str(rec_num)
+                    info_row = {'exp_name': exp_name,
                                  'rec_name': rec_name, 
                                  'exp_group': exp_group,
-                                 'session': session,
+                                 'rec_num': rec_num,
+                                 'rec_group': rec_group,
+                                 'exp_dir': exp_dir,
                                  'rec_dir': rec_dir}
-                    rec_groups = rec_groups.append(group_row, ignore_index=True)
+                    rec_info = rec_info.append(info_row, ignore_index=True)
                 except:
                     print('error: session number not in experiment ', rec_name)
                 
-        self.rec_groups = rec_groups
-        self.save()
-        
+        return rec_info
         
