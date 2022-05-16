@@ -1173,7 +1173,7 @@ def port_in_dataset(rec_dir=None, shell=False):
     if os.path.isfile(info_rhd):
         dat.initParams(shell=shell)
     else:
-        raise FileNotFoundError(f'{info.rhd} is required for proper dataset creation') 
+        raise FileNotFoundError(f'{info_rhd} is required for proper dataset creation') 
 
     status = dat.process_status
 
@@ -1253,7 +1253,7 @@ def port_in_dataset(rec_dir=None, shell=False):
                 snapshot_post = params['spike_snapshot']['Time after spike (ms)']
                 sd_params['spike_snapshot'] = [snapshot_pre, snapshot_post]
                 sd_params['sampling_rate'] = params['sampling_rate']
-                blechpy.utils.write_tools.write_dict_to_json(sd_params, sd_fn)
+                wt.write_dict_to_json(sd_params, sd_fn)
 
             c_fn = os.path.join(clust_dir, 'BlechClust_params.json')
             if not os.path.isfile(c_fn):
@@ -1263,7 +1263,7 @@ def port_in_dataset(rec_dir=None, shell=False):
                 c_params['threshold'] = params['clustering_params']['Convergence Criterion']
                 c_params['num_restarts'] = params['clustering_params']['GMM random restarts']
                 c_params['wf_amplitude_sd_cutoff'] = params['data_params']['Intra-cluster waveform amp SD cutoff']
-                blechpy.utils.write_tools.write_dict_to_json(c_params, c_fn)
+                wt.write_dict_to_json(c_params, c_fn)
 
             # To make: clust_dir/clustering_results/ clustering_results.json, rec_key.json, spike_id.npy
             # To make: detect_dir/data/cutoff_time.txt and detection_threshold.txt
@@ -1316,7 +1316,7 @@ def validate_data_integrity(rec_dir, verbose=False):
 
         tests['recording_info'] = 'PASS'
     except FileNotFoundError:
-        test['recording_info'] = 'MISSING'
+        tests['recording_info'] = 'MISSING'
     except Exception as e:
         info_size = os.path.getsize(os.path.join(rec_dir, 'info.rhd'))
         if info_size == 0:
@@ -1359,9 +1359,9 @@ def validate_data_integrity(rec_dir, verbose=False):
 
     missing_files = []
     file_list = os.listdir(rec_dir)
-    for x in file_expected:
+    for x in files_expected:
         if x not in file_list:
-            missing_file.append(x)
+            missing_files.append(x)
 
     if len(missing_files) == 0:
         tests['files'] = 'PASS'
@@ -1402,7 +1402,7 @@ def validate_data_integrity(rec_dir, verbose=False):
         chan_info = pd.DataFrame(columns=['port', 'channel', 'n_samples'])
         lengths = []
         min_samples = numbers['n_samples']
-        max_samples = number['n_samples']
+        max_samples = numbers['n_samples']
         for x in info['amplifier_channels']:
             fn = os.path.join(rec_dir, 'amp-%s.dat' % x['native_channel_name'])
             if os.path.basename(fn) in missing_files:
@@ -1420,7 +1420,7 @@ def validate_data_integrity(rec_dir, verbose=False):
             tests['data_traces'] = 'PASS'
 
         else:
-            test['data_traces'] = 'CUTOFF'
+            tests['data_traces'] = 'CUTOFF'
 
         numbers['max_recording_length (s)'] = max_samples/fs
         numbers['min_recording_length (s)'] = min_samples/fs
