@@ -87,7 +87,7 @@ def get_channels_on_port(file_dir,port):
     ports,ch = parse_amplifier_files(file_dir)
     try:
         idx = ports.index(port)
-    except ValueErrori as error:
+    except ValueError as error:
         raise ValueError('Files for port %s not found in %s' % (port,file_dir)) from error
     return ch[idx]
 
