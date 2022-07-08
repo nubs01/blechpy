@@ -80,22 +80,24 @@ class dataset(data_object):
         return new_root
 
     @Logger('Initializing Parameters')
-    def initParams(self, data_quality='clean', emg_port=None,
-                   emg_channels=None, car_keyword=None,
-                   car_group_areas=None,
-                   shell=False, dig_in_names=None,
-                   dig_out_names=None, accept_params=False):
+    def initParams(self, data_quality='clean', 
+                   emg_port=None, emg_channels=None, 
+                   car_keyword=None, car_group_areas=None,
+                   shell=False, dig_in_names=None, dig_out_names=None,
+                   accept_params=False):
         '''
         Initalizes basic default analysis parameters and allows customization
         of parameters
 
         Parameters (all optional)
         -------------------------
-        data_quality : {'clean', 'noisy'}
+        data_quality : {'clean', 'noisy', 'hp'}
             keyword defining which default set of parameters to use to detect
             headstage disconnection during clustering
             default is 'clean'. Best practice is to run blech_clust as 'clean'
-            and re-run as 'noisy' if too many early cutoffs occurr
+            and re-run as 'noisy' if too many early cutoffs occurr. 
+            Alternately run as 'hp' (high performance)
+            default parameter sets found in dio.defualts.clustering_params.json
         emg_port : str
             Port ('A', 'B', 'C') of EMG, if there was an EMG. None (default)
             will query user. False indicates no EMG port and not to query user
@@ -104,8 +106,8 @@ class dataset(data_object):
             default is None
         car_keyword : str
             Specifes default common average reference groups
-            defaults are found in CAR_defaults.json
-            Currently 'bilateral32' is only keyword available
+            defaults are found in dio.defaults.CAR_params.json
+            'bilateral32' and 'bilateral64' are available keywords 
             If left as None (default) user will be queries to select common
             average reference groups
         shell : bool
@@ -127,13 +129,14 @@ class dataset(data_object):
         '''
         # Get parameters from info.rhd
         file_dir = self.root_dir
-        rec_info = dio.rawIO.read_rec_info(file_dir)
+        rec_info = dio.rawIO.read_rec_info(file_dir, shell=shell)
         ports = rec_info.pop('ports')
         channels = rec_info.pop('channels')
         sampling_rate = rec_info['amplifier_sampling_rate']
         self.rec_info = rec_info
         self.sampling_rate = sampling_rate
 
+        # Get default parameters from files
         # Get default parameters from files
         clustering_params = dio.params.load_params('clustering_params', file_dir,
                                                    default_keyword=data_quality)
@@ -620,6 +623,8 @@ class dataset(data_object):
         self.process_status['extract_data'] = True
         self.save()
         print('\nData Extraction Complete\n--------------------')
+        
+        
 
     @Logger('Creating Trial List')
     def create_trial_list(self):
@@ -1040,6 +1045,25 @@ class dataset(data_object):
 
         self.process_status['make_psth_arrays'] = True
         self.save()
+        
+    def make_raster_plots(self):
+        '''make raster plots with electrode noise for each unit  
+        '''
+        
+        unit_table = self.get_unit_table()
+        save_dir = os.path.join(self.root_dir, 'unit_raster_plots')
+        if os.path.isdir(save_dir):
+            shutil.rmtree(save_dir)
+            
+        os.mkdir(save_dir)
+        for i, row in unit_table.iterrows():
+            spike_times, _, _ = dio.h5io.get_unit_spike_times(self.root_dir, row['unit_name'], h5_file = self.h5_file) 
+            waveforms, _, _ = dio.h5io.get_unit_waveforms(self.root_dir, row['unit_name'], h5_file = self.h5_file)
+            save_file = os.path.join(save_dir, row['unit_name']+'_raster')
+            datplt.plot_spike_raster([spike_times], [waveforms], save_file = save_file)
+            
+        self.save()
+        
 
     @Logger('Calculating Palatability/Identity Metrics')
     def palatability_calculate(self, shell=False):
@@ -1133,6 +1157,7 @@ class dataset(data_object):
         self.make_unit_arrays()
         self.units_similarity(shell=True)
         self.make_psth_arrays()
+        self.make_raster_plots()
 
 
 def run_joblib_process(process):
@@ -1290,6 +1315,7 @@ def port_in_dataset(rec_dir=None, shell=False):
         dat.save()
 
     return dat
+
 
 
 def validate_data_integrity(rec_dir, verbose=False):

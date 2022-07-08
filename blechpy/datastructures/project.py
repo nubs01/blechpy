@@ -1,6 +1,6 @@
 import os
 import pandas as pd
-from blechpy.datastructures.objects import data_object, load_experiment
+from blechpy.datastructures.objects import data_object, load_experiment, load_dataset
 from blechpy.utils.decorators import Logger
 from blechpy.utils import userIO
 
@@ -157,4 +157,10 @@ class project(data_object):
                     print('error: session number not in experiment ', rec_name)
                 
         return rec_info
+        
+    def make_raster_plots(self):
+        rec_info = self.rec_info
+        for i, row in rec_info.iterrows():
+            dat = load_dataset(row['rec_dir'])
+            dat.make_raster_plots()
         

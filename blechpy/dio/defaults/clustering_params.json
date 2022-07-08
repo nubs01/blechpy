@@ -51,5 +51,31 @@
    "Time before spike (ms)": 0.5,
    "Time after spike (ms)": 1
   }
+ },
+ "hp": {
+  "file_dir": null,
+  "data_quality": "clean",
+  "sampling_rate": null,
+  "clustering_params": {
+   "Max Number of Clusters": 12,
+   "Max Number of Iterations": 5000,
+   "Convergence Criterion": 0.00001,
+   "GMM random restarts": 20
+  },
+  "data_params": {
+   "V_cutoff for disconnected headstage": 1500,
+   "Max rate of cutoff breach per second": 0.2,
+   "Max allowed seconds with a breach": 10,
+   "Max allowed breaches per second": 20,
+   "Intra-cluster waveform amp SD cutoff": 3
+  },
+  "bandpass_params": {
+   "Lower freq cutoff": 300,
+   "Upper freq cutoff": 3000
+  },
+  "spike_snapshot": {
+   "Time before spike (ms)": 0.75,
+   "Time after spike (ms)": 1
+  }
  }
 }
