@@ -529,6 +529,20 @@ def plot_spike_raster(spike_times, waveforms,
         return None
     else:
         return fig, ax
+    
+#TODO: need to make arrays for session
+def plot_ensemble_raster(spikemat,meanspktms):
+    unitrnks = meanspktms.argsort()
+    nrnID = np.arange(len(meanspktms))
+    nrnID = nrnID[unitrnks]
+    srt_mean = meanspktms[unitrnks]
+    sortedmat = spikemat[:,unitrnks]
+    sortedmat = gaussian_filter1d(sortedmat,sigma = 25, axis = 0)
+    plt.plot(srt_mean, np.arange(len(meanspktms)), c = "Blue")
+    plt.imshow(sortedmat.T, cmap='hot', interpolation='nearest', aspect = "auto")
+
+    
+    return
 
 
 def plot_waveforms_pca(waveforms, cluster_ids=None, save_file=None):

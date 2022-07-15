@@ -10,8 +10,7 @@ def interpolate_waves(waves, fs, fs_new, axis=1):
     x = np.arange(0, end_time, 1/(fs/1000))
     x_new = np.arange(0, end_time, 1/(fs_new/1000))
     f = interp1d(x, waves, axis=axis)
-    return f(x_new)
-
+    return f(x_new)  
 
 def make_single_trial_psth(spike_train, win_size, win_step, time=None):
     '''Takes a spike train and returns firing rate trace in Hz
@@ -69,7 +68,6 @@ def make_mean_PSTHs(h5_file, win_size, win_step, dig_in_ch):
 
     return PSTHs, psth_time
 
-
 def make_psths_for_tastant(h5_file, win_size, win_step, dig_in_ch, smoothing_width=3):
     dig_str = 'dig_in_%i' % dig_in_ch
     with tables.open_file(h5_file, 'r+') as hf5:
@@ -109,7 +107,6 @@ def make_psths_for_tastant(h5_file, win_size, win_step, dig_in_ch, smoothing_wid
         hf5.flush()
 
     return PSTHs, psth_time
-
 
 def get_binned_firing_rate(time, spikes, bin_size=250, bin_step=25):
     '''Take a spike array and returns a firing rate array (row-wise)
