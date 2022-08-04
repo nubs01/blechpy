@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 20.1.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 viewBox="0 0 749.3 487.6" style="enable-background:new 0 0 749.3 487.6;" xml:space="preserve">
+<style type="text/css">
+	.st0{fill:#ED1C24;}
+	.st1{font-family:'Palatino-Bold';}
+	.st2{font-size:19px;}
+	.st3{font-family:'Palatino-Roman';}
+	.st4{font-size:16px;}
+	.st5{fill:none;stroke:#ED1C24;stroke-width:2.8346;stroke-miterlimit:10;}
+	.st6{font-size:18px;}
+	.st7{fill:none;stroke:#00AEEF;stroke-width:2.8346;stroke-miterlimit:10;}
+	.st8{fill:#00AEEF;}
+</style>
+<image style="overflow:visible;" width="1826" height="1638" xlink:href="../../../../../Desktop/Screen Shot 2021-08-18 at 2.28.39 PM.png"  transform="matrix(0.2977 0 0 0.2977 0 0)">
+</image>
+<text transform="matrix(1 0 0 1 100.0306 417.2512)"><tspan x="0" y="0" class="st0 st1 st2">Cluster Quickview</tspan><tspan x="-68.5" y="22.8" class="st0 st3 st2">Mean &amp; SEM of Cluster Waveforms</tspan></text>
+<text transform="matrix(1 0 0 1 596.3976 54.3019)"><tspan x="0" y="0" class="st0 st1 st2">Blech-Clust </tspan><tspan x="-26.9" y="22.8" class="st0 st1 st2">Solution Selection</tspan><tspan x="-6.7" y="42" class="st0 st3 st4">(Changing resets</tspan><tspan x="12.6" y="61.2" class="st0 st3 st4">all clusters)</tspan></text>
+<g>
+	<g>
+		<line class="st5" x1="517.7" y1="69.1" x2="565.9" y2="69.1"/>
+		<g>
+			<path class="st0" d="M504.9,69.1c6,2.2,13.5,6.1,18.2,10.1l-3.7-10.1l3.7-10.1C518.4,63,510.9,66.9,504.9,69.1z"/>
+		</g>
+	</g>
+</g>
+<rect x="388.1" y="216.4" class="st5" width="45.7" height="145.4"/>
+<text transform="matrix(1 0 0 1 590.3171 254.3118)"><tspan x="0" y="0" class="st0 st1 st6">Cluster Selection</tspan><tspan x="-6.9" y="19.2" class="st0 st3 st4">Checked Clusters are </tspan><tspan x="4.6" y="38.4" class="st0 st3 st4">effected by actions</tspan></text>
+<rect x="438.1" y="94" class="st7" width="105.4" height="381.1"/>
+<text transform="matrix(1 0 0 1 593.7136 447.4246)" class="st8 st1 st6">Action Buttons</text>
+<line class="st7" x1="543.6" y1="442.3" x2="585.5" y2="442.3"/>
+<ellipse class="st5" cx="271.3" cy="19.5" rx="31.9" ry="12.9"/>
+<text transform="matrix(1 0 0 1 312.8758 24.9899)" class="st0 st1 st6">Electrode Number</text>
+<line class="st5" x1="433.8" y1="247.4" x2="585.5" y2="247.4"/>
+</svg>

@@ -18,7 +18,7 @@ from blechpy.plotting import palatability_plot as pal_plt, data_plot as datplt
 from blechpy import dio
 from blechpy.datastructures.objects import data_object
 from blechpy.utils import spike_sorting_GUI as ssg
-
+from scipy.ndimage import gaussian_filter1d
 
 class dataset(data_object):
     '''Stores information related to an intan recording directory, allows
@@ -1052,19 +1052,30 @@ class dataset(data_object):
         
         unit_table = self.get_unit_table()
         save_dir = os.path.join(self.root_dir, 'unit_raster_plots')
+        
         if os.path.isdir(save_dir):
             shutil.rmtree(save_dir)
-            
         os.mkdir(save_dir)
         for i, row in unit_table.iterrows():
             spike_times, _, _ = dio.h5io.get_unit_spike_times(self.root_dir, row['unit_name'], h5_file = self.h5_file) 
+            
             waveforms, _, _ = dio.h5io.get_unit_waveforms(self.root_dir, row['unit_name'], h5_file = self.h5_file)
             save_file = os.path.join(save_dir, row['unit_name']+'_raster')
             datplt.plot_spike_raster([spike_times], [waveforms], save_file = save_file)
             
         self.save()
-        
 
+    def make_ensemble_raster_plots(self):
+        save_dir = os.path.join(self.root_dir, 'raster_plots')
+        name = self.data_name
+        save_file = os.path.join(save_dir, name+'_ensemble_raster')
+        if os.path.isdir(save_dir):
+            shutil.rmtree(save_dir) 
+        os.mkdir(save_dir)     
+        
+        datplt.plot_ensemble_raster(self,save_file)
+        
+        
     @Logger('Calculating Palatability/Identity Metrics')
     def palatability_calculate(self, shell=False):
         pal_analysis.palatability_identity_calculations(self.root_dir,

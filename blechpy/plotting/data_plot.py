@@ -530,6 +530,55 @@ def plot_spike_raster(spike_times, waveforms,
     else:
         return fig, ax
 
+def plot_ensemble_raster(dat, save_file = None):
+    
+    #analysis
+    unit_table = dat.get_unit_table()
+    samp_rt = dat.sampling_rate
+    off_time = dat.dig_in_trials.iloc[0]['off_time']
+    spike_array_len = int(off_time*100) #100 samples per second
+    n_nrns = len(unit_table)
+    spikemat = np.zeros((spike_array_len, n_nrns))
+    medspktms = np.zeros(n_nrns)
+    
+    for i, row in unit_table.iterrows():
+        spike_times, _, _ = dio.h5io.get_unit_spike_times(dat.root_dir, row['unit_name'], h5_file = dat.h5_file)
+        
+        spike_times = (spike_times/samp_rt * 100).round().astype(int)
+        spikemat[spike_times,i] = 1         
+        medspktms[i] = np.median(spike_times)
+    
+    unitrnks = medspktms.argsort()
+    nrnID = np.arange(len(medspktms))
+    nrnID = nrnID[unitrnks]
+    srt_mean = medspktms[unitrnks]
+    sortedmat = spikemat[:,unitrnks]
+    sortedmat = gaussian_filter1d(sortedmat,sigma = 25, axis = 0)
+    xticklabels = np.linspace(0,60, num = 7)
+    xticks = np.linspace(0,60*100*60, num = 7)
+    
+    #plotting
+
+    fig, ax = plt.subplots()
+    fig.set_size_inches(10,10)
+    line, = ax.plot(srt_mean, np.arange(len(medspktms)), c = "Blue")
+    ax.imshow(sortedmat.T, cmap='hot', interpolation='nearest', aspect = "auto")
+    plt.title(dat.data_name+" session raster")
+    plt.xlabel("time in session (minutes)")
+    ax.set_xticks(xticks)
+    ax.set_xticklabels(xticklabels)
+    ax.set_yticklabels([])
+    plt.ylabel("neurons")
+    line.set_label('median spike time')
+    ax.legend(handles = [line])
+              
+    if save_file:
+        fig.savefig(save_file)
+        plt.close(fig)
+        return None
+    else:
+        return fig,ax
+
 
 def plot_waveforms_pca(waveforms, cluster_ids=None, save_file=None):
     '''Plot PCA view of clusters from spike_sorting

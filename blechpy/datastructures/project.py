@@ -1,8 +1,10 @@
 import os
 import pandas as pd
 from blechpy.datastructures.objects import data_object, load_experiment, load_dataset
+from blechpy.utils import write_tools as wt
 from blechpy.utils.decorators import Logger
 from blechpy.utils import userIO
+#import glob
 
 class project(data_object):
 
@@ -35,7 +37,8 @@ class project(data_object):
         self._exp_info = pd.DataFrame({'exp_name': exp_names,
                                        'exp_group': exp_groups,
                                        'exp_dir': exp_dirs})
-        self.rec_info= self.get_rec_info(self)
+        
+        self.rec_info= self.get_rec_info()
 
         # Make list of all major files managed by this object
         self._files = {'params':
@@ -157,10 +160,30 @@ class project(data_object):
                     print('error: session number not in experiment ', rec_name)
                 
         return rec_info
+    
+    def change_rec_roots(self):
+        rec_info = self.rec_info
+        for i, row in rec_info.iterrows():
+            dat = load_dataset(row['rec_dir'])
+            dat._change_root(row['rec_dir'])
+            dat.save()
         
     def make_raster_plots(self):
         rec_info = self.rec_info
         for i, row in rec_info.iterrows():
             dat = load_dataset(row['rec_dir'])
             dat.make_raster_plots()
-        
+    
+    def make_ensemble_raster_plots(self):
+        rec_info = self.rec_info
+        for i, row in rec_info.iterrows():
+            dat = load_dataset(row['rec_dir'])
+            dat.make_ensemble_raster_plots()
+            
+    #idk if this would actually work, I will need to figure this oone out
+    def apply_dat_function(self, function):
+        rec_info = self.rec_info
+        for i, row in rec_info.iterrows():
+            dat = load_dataset(row['rec_dir'])
+            dat.function()
+            
