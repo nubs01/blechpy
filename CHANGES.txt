@@ -1,6 +1,7 @@
 v2.1.28 (in progress)
 -------------------
--adding dataset.make_ensemble_raster() -> data_plot.plot_ensemble_raster()
+-added dataset.make_ensemble_raster() -> data_plot.plot_ensemble_raster()
+-bug fixes in project.__init__()
 
 v2.1.27 (2022-07-08)
 -------------------

@@ -1055,7 +1055,6 @@ class dataset(data_object):
         
         if os.path.isdir(save_dir):
             shutil.rmtree(save_dir)
-            
         os.mkdir(save_dir)
         for i, row in unit_table.iterrows():
             spike_times, _, _ = dio.h5io.get_unit_spike_times(self.root_dir, row['unit_name'], h5_file = self.h5_file) 
@@ -1067,26 +1066,14 @@ class dataset(data_object):
         self.save()
 
     def make_ensemble_raster_plots(self):
-        unit_table = self.get_unit_table()
         save_dir = os.path.join(self.root_dir, 'raster_plots')
+        name = self.data_name
+        save_file = os.path.join(save_dir, name+'_ensemble_raster')
         if os.path.isdir(save_dir):
             shutil.rmtree(save_dir) 
         os.mkdir(save_dir)     
         
-        samp_rt = self.sampling_rate
-        off_time = self.dig_in_trials.iloc[0]['off_time']
-        spike_array_len = int(off_time*100) #100 samples per second
-        n_nrns = len(unit_table)
-        spikemat = np.zeros((spike_array_len, n_nrns))
-        meanspktms = np.zeros(n_nrns)
-        
-        for i, row in unit_table.iterrows():
-            spike_times, _, _ = dio.h5io.get_unit_spike_times(self.root_dir, row['unit_name'], h5_file = self.h5_file) 
-            spike_times = (spike_times/samp_rt * 100).round().astype(int)
-            spikemat[spike_times,i] = 1         
-            meanspktms[i] = spike_times.mean().round().astype(int)
-        
-        datplt.plot_ensemble_raster(spikemat,meanspktms)
+        datplt.plot_ensemble_raster(self,save_file)
         
         
     @Logger('Calculating Palatability/Identity Metrics')

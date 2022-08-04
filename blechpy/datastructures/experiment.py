@@ -123,7 +123,8 @@ class experiment(data_object):
             file_dirs = sorted(file_dirs, key=order_dict.get)
             file_dirs = [os.path.join(top_dirs.get(x), x) for x in file_dirs]
         else:
-            file_dirs = sorted(self.recording_dirs, key=order_dict.get)
+            file_dirs = sorted(self.recording_dirs, key=order_dict.get) #TODO: idk what is hapening with these key orders this is fucked
+            
             
         self.order_dict = order_dict
         self.recording_dirs = file_dirs
@@ -461,5 +462,7 @@ class experiment(data_object):
         else:
             print('No shell UI yet')
             return
+        
+    #def plot_held_session_rasters():
 
 
