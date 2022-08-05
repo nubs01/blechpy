@@ -25,12 +25,17 @@ This is a package to extract, process and analyze electrophysiology data recorde
 I recommend installing miniconda to handle your virtual environments
 Create a miniconda environment with: 
 ```bash
-conda env create --name blechpy python==3.7
+conda create --n blechpy python==3.7
 conda activate blechpy
 ```
 Now you can install this package simply with pip:
 ```bash
 pip install blechpy
+```
+
+If you want to update blechpy to the latest version:
+```bash
+pip install blechpy -U
 ```
 
 Now you can deal with all of your data from within an ipython terminal:
@@ -40,12 +45,11 @@ Now you can deal with all of your data from within an ipython terminal:
 import blechpy
 ```
 
-### Ubuntu 20.04 LTS
-With Ubuntu 20, you may get a segmentation fault when importing blechpy. To resolve this simply import datashader before blechpy
+### Ubuntu 20.04 LTS+
+With Ubuntu 20 or higher, you will get a segmentation fault when importing blechpy because numba version 0.48 installed through pip is corrupted. You will need to reinstall it via conda
 
-```python
-import datashader
-import blechpy
+```bash
+conda install numba=0.48.0
 ```
 
 # Usage
@@ -54,14 +58,14 @@ blechpy handles experimental metadata using data_objects which are tied to a dir
     * object for a single recording session
 * experiment
     * object encompasing an ordered set of recordings from a single animal
-    * individual recordings must first be processes as datasets
+    * individual recordings must first be processed as datasets
 * project
     * object that can encompass multiple experiments & data groups and allow analysis or group differences
 
 # Datasets
 Right now this pipeline is only compatible with recordings done with Intan's 'one file per channel' or 'one file per signal type' recordings settings.
 
-## Starting wit a raw dataset
+## Starting with a raw dataset
 ### Create dataset
 With a brand new *shiny* recording you can initilize a dataset with:
 ```python
