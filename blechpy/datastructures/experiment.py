@@ -464,5 +464,16 @@ class experiment(data_object):
             return
         
     #def plot_held_session_rasters():
-
+    def get_electrode_unit_counts(self):
+        all_unit_table = pd.DataFrame()
+        for rd in self.recording_dirs:
+            dat = load_dataset(rd)
+            unit_table = dat.get_unit_table()
+            unit_table['rec'] = rd
+            all_unit_table = all_unit_table.append(unit_table)
+            
+        out = all_unit_table.groupby(['electrode','rec']).size().reset_index()
+        return out
+            
+        
 

@@ -1,3 +1,8 @@
+v2.1.29 (2022-08-09)
+-updated requirements.txt
+-updated tutorial
+-added experiment.get_electrode_unit_counts()
+
 v2.1.28 (2022-08-05)
 -------------------
 -added dataset.make_ensemble_raster() -> data_plot.plot_ensemble_raster()
