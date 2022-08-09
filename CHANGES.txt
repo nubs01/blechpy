@@ -1,3 +1,5 @@
+v2.1.30 (2022-08-09)
+-usability fix in experiment.get_electrode_unit_counts()
 v2.1.29 (2022-08-09)
 -updated requirements.txt
 -updated tutorial
