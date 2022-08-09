@@ -468,12 +468,17 @@ class experiment(data_object):
         all_unit_table = pd.DataFrame()
         for rd in self.recording_dirs:
             dat = load_dataset(rd)
+            nm = dat.data_name
             unit_table = dat.get_unit_table()
-            unit_table['rec'] = rd
+            unit_table['rec'] = nm
             all_unit_table = all_unit_table.append(unit_table)
             
-        out = all_unit_table.groupby(['electrode','rec']).size().reset_index()
+        out = all_unit_table.groupby(['electrode','rec']).size().reset_index(name = 'n_units')
         return out
             
+    def export_electrode_unit_counts(self):
+        uc = self.get_electrode_unit_counts()
+        filename = os.path.join(self.root_dir,'electrode_unit_counts.csv')
+        uc.to_csv(filename)
         
 
