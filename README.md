@@ -25,7 +25,7 @@ This is a package to extract, process and analyze electrophysiology data recorde
 I recommend installing miniconda to handle your virtual environments
 Create a miniconda environment with: 
 ```bash
-conda create --n blechpy python==3.7
+conda create -n blechpy python==3.7.13
 conda activate blechpy
 ```
 Now you can install this package simply with pip:
