@@ -1,5 +1,10 @@
+v2.1.31 (2022-08-18)
+-added dataset.edit_unit_descriptor() and dio.h5io.edit_unit_descriptor() methods
+-fixed maplotlib requierment in requirements.txt since newer versions break phmm.HMMHandler.plot_saved_models()
+
 v2.1.30 (2022-08-09)
 -usability fix in experiment.get_electrode_unit_counts()
+
 v2.1.29 (2022-08-09)
 -updated requirements.txt
 -updated tutorial

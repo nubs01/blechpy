@@ -1299,6 +1299,36 @@ def add_new_unit(rec_dir, electrode, waves, times, single_unit, pyramidal, inter
 
     return unit_name
 
+def edit_unit_descriptor(file_dir, unit_num, descriptor_key, descriptor_val, h5_file = None):
+    '''
+    use this to edit unit table, i.e. if you made a mistake labeling a neuron in spike sorting
+    unit_num takes integers, corresponds to unit_num in get_unit_table()
+    descriptor_key takes string, can be "single_unit", "regular_spiking", or "fast_spiking"
+    descriptor_val takes boolean, can be True or False
+    '''
+    if isinstance(unit_num, str):
+        unit_num = parse_unit_number(unit_num)
+
+    print('\n----------\n editing unit %i descriptor\n----------\n'
+          % unit_num)
+    if h5_file is None:
+        h5_file = get_h5_filename(file_dir)
+
+    unit_names = get_unit_names(file_dir)
+    unit_numbers = [parse_unit_number(i) for i in unit_names]
+    if unit_num not in unit_numbers:
+        print('Unit %i not found in data. Cannot edit descriptor ' % unit_num)
+        return False
+    
+    with tables.open_file(h5_file, 'r+') as hf5:
+        
+        unit_descriptor = hf5.root.unit_descriptor[unit_num]
+        unit_descriptor[descriptor_key] = descriptor_val
+        hf5.root.unit_descriptor[[unit_num]] = unit_descriptor
+        hf5.flush()
+
+    return
+        
 
 def delete_unit(file_dir, unit_num, h5_file=None):
     '''Delete a sorted unit and re-label all following units.
