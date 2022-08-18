@@ -1120,6 +1120,16 @@ class dataset(data_object):
         '''
         unit_table = dio.h5io.get_unit_table(self.root_dir, h5_file=self.h5_file)
         return unit_table
+    
+    def edit_unit_descriptor(self, unit_num, descriptor_key,descriptor_val):
+        '''
+        use this to edit unit table, i.e. if you made a mistake labeling a neuron in spike sorting
+        unit_num takes integers, corresponds to unit_num in get_unit_table()
+        descriptor_key takes string, can be "single_unit", "regular_spiking", or "fast_spiking"
+        descriptor_val takes boolean, can be True or False
+        '''
+        dio.h5io.edit_unit_descriptor(self.root_dir, unit_num, descriptor_key, descriptor_val, self.h5_file)
+        print("descriptor edit success")
 
     def circus_clust_run(self, shell=False):
         circ.prep_for_circus(self.root_dir, self.electrode_mapping,
