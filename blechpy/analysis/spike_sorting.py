@@ -74,9 +74,13 @@ def make_spike_arrays(h5_file, params):
             trial_cutoff_idx = exp_end_idx - post_idx
 
             # get the end indices for those trials
-            off_idx = np.array(tmp_trials['off_index'])
-            off_idx.sort()
-            n_trials = len(off_idx)
+            # off_idx = np.array(tmp_trials['off_index'])
+            # off_idx.sort()
+            # n_trials = len(off_idx)
+            
+            on_idx = np.array(tmp_trials['on_index'])
+            on_idx.sort()
+            n_trials = len(on_idx)
 
             # loop through trials and get spike train array for each
             spike_train = []
@@ -84,7 +88,7 @@ def make_spike_arrays(h5_file, params):
             laser_start = np.zeros(n_trials)
             laser_single = np.zeros((n_trials, n_lasers))
 
-            for ti, trial_off in enumerate(off_idx):
+            for ti, trial_off in enumerate(on_idx):
                 if trial_off >= trial_cutoff_idx:
                     cond_array[ti] = -1
                     continue
