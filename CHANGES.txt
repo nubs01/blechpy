@@ -1,3 +1,6 @@
+v2.1.32 (2022-08-24)
+-changed dat.make_unit_arrays() to start the unit array at the valve open rather than the valve close
+
 v2.1.31 (2022-08-18)
 -added dataset.edit_unit_descriptor() and dio.h5io.edit_unit_descriptor() methods
 -fixed maplotlib requierment in requirements.txt since newer versions break phmm.HMMHandler.plot_saved_models()
