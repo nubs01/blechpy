@@ -4,6 +4,8 @@ from blechpy.datastructures.objects import data_object, load_experiment, load_da
 from blechpy.utils import write_tools as wt
 from blechpy.utils.decorators import Logger
 from blechpy.utils import userIO
+from blechpy.analysis import poissonHMM as phmm
+from joblib import Parallel, delayed
 #import glob
 
 class project(data_object):
@@ -180,10 +182,26 @@ class project(data_object):
             dat = load_dataset(row['rec_dir'])
             dat.make_ensemble_raster_plots()
             
-    #idk if this would actually work, I will need to figure this oone out
+    #idk if this would actually work, I will need to figure this one out
     def apply_dat_function(self, function):
         rec_info = self.rec_info
         for i, row in rec_info.iterrows():
             dat = load_dataset(row['rec_dir'])
             dat.function()
+            
+    def plot_hmms(self):
+        '''
+        Plots hmms under each recording analysis directory in your project. Requires that you have already run HMMs
+
+        '''
+        rec_info = self.get_rec_info()
+        rec_dirs = rec_info.rec_dir
+
+        def load_plot_hmm(rec_dir):
+            handler = phmm.HmmHandler(rec_dir)
+            handler.plot_saved_models()
+            
+        n_cpu = os.cpu_count()
+            
+        Parallel(n_jobs = n_cpu-1)(delayed(load_plot_hmm)(i) for i in rec_dirs)
             
