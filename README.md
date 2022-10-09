@@ -98,6 +98,13 @@ Primarily setups parameters for:
 Initial parameters are pulled from default json files in the dio subpackage.
 Parameters for a dataset are written to json files in a *parameters* folder in the recording directory
 
+Dan's paramters (which he thinks are better)
+```python
+dat.initParams(data_quality='hp', CAR_keyword = 'bilateral64')
+```
+data_quality='hp' increases strictness of clustering, increases total # of clusters, and increases spike window to -0.75 to 1s
+CAR_keyword = 'bilateral64' automatically assigns channel mapping to match the old open ephys 64 channel EIB in a GC-GC implant 
+
 ### Basic Processing
 ```python
 dat.processing_status
@@ -112,14 +119,16 @@ dat.initParams()            # See fucntion docstring, lots of optional parameter
 dat.extract_data()          # Extracts raw data into HDF5 store
 dat.create_trial_list()     # Creates table of digital input triggers
 dat.mark_dead_channels()    # View traces and label electrodes as dead, or just pass list of dead channels
+dat.mark_dead_channels([dead channel indices]) #alternatively, if you already know which chanels are dead, you can pass them as an argument
 dat.common_average_reference() # Use common average referencing on data. 
                                # Repalces raw with referenced data in HDF5 store
 dat.detect_spikes()
 dat.blech_clust_run()       # Cluster data using GMM
-dat.blech_clust_run(data_quality='noisy') # re-run clustering with less strict parameters
-
-dat.sort_units(electrode_number)        # Split, merge and label clusters as units
+dat.blech_clust_run(data_quality='noisy') # alternative: re-run clustering with less strict parameters
+dat.blech_clust_run(umap=True) # alternative: run with UMAP instead of PCA for clustering
+dat.sort_spikes(electrode_number)        # Split, merge and label clusters as units
 ```
+check blechpy/datastructures/dataset.py to see what functions are available
 
 ### Viewing a Dataset
 Experiments can be easily viewed wih: `print(dat)`
