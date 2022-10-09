@@ -1,3 +1,6 @@
+v2.1.33 (2022-09-XX)
+-added plot_hmm_models() to project for convenient, parallelized hmm replotting
+
 v2.1.32 (2022-08-24)
 -changed dat.make_unit_arrays() to start the unit array at the valve open rather than the valve close
 

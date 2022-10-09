@@ -19,7 +19,7 @@ statsmodels
 seaborn
 appdirs>=1.4.3
 joblib>=1.1.0
-prompt-toolkit>=2.0.9
+prompt-toolkit===3.0.3
 pywavelets>=1.1.1
 imageio>=2.5.0
 PyYAML==5.4
