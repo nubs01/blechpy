@@ -75,12 +75,12 @@ dat = blechpy.dataset()  # for user interface to select directory
 ```
 This will create a new dataset object and setup basic file paths.
 If you're working via SSH or just want a command-line interface instead of a GUI you can use the keyword argument `shell=True`
+You should only do this when starting data processing for the first time. If you use it on a processed dataset, it will get overwritten.
+Use blechpy.load_dataset() instead to load an existing dataset (see below)
 
 ### Initialize Parameters
 ```python
 dat.initParams() 
-# or
-dat.initParams(shell=True)
 ```
 Initalizes all analysis parameters with a series of prompts.
 See prompts for optional keyword params.
@@ -98,21 +98,14 @@ Primarily setups parameters for:
 Initial parameters are pulled from default json files in the dio subpackage.
 Parameters for a dataset are written to json files in a *parameters* folder in the recording directory
 
-Dan's paramters (which he thinks are better)
-```python
-dat.initParams(data_quality='hp', CAR_keyword = 'bilateral64')
-```
-data_quality='hp' increases strictness of clustering, increases total # of clusters, and increases spike window to -0.75 to 1s
-CAR_keyword = 'bilateral64' automatically assigns channel mapping to match the old open ephys 64 channel EIB in a GC-GC implant 
-
+Useful dat.initParams() arguments:
+* data_quality='hp' -increases strictness of clustering, total # of clusters, and spike-sorting window to -0.75 to 1s.
+* CAR_keyword = 'bilateral64' -auto assigns channel mapping to match the Omnetics-connector open ephys 64 channel EIB with 2-site implantation
+* CAR_keyword = '2site_OE64' -auto assigns channel mapping to match Hirose-connector Open Ephys 64 channel EIB with 2-site implantation
+* shell = True -bypasses GUI interface in favor of shell interface, useful if working over SSH or GUI is broken
 ### Basic Processing
-```python
-dat.processing_status
-```
-Can provide an overview of basic data extraction and processing steps that need to be taken.
 
-
-An example data extraction workflow would be:
+The most basic data extraction workflow would be:
 ```python
 dat = blechpy.dataset('/path/to/data/dir/')
 dat.initParams()            # See fucntion docstring, lots of optional parameters to eliminate need for user interaction
@@ -120,15 +113,35 @@ dat.extract_data()          # Extracts raw data into HDF5 store
 dat.create_trial_list()     # Creates table of digital input triggers
 dat.mark_dead_channels()    # View traces and label electrodes as dead, or just pass list of dead channels
 dat.mark_dead_channels([dead channel indices]) #alternatively, if you already know which chanels are dead, you can pass them as an argument
-dat.common_average_reference() # Use common average referencing on data. 
-                               # Repalces raw with referenced data in HDF5 store
+dat.common_average_reference() # Use common average referencing on data. Repalces raw with referenced data in HDF5 store
 dat.detect_spikes()
 dat.blech_clust_run()       # Cluster data using GMM
 dat.blech_clust_run(data_quality='noisy') # alternative: re-run clustering with less strict parameters
-dat.blech_clust_run(umap=True) # alternative: run with UMAP instead of PCA for clustering
 dat.sort_spikes(electrode_number)        # Split, merge and label clusters as units
 ```
 check blechpy/datastructures/dataset.py to see what functions are available
+
+### Preferred Workflow:
+
+This workflow uses some parameters with defualts which makes the workflow more convenient. 
+```python
+dat = blechpy.dataset('/path/to/data/dir/')
+dat.initParams(data_quality = 'hp', channel_mapping = '2site_OE64')	# 'hp' parameter for stricter clustering criteria, '2site_OE64' automatically maps channels to hirose-connector 64ch OEPS EIB in 2-site implantation
+dat.extract_data()          
+dat.create_trial_list()    
+dat.mark_dead_channels([channel numbers])	# pass a list of dead channels (i.e. [1,2,3]) to bypass GUI marking of dead channels. Requires that you note them during drive building &/ recording
+dat.common_average_reference() 
+dat.detect_spikes()
+dat.blech_clust_run(umap=True)	# Cluster with UMAP instead of GMM, supposedly better clustering
+dat.sort_spikes(electrode_number)	# Split, merge and label clusters as units
+```
+
+### Checking processing progress:
+
+```python
+dat.processing_status
+```
+Can provide an overview of basic data extraction and processing steps that need to be taken.
 
 ### Viewing a Dataset
 Experiments can be easily viewed wih: `print(dat)`
