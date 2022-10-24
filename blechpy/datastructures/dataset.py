@@ -1045,7 +1045,22 @@ class dataset(data_object):
 
         self.process_status['make_psth_arrays'] = True
         self.save()
+    
+    def make_psth_plots(self):
+        unit_table = self.get_unit_table()
+        save_dir = os.path.join(self.root_dir,'unit_psth_plots')
+        if os.path.isdir(save_dir):
+            shutil.rmtree(save_dir)
+        os.mkdir(save_dir)
         
+        
+        dinmap = self.dig_in_mapping.query('spike_array ==True')
+        
+        for i, row in unit_table.iterrows():
+            un = row.unit_num
+            save_file = os.path.join(save_dir,'unit_'+str(un)+'_PSTH.svg')
+            datplt.plot_overlay_psth(rec_dir = self.root_dir, unit = un , plot_window=[-1500, 5000], bin_size = 500, din_map = dinmap, save_file=save_file)
+    
     def make_raster_plots(self):
         '''make raster plots with electrode noise for each unit  
         '''

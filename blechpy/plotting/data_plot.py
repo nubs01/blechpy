@@ -194,6 +194,7 @@ def plot_overlay_psth(rec_dir, unit, din_map, plot_window=[-1500, 2500],
     ax.legend(loc='best')
     ax.axvline(0, color='red', linestyle='--')
     fig.savefig(save_file)
+    print(save_file)
     plt.close('all')
 
 

@@ -100,8 +100,8 @@ Parameters for a dataset are written to json files in a *parameters* folder in t
 
 Useful dat.initParams() arguments:
 * data_quality='hp' -increases strictness of clustering, total # of clusters, and spike-sorting window to -0.75 to 1s.
-* CAR_keyword = 'bilateral64' -auto assigns channel mapping to match the Omnetics-connector open ephys 64 channel EIB with 2-site implantation
-* CAR_keyword = '2site_OE64' -auto assigns channel mapping to match Hirose-connector Open Ephys 64 channel EIB with 2-site implantation
+* car_keyword = 'bilateral64' -auto assigns channel mapping to match the Omnetics-connector open ephys 64 channel EIB with 2-site implantation
+* car_keyword = '2site_OE64' -auto assigns channel mapping to match Hirose-connector Open Ephys 64 channel EIB with 2-site implantation
 * shell = True -bypasses GUI interface in favor of shell interface, useful if working over SSH or GUI is broken
 ### Basic Processing
 
@@ -126,7 +126,7 @@ check blechpy/datastructures/dataset.py to see what functions are available
 This workflow uses some parameters with defualts which makes the workflow more convenient. 
 ```python
 dat = blechpy.dataset('/path/to/data/dir/')
-dat.initParams(data_quality = 'hp', channel_mapping = '2site_OE64')	# 'hp' parameter for stricter clustering criteria, '2site_OE64' automatically maps channels to hirose-connector 64ch OEPS EIB in 2-site implantation
+dat.initParams(data_quality = 'hp', car_keyword = '2site_OE64')	# 'hp' parameter for stricter clustering criteria, '2site_OE64' automatically maps channels to hirose-connector 64ch OEPS EIB in 2-site implantation
 dat.extract_data()          
 dat.create_trial_list()    
 dat.mark_dead_channels([channel numbers])	# pass a list of dead channels (i.e. [1,2,3]) to bypass GUI marking of dead channels. Requires that you note them during drive building &/ recording
