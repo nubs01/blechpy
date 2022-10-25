@@ -88,7 +88,7 @@ def plot_raster(spikes, time=None, ax=None, y_min=0.05, y_max=0.95):
 
     return ax
 
-
+###NOTE I CHANGED THE FIGSIZE AND LABEL SIZES HERE-Dan
 def make_hmm_raster(spikes, time=None, save_file=None):
     '''Create figure of spikes rasters with each trial on a seperate axis
 
@@ -109,7 +109,7 @@ def make_hmm_raster(spikes, time=None, save_file=None):
     if time is None:
         time = np.arange(0, n_steps)
 
-    fig, axes = plt.subplots(nrows=n_trials, figsize=(15, n_trials))
+    fig, axes = plt.subplots(nrows=n_trials, figsize=(25, n_trials))
     y_step = np.linspace(0.05, 0.95, n_cells)
     for ax, trial in zip(axes, spikes):
         tmp = plot_raster(trial, time=time, ax=ax)
@@ -120,15 +120,16 @@ def make_hmm_raster(spikes, time=None, save_file=None):
         ax.get_yaxis().set_visible(False)
         ax.get_xaxis().set_visible(False)
         if time[0] < 0:
-            ax.axvline(0, color='red', linestyle='--', linewidth=3, alpha=0.8)
+            ax.axvline(0, color='red', linestyle='--', linewidth=8, alpha=0.8)
 
     axes[-1].get_xaxis().set_visible(True)
+    axes[-1].xaxis.set_tick_params(labelsize = 40)
     tmp_ax = fig.add_subplot('111', frameon=False)
     tmp_ax.tick_params(labelcolor='none', top=False, bottom=False,
                        left=False, right=False)
-    tmp_ax.set_ylabel('Trials')
-    axes[-1].set_xlabel('Time')
-    axes[-1].set_ylabel('Cells', fontsize=11)
+    tmp_ax.set_ylabel('Trials', fontsize=50)
+    axes[-1].set_xlabel('Time', fontsize=50)
+    axes[-1].set_ylabel('Cells', fontsize=50)
     if save_file:
         fig.savefig(save_file)
         plt.close(fig)

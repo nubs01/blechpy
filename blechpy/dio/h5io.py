@@ -337,9 +337,17 @@ def read_in_digital_signal(hf5, file_dir, file_type, channels, dig_type='in'):
         elif file_type == 'one file per channel':
             file_name = os.path.join(file_dir, 'board-D%s-%02d.dat' %
                                      (dig_type.upper(), ch))
+
             println('Reading digital%s data from %s...' %
                     (dig_type, os.path.basename(file_name)))
-            data = rawIO.read_one_channel_file(file_name)
+            try:
+                data = rawIO.read_one_channel_file(file_name)
+            except:
+                print('new data format detected, trying alternative DIN names...')
+                file_name = os.path.join(file_dir, 'board-D%s-%02d.dat' %
+                                         ('IGITAL-IN', ch))
+                data = rawIO.read_one_channel_file(file_name)
+                
             print('Done!')
 
         tmp_str = exec_str % (dig_type, dig_type, ch)

@@ -1312,6 +1312,32 @@ class HmmHandler(object):
 
         #self.plot_saved_models()
         self.load_params()
+        
+    def plot_spike_rasters(self):
+        print('Plotting just rasters')
+        data = self.get_data_overview().set_index('hmm_id')
+        rec_dir = self.root_dir
+        for i, row in data.iterrows():
+            hmm, _, params = load_hmm_from_hdf5(self.h5_file, i)
+            if params.get('trial_nums') is not None:
+                trials = params['trial_nums']
+            else:
+                trials = params['n_trials']
+
+            spikes, dt, time = get_hmm_spike_data(rec_dir, params['unit_type'],
+                                                  params['channel'],
+                                                  time_start=params['time_start'],
+                                                  time_end=params['time_end'],
+                                                  dt=params['dt'],
+                                                  trials=trials,
+                                                  area=params['area'])
+            plot_dir = os.path.join(self.plot_dir, 'hmm_%s' % i)
+            if not os.path.isdir(plot_dir):
+                os.makedirs(plot_dir)
+
+            save_file = os.path.join(plot_dir, 'trial_raster')
+            print('Plotting HMM %s...' % i)
+            hmmplt.make_hmm_raster(spikes,time, save_file)
 
     def plot_saved_models(self):
         print('Plotting saved models')
