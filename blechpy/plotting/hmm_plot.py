@@ -109,7 +109,7 @@ def make_hmm_raster(spikes, time=None, save_file=None):
     if time is None:
         time = np.arange(0, n_steps)
 
-    fig, axes = plt.subplots(nrows=n_trials, figsize=(25, n_trials))
+    fig, axes = plt.subplots(nrows=n_trials, figsize=(15, n_trials))
     y_step = np.linspace(0.05, 0.95, n_cells)
     for ax, trial in zip(axes, spikes):
         tmp = plot_raster(trial, time=time, ax=ax)
@@ -120,7 +120,7 @@ def make_hmm_raster(spikes, time=None, save_file=None):
         ax.get_yaxis().set_visible(False)
         ax.get_xaxis().set_visible(False)
         if time[0] < 0:
-            ax.axvline(0, color='red', linestyle='--', linewidth=8, alpha=0.8)
+            ax.axvline(0, color='red', linestyle='--', linewidth=5, alpha=0.8)
 
     axes[-1].get_xaxis().set_visible(True)
     axes[-1].xaxis.set_tick_params(labelsize = 40)
@@ -130,6 +130,9 @@ def make_hmm_raster(spikes, time=None, save_file=None):
     tmp_ax.set_ylabel('Trials', fontsize=50)
     axes[-1].set_xlabel('Time', fontsize=50)
     axes[-1].set_ylabel('Cells', fontsize=50)
+    
+    #fig.tight_layout()
+    #fig.legend(loc = 'lower_center')
     if save_file:
         fig.savefig(save_file)
         plt.close(fig)
@@ -163,7 +166,7 @@ def plot_sequence(seq, time=None, ax=None, y_min=0, y_max=1, colors=None):
     return ax, leg_handles, leg_labels
 
 
-def plot_viterbi_paths(hmm, spikes, time=None, colors=None, axes=None, legend=True,
+def plot_viterbi_paths(hmm, spikes, time=None, colors=None, axes=None, legend=False,
                        hmm_id=None, save_file=None):
     if not axes:
         fig, axes = make_hmm_raster(spikes, time=time)
@@ -198,7 +201,7 @@ def plot_viterbi_paths(hmm, spikes, time=None, colors=None, axes=None, legend=Tr
 
     if legend:
         mid = int(n_trials/2)
-        axes[mid].legend(handles, labels, loc='upper center',
+        axes[mid].legend(handles, labels, loc='lower center',
                          bbox_to_anchor=(0.8, .5, .5, .5), shadow=True,
                          fontsize=14)
 
@@ -534,7 +537,7 @@ def plot_hmm_figures(hmm, spikes, dt, time, hmm_id=None, save_dir=None):
     fig_names = ['sequences', 'forward_probabilities',
                  'backward_probabilities', 'gamma_probabilities', 'overview']
     if save_dir:
-        files = {x : os.path.join(save_dir, '%s.png' % x) for x in fig_names}
+        files = {x : os.path.join(save_dir, '%s.svg' % x) for x in fig_names}
     else:
         files = dict.fromkeys(fig_names, None)
 
