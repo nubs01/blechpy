@@ -7,6 +7,7 @@ from blechpy.utils import userIO
 from copy import deepcopy
 import glob
 from blechpy import load_dataset
+import pdb
 
 def fix_hmm_overview(h5_file):
     '''made to add the area column to the hmm overview
@@ -80,7 +81,7 @@ def read_hmm_from_hdf5(h5_file, hmm_id):
     with tables.open_file(h5_file, 'r') as hf5:
         h_str = 'hmm_%s' % hmm_id
         if h_str not in hf5.root or len(hf5.list_nodes('/'+h_str)) == 0:
-            return None
+            pass#return None
 
         # print('Loading HMM %i from hdf5' % hmm_id)
         nodes = [x._v_name for x in hf5.list_nodes('/'+h_str)]
@@ -110,7 +111,7 @@ def read_hmm_from_hdf5(h5_file, hmm_id):
                 else:
                     params[k] = row[k]
 
-            if isinstance(params['taste'], list):
+            if isinstance(params['taste'], list) or params['taste'] == 'all':
                 params['channel'] = list_channel_hash(params['channel'])
 
             return PI, A, B, stat_arrays, params
@@ -196,8 +197,11 @@ def write_hmm_to_hdf5(h5_file, hmm, params):
                     row[k] = '..'.join(v)
                 elif isinstance(v, list) and k == 'channel':
                     print('channels: %s' % str(v))
-                    row[k] = hash_channel_list(v)
+                    out = hash_channel_list(v)
+                    row[k] = out #VERY weird behavior with old hash, out = 5012345, but gets saved as -23054. Workaround is add/subtract from values instead
+                    print('channel hash out: ', out)
                     print('channel hash: %i' % row[k])
+                    #pdb.set_trace()
                 elif not isinstance(v, list):
                     row[k] = v
                 else:
@@ -299,12 +303,18 @@ def get_hmm_overview_from_hdf5(h5_file):
 
 
 def hash_channel_list(channels):
-    channels.insert(0, len(channels)) # gives elements and array and prevent leading 0 from dropping
-    return ''.join([str(x) for x in channels])
+    channels = [x + 1 for x in channels]
+    
+    #channels.insert(0, len(channels)) # gives elements and array and prevent leading 0 from dropping
+    out = ''.join([str(x) for x in channels])
+    
+    print("hashed ", channels, " into ", out)
+    return out
 
 
 def list_channel_hash(num):
     tmp = [int(x) for x in str(num)]
-    return tmp[1:]
+    tmp = [x - 1 for x in tmp]
+    return tmp
 
 

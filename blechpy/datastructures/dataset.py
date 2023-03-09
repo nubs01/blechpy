@@ -19,6 +19,8 @@ from blechpy import dio
 from blechpy.datastructures.objects import data_object
 from blechpy.utils import spike_sorting_GUI as ssg
 from scipy.ndimage import gaussian_filter1d
+import tables
+import scipy.io as sio
 
 class dataset(data_object):
     '''Stores information related to an intan recording directory, allows
@@ -1194,6 +1196,40 @@ class dataset(data_object):
         self.units_similarity(shell=True)
         self.make_psth_arrays()
         self.make_raster_plots()
+        
+    def export_TrialSpikeArrays2Mat(self):
+        h5 = tables.open_file(self.h5_file,'r+')
+        taste_dig_in = h5.list_nodes('/spike_trains')
+        loops = len(taste_dig_in)
+        dat = {}
+        
+        names = self.dig_in_mapping[self.dig_in_mapping['spike_array'] == True]['name']
+        key = names.values.tolist()
+        spike_arrs = np.zeros(loops,dtype=np.object)
+        
+        for i in range(loops):
+            if i < len(taste_dig_in):
+                spike_arrs[i] = taste_dig_in[i].spike_array[:]
+        
+        nameparts = str.split(self.data_name, '_')
+        dat['ID'] = nameparts[0]
+        dat['Date'] = nameparts[-2]
+        dat['spikes'] = spike_arrs
+        dat['states'] = key
+        
+        ff = os.path.join(self.root_dir, 'matlab_exports') #make variable with folder name (file folder)
+        
+        if not os.path.exists(ff): #check if file folder exists, make if if not
+            os.makedirs(ff)
+            print("Directory created successfully")
+        
+        fn = self.data_name+'.mat' #make file name
+        fp = os.path.join(ff, fn) #make file path 
+        sio.savemat(fp,{'data':dat}) #save data [dat] with label "data", at file path fp
+        print('spike trains successfully exported to '+fp)
+        
+        h5.flush()
+        h5.close()
 
 
 def run_joblib_process(process):
@@ -1352,8 +1388,6 @@ def port_in_dataset(rec_dir=None, shell=False):
 
     return dat
 
-
-
 def validate_data_integrity(rec_dir, verbose=False):
     '''incomplete
     '''
@@ -1486,3 +1520,4 @@ def validate_data_integrity(rec_dir, verbose=False):
 
         numbers['max_recording_length (s)'] = max_samples/fs
         numbers['min_recording_length (s)'] = min_samples/fs
+

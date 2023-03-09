@@ -4,6 +4,7 @@ import numpy as np
 import itertools as it
 import pandas as pd
 import tables
+import pprint 
 import time as sys_time
 from numba import njit
 from copy import deepcopy
@@ -550,6 +551,12 @@ def get_hmm_spike_data(rec_dir, unit_type, channel, time_start=None,
         units = unit_type
 
     time, spike_array = h5io.get_spike_data(rec_dir, units, channel, trials=trials)
+    
+    if isinstance(channel, list):
+        to_cat = [spike_array[key] for key in spike_array.keys()]
+        spike_array = np.concatenate(to_cat, axis = 0)
+        
+    
     spike_array = spike_array.astype(np.int32)
     if len(units) == 1:
         spike_array = np.expand_dims(spike_array, 1)
@@ -1344,11 +1351,13 @@ class HmmHandler(object):
         data = self.get_data_overview().set_index('hmm_id')
         rec_dir = self.root_dir
         for i, row in data.iterrows():
+            
             hmm, _, params = load_hmm_from_hdf5(self.h5_file, i)
             if params.get('trial_nums') is not None:
                 trials = params['trial_nums']
             else:
                 trials = params['n_trials']
+                
 
             spikes, dt, time = get_hmm_spike_data(rec_dir, params['unit_type'],
                                                   params['channel'],
