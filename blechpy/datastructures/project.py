@@ -133,6 +133,23 @@ class project(data_object):
         self.rec_info = self.get_rec_info()
         self.save()
         
+    def get_trial_info(self):
+        dflist = []
+        rec_info = self.get_rec_info()
+        
+        for i, row in rec_info.iterrows():
+            rd = row['rec_dir']
+            dat = load_dataset(rd)
+            dit = dat.dig_in_trials
+            dit['taste_trial'] = True
+            dit['taste_trial'] = dit.groupby(['channel']).taste_trial.cumsum()
+            dit['rec_dir'] = rd
+            dflist.append(dit)
+        outdf = pd.concat(dflist)
+        outdf= outdf.rename(columns = {'trial':'session_trial'})
+        
+        return(outdf)
+        
     def get_rec_info(self): 
         rec_info = pd.DataFrame(columns=['exp_name',
                                          'rec_name',
