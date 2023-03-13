@@ -82,7 +82,7 @@ class dataset(data_object):
         return new_root
 
     @Logger('Initializing Parameters')
-    def initParams(self, data_quality='clean', 
+    def initParams(self, data_quality='hp', 
                    emg_port=None, emg_channels=None, 
                    car_keyword=None, car_group_areas=None,
                    shell=False, dig_in_names=None, dig_out_names=None,
@@ -833,7 +833,7 @@ class dataset(data_object):
         return results
 
     @Logger('Running Blech Clust')
-    def blech_clust_run(self, data_quality=None, multi_process=True, n_cores=None, umap=False):
+    def blech_clust_run(self, data_quality=None, multi_process=True, n_cores=None, umap=True):
         '''Write clustering parameters to file and
         Run blech_process on each electrode using GNU parallel
 
