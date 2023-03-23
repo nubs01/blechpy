@@ -1201,7 +1201,7 @@ class dataset(data_object):
         h5 = tables.open_file(self.h5_file,'r+')
         taste_dig_in = h5.list_nodes('/spike_trains')
         loops = len(taste_dig_in)
-        dat = {}
+        tbl = {}
         
         names = self.dig_in_mapping[self.dig_in_mapping['spike_array'] == True]['name']
         key = names.values.tolist()
@@ -1211,11 +1211,11 @@ class dataset(data_object):
             if i < len(taste_dig_in):
                 spike_arrs[i] = taste_dig_in[i].spike_array[:]
         
-        nameparts = str.split(self.data_name, '_')
-        dat['ID'] = nameparts[0]
-        dat['Date'] = nameparts[-2]
-        dat['spikes'] = spike_arrs
-        dat['states'] = key
+        nameparts = str.split(self.tbla_name, '_')
+        tbl['ID'] = nameparts[0]
+        tbl['tble'] = nameparts[-2]
+        tbl['spikes'] = spike_arrs
+        tbl['states'] = key
         
         ff = os.path.join(self.root_dir, 'matlab_exports') #make variable with folder name (file folder)
         
@@ -1223,14 +1223,68 @@ class dataset(data_object):
             os.makedirs(ff)
             print("Directory created successfully")
         
-        fn = self.data_name+'.mat' #make file name
+        fn = self.tbla_name+'.mat' #make file name
         fp = os.path.join(ff, fn) #make file path 
-        sio.savemat(fp,{'data':dat}) #save data [dat] with label "data", at file path fp
+        sio.savemat(fp,{'tbla':tbl}) #save tbla [tbl] with label "tbla", at file path fp
         print('spike trains successfully exported to '+fp)
         
         h5.flush()
         h5.close()
-
+        
+        #TODO: get this 
+    def get_spike_array_table(self):
+        h5 = tables.open_file(self.h5_file,'r+')
+        taste_dig_in = h5.list_nodes('/spike_trains')
+        loops = len(taste_dig_in)
+        tbl = {}
+        
+        names = self.dig_in_mapping[self.dig_in_mapping['spike_array'] == True]['name'].copy()
+        key = names.values.tolist()
+        spike_arrs = np.zeros(loops,dtype=np.object)
+        
+        
+        for i in range(loops):
+            if i < len(taste_dig_in):
+                spike_arrs[i] = taste_dig_in[i].spike_array[:]
+                
+        h5.flush()
+        h5.close()
+        
+        tbl['spikes'] = spike_arrs
+        tbl['name'] = key
+        
+        tbl = pd.DataFrame.from_dict(tbl)
+        tbl = tbl.explode('spikes')
+        tbl['din_trial'] = tbl.groupby(['name']).cumcount()
+        
+        din_trls = self.dig_in_trials.copy()
+        din_trls['din_trial'] = din_trls.groupby(['name']).cumcount()
+        
+        tbl = tbl.merge(din_trls, how = 'left', on = ['din_trial','name'])
+        
+        
+        
+        nameparts = str.split(self.data_name, '_')
+        tbl['ID'] = nameparts[0]
+        tbl['date'] = nameparts[-2]
+        tbl['rec_dir'] = self.root_dir
+        
+        unt_tbl = self.get_unit_table().copy()
+        elec_tbl = self.electrode_mapping.copy()
+        elec_tbl = elec_tbl.rename(columns = {'Electrode':'electrode'})
+        elec_tbl = elec_tbl[['electrode','area']]
+        unt_tbl = unt_tbl.merge(elec_tbl, how = 'left', on = 'electrode') 
+        
+        unt_tbl = unt_tbl.apply(lambda x: [x.tolist()], axis = 0)
+        unt_tbl = pd.concat([unt_tbl]*len(tbl), ignore_index = True)
+        
+        cols = ['unit_num','electrode','regular_spiking','fast_spiking', 'area']
+        tbl[cols] = unt_tbl[cols]
+        
+        cols.append('spikes')
+        tbl = tbl.explode(cols)
+        
+        return tbl
 
 def run_joblib_process(process):
     res = process.run()
