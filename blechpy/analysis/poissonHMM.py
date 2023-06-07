@@ -49,16 +49,17 @@ def fast_factorial(x):
 
         return y
 
-
 @njit
 def poisson(rate, n, dt):
     '''Gives probability of each neurons spike count assuming poisson spiking
     '''
-    #tmp = np.power(rate*dt, n) / np.array([fast_factorial(x) for x in n])
-    #tmp = tmp * np.exp(-rate*dt)
-    tmp = n*np.log(rate*dt) - np.array([np.log(fast_factorial(x)) for x in n])
-    tmp = tmp - rate*dt
-    return np.exp(tmp)
+    if rate > 150: #cap rate at 150Hz since neurons don't fire faster than that in our hands
+        res = 0
+    else:
+        tmp = n*np.log(rate*dt) - np.array([np.log(fast_factorial(x)) for x in n])
+        tmp = tmp - rate*dt
+        res = np.exp(tmp)
+    return res
 
 @njit
 def log_emission(rate, n , dt):
@@ -367,6 +368,7 @@ def compute_BIC(PI, A, B, spikes=None, dt=None, maxLogProb=None, n_time_steps=No
 
     BIC = -2 * maxLogProb + nParams * np.log(n_time_steps)
     return BIC, bestPaths, maxLogProb
+#TODO add compute_AIC method and integrate
 
 
 def compute_hmm_cost(spikes, dt, PI, A, B, win_size=0.25, true_rates=None):
