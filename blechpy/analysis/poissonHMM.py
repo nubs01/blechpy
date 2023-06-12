@@ -53,13 +53,12 @@ def fast_factorial(x):
 def poisson(rate, n, dt):
     '''Gives probability of each neurons spike count assuming poisson spiking
     '''
-    if rate > 150: #cap rate at 150Hz since neurons don't fire faster than that in our hands
-        res = 0
-    else:
-        tmp = n*np.log(rate*dt) - np.array([np.log(fast_factorial(x)) for x in n])
-        tmp = tmp - rate*dt
-        res = np.exp(tmp)
-    return res
+    tmp = n*np.log(rate*dt) - np.array([np.log(fast_factorial(x)) for x in n])
+    tmp = tmp - rate*dt
+    tmp = np.exp(tmp)
+    tmp[rate > 150] = MIN_PROB
+    
+    return tmp
 
 @njit
 def log_emission(rate, n , dt):
@@ -500,11 +499,13 @@ def rebin_spike_array(spikes, dt, time, new_dt):
         return spikes, time
 
     n_trials, n_cells, n_steps = spikes.shape
-    n_bins = int(new_dt/dt)
-    new_time = np.arange(time[0], time[-1], n_bins)
+    dbins = int(new_dt/dt) #keep in mind that "time" is actually an index of integers
+    new_time = np.arange(time[0], time[-1], dbins)
     new_spikes = np.zeros((n_trials, n_cells, len(new_time)))
     for i, w in enumerate(new_time):
-        idx = np.where((time >= w) & (time < w+new_dt))[0]
+        #I think I fixed a bug here, seems that it was summing spikes only over a small slice ahead of the current time, instead of the span between new steps
+        #changing from new_dt to dbins should fix this
+        idx = np.where((time >= w) & (time < w+dbins))[0] 
         new_spikes[:,:,i] = np.sum(spikes[:,:,idx], axis=-1)
 
     return new_spikes.astype(np.int32), new_time
