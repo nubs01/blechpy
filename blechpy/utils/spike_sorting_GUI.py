@@ -4,7 +4,7 @@ from tkinter import ttk
 import numpy as np
 import matplotlib
 from blechpy.utils import userIO, tk_widgets as tkw
-matplotlib.use('TkAgg')
+matplotlib.use('TKAgg')
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from blechpy.utils.tk_widgets import ScrollFrame, window_center

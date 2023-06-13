@@ -139,7 +139,7 @@ def plot_traces_and_outliers(h5_file, window=60, save_file=None):
 
 
 def plot_overlay_psth(rec_dir, unit, din_map, plot_window=[-1500, 2500],
-                      bin_size=250, bin_step=25, dig_ins=None, smoothing_width=3,
+                      bin_size=250, bin_step=25, sd = True, dig_ins=None, smoothing_width=3,
                       save_file=None):
     '''
     Plots overlayed PSTHs for all tastants or a specified subset
@@ -182,7 +182,9 @@ def plot_overlay_psth(rec_dir, unit, din_map, plot_window=[-1500, 2500],
         sem_fr = sem_fr[t_idx]
         mean_fr = gaussian_filter1d(mean_fr, smoothing_width)
 
-        ax.fill_between(psth_time, mean_fr - sem_fr, mean_fr + sem_fr, alpha=0.3)
+        if sd == True:
+            ax.fill_between(psth_time, mean_fr - sem_fr, mean_fr + sem_fr, alpha=0.3)
+            
         ax.plot(psth_time, mean_fr, linewidth=3, label=name)
 
     ax.set_title('Peri-stimulus Firing Rate Plot\nUnit %i' % unit, fontsize=34)
