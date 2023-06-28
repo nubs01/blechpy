@@ -111,28 +111,34 @@ def make_hmm_raster(spikes, time=None, save_file=None):
 
     fig, axes = plt.subplots(nrows=n_trials, figsize=(15, n_trials))
     y_step = np.linspace(0.05, 0.95, n_cells)
+
+    counter = 1
     for ax, trial in zip(axes, spikes):
         tmp = plot_raster(trial, time=time, ax=ax)
 
         for spine in ax.spines.values():
             spine.set_visible(False)
-
-        ax.get_yaxis().set_visible(False)
+        ax.set_yticklabels([])
+        ax.set_yticks([])
+        #ax.get_yaxis().set_visible(False)
         ax.get_xaxis().set_visible(False)
+        ax.set_ylabel(str(counter), labelpad=-1)
         if time[0] < 0:
             ax.axvline(0, color='red', linestyle='--', linewidth=5, alpha=0.8)
 
+        counter = counter + 1
+
     axes[-1].get_xaxis().set_visible(True)
-    axes[-1].xaxis.set_tick_params(labelsize = 40)
+    axes[-1].xaxis.set_tick_params(labelsize=25)
     tmp_ax = fig.add_subplot('111', frameon=False)
     tmp_ax.tick_params(labelcolor='none', top=False, bottom=False,
                        left=False, right=False)
-    tmp_ax.set_ylabel('Trials', fontsize=50)
-    axes[-1].set_xlabel('Time', fontsize=50)
-    axes[-1].set_ylabel('Cells', fontsize=50)
+    tmp_ax.set_ylabel('Trial', fontsize=35)
+    axes[-1].set_xlabel('Time', fontsize=35)
+    #axes[-1].set_ylabel('Cells', fontsize=50)
     
-    #fig.tight_layout()
-    #fig.legend(loc = 'lower_center')
+    fig.tight_layout()
+    plt.subplots_adjust(top=0.95)
     if save_file:
         fig.savefig(save_file)
         plt.close(fig)
@@ -166,7 +172,7 @@ def plot_sequence(seq, time=None, ax=None, y_min=0, y_max=1, colors=None):
     return ax, leg_handles, leg_labels
 
 
-def plot_viterbi_paths(hmm, spikes, time=None, colors=None, axes=None, legend=False,
+def plot_viterbi_paths(hmm, spikes, time=None, colors=None, axes=None, legend=True,
                        hmm_id=None, save_file=None):
     if not axes:
         fig, axes = make_hmm_raster(spikes, time=time)
@@ -174,7 +180,7 @@ def plot_viterbi_paths(hmm, spikes, time=None, colors=None, axes=None, legend=Fa
         fig = axes[0].figure
 
     if legend:
-        fig.subplots_adjust(right=0.9)  # To  make room for legend
+        fig.subplots_adjust(bottom=0.1)  # To  make room for legend
 
 
     BIC = hmm.BIC
@@ -201,16 +207,16 @@ def plot_viterbi_paths(hmm, spikes, time=None, colors=None, axes=None, legend=Fa
 
     if legend:
         mid = int(n_trials/2)
-        axes[mid].legend(handles, labels, loc='lower center',
-                         bbox_to_anchor=(0.8, .5, .5, .5), shadow=True,
-                         fontsize=14)
+        axes[-1].legend(handles, labels, loc='upper center',
+                         bbox_to_anchor=(0.5, -2), shadow=True,
+                         fontsize="30", ncol = len(labels))
 
     axes[-1].set_xlabel('Time (ms)')
     title_str = 'Decoded HMM Sequences'
     if hmm_id:
         title_str += '\n%s' % hmm_id
 
-    axes[0].set_title(title_str)
+    axes[0].set_title(title_str, fontsize=40)
     if save_file:
         fig.savefig(save_file)
         plt.close(fig)
@@ -263,7 +269,7 @@ def plot_forward_probs(hmm, spikes, dt, time=None, colors=None, axes=None, legen
         fig = axes[0].figure
 
     if legend:
-        fig.subplots_adjust(right=0.9)  # To  make room for legend
+        fig.subplots_adjust(bottom=0.1)  # To  make room for legend
 
     alphas, norms = hmm.get_forward_probabilities(spikes, dt)
     n_trials, n_states, n_steps = alphas.shape
@@ -288,16 +294,16 @@ def plot_forward_probs(hmm, spikes, dt, time=None, colors=None, axes=None, legen
 
     if legend:
         mid = int(n_trials/2)
-        axes[mid].legend(handles, labels, loc='upper center',
-                         bbox_to_anchor=(0.8, .5, .5, .5), shadow=True,
-                         fontsize=14)
+        axes[-1].legend(handles, labels, loc='upper center',
+                         bbox_to_anchor=(0.5, -2), shadow=True,
+                         fontsize="30", ncol=len(labels))
 
     axes[-1].set_xlabel('Time (ms)')
     title_str = 'HMM Forward Probabilities'
     if hmm_id:
         title_str += '\n%s' % hmm_id
 
-    axes[0].set_title(title_str)
+    axes[0].set_title(title_str,fontsize=40)
     if save_file:
         fig.savefig(save_file)
         plt.close(fig)
@@ -314,7 +320,7 @@ def plot_backward_probs(hmm, spikes, dt, time=None, colors=None, axes=None, lege
         fig = axes[0].figure
 
     if legend:
-        fig.subplots_adjust(right=0.9)  # To  make room for legend
+        fig.subplots_adjust(bottom=0.1)  # To  make room for legend
 
     betas = hmm.get_backward_probabilities(spikes, dt)
     n_trials, n_states, n_steps = betas.shape
@@ -339,16 +345,16 @@ def plot_backward_probs(hmm, spikes, dt, time=None, colors=None, axes=None, lege
 
     if legend:
         mid = int(n_trials/2)
-        axes[mid].legend(handles, labels, loc='upper center',
-                         bbox_to_anchor=(0.8, .5, .5, .5), shadow=True,
-                         fontsize=14)
+        axes[-1].legend(handles, labels, loc='upper center',
+                         bbox_to_anchor=(0.5, -2), shadow=True,
+                         fontsize="30", ncol = len(labels))
 
     axes[-1].set_xlabel('Time (ms)')
     title_str = 'HMM Backward Probabilities'
     if hmm_id:
         title_str += '\n%s' % hmm_id
 
-    axes[0].set_title(title_str)
+    axes[0].set_title(title_str, fontsize=40)
     if save_file:
         fig.savefig(save_file)
         plt.close(fig)
@@ -365,7 +371,7 @@ def plot_gamma_probs(hmm, spikes=None, dt=None, time=None, colors=None, axes=Non
         fig = axes[0].figure
 
     if legend:
-        fig.subplots_adjust(right=0.9)  # To  make room for legend
+        fig.subplots_adjust(bottom=0.1)  # To  make room for legend
 
     gammas = hmm.stat_arrays['gamma_probabilities']
     if gammas == []:
@@ -396,16 +402,16 @@ def plot_gamma_probs(hmm, spikes=None, dt=None, time=None, colors=None, axes=Non
 
     if legend:
         mid = int(n_trials/2)
-        axes[mid].legend(handles, labels, loc='upper center',
-                         bbox_to_anchor=(0.8, .5, .5, .5), shadow=True,
-                         fontsize=14)
+        axes[-1].legend(handles, labels, loc='upper center',
+                         bbox_to_anchor=(0.5, -2), shadow=True,
+                         fontsize="30", ncol = len(labels))
 
     axes[-1].set_xlabel('Time (ms)')
     title_str = 'HMM Gamma Probabilities'
     if hmm_id:
         title_str += '\n%s' % hmm_id
 
-    axes[0].set_title(title_str)
+    axes[0].set_title(title_str, fontsize=40)
     if save_file:
         fig.savefig(save_file)
         return
@@ -532,7 +538,8 @@ def plot_hmm_figures(hmm, spikes, dt, time, hmm_id=None, save_dir=None):
     colors = get_hmm_plot_colors(hmm.n_states)
     if hmm_id is None:
         hmm_id = hmm.hmm_id
-
+        print("hmm_id:")
+        print(hmm_id)
 
     fig_names = ['sequences', 'forward_probabilities',
                  'backward_probabilities', 'gamma_probabilities', 'overview']
@@ -540,7 +547,6 @@ def plot_hmm_figures(hmm, spikes, dt, time, hmm_id=None, save_dir=None):
         files = {x : os.path.join(save_dir, '%s.svg' % x) for x in fig_names}
     else:
         files = dict.fromkeys(fig_names, None)
-
 
     # Plot sequences
     print('Plotting Viterbi Decoded Paths...')

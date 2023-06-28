@@ -1349,7 +1349,7 @@ class HmmHandler(object):
             print('Plotting HMM %s...' % i)
             hmmplt.make_hmm_raster(spikes,time, save_file)
 
-    def plot_saved_models(self):
+    def plot_saved_models(self, dinlabels=True):
         print('Plotting saved models')
         data = self.get_data_overview().set_index('hmm_id')
         rec_dir = self.root_dir
@@ -1360,7 +1360,6 @@ class HmmHandler(object):
                 trials = params['trial_nums']
             else:
                 trials = params['n_trials']
-                
 
             spikes, dt, time = get_hmm_spike_data(rec_dir, params['unit_type'],
                                                   params['channel'],
@@ -1374,7 +1373,13 @@ class HmmHandler(object):
                 os.makedirs(plot_dir)
 
             print('Plotting HMM %s...' % i)
-            hmmplt.plot_hmm_figures(hmm, spikes, dt, time, save_dir=plot_dir)
+
+            if dinlabels==True:
+                hmm_id = f"Taste: {hmm.stat_arrays['row_id'][0][2]}, n states: {hmm.n_states}"
+            else:
+                hmm_id = None
+
+            hmmplt.plot_hmm_figures(hmm, spikes, dt, time, hmm_id=hmm_id, save_dir=plot_dir)
 
     def add_params(self, params):
         '''params may include any subset of the parameters defined in

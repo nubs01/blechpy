@@ -1233,8 +1233,7 @@ class dataset(data_object):
         
         h5.flush()
         h5.close()
-        
-        #TODO: get this 
+
     def get_spike_array_table(self):
         h5 = tables.open_file(self.h5_file,'r+')
         taste_dig_in = h5.list_nodes('/spike_trains')
@@ -1264,8 +1263,6 @@ class dataset(data_object):
         din_trls['din_trial'] = din_trls.groupby(['name']).cumcount()
         
         tbl = tbl.merge(din_trls, how = 'left', on = ['din_trial','name'])
-        
-        
         
         nameparts = str.split(self.data_name, '_')
         tbl['ID'] = nameparts[0]
