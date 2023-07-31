@@ -1,3 +1,9 @@
+v2.2.0 (2023-06-28)
+-------------------
+- you can now create an HmmHandler object with blechpy.HmmHandler()
+- adjusted HMM plotting aesthetics
+- added dig_in label to HMM plot titles by default through dinlabels argument
+
 v2.1.43 (2023-06-12)
 -fixed bug in rebin spike arrays where spike arrays were not actually rebinned, but subsampled
 
