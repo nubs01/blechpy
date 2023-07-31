@@ -366,27 +366,27 @@ def compute_BIC(PI, A, B, spikes=None, dt=None, maxLogProb=None, n_time_steps=No
         n_time_steps = spikes.shape[-1]
 
     BIC = -2 * maxLogProb + nParams * np.log(n_time_steps)
-    return BIC, bestPaths, maxLogProb
-#TODO add compute_AIC method and integrate
-
+    AIC = -2 * maxLogProb + 2 * nParams
+    return BIC, AIC, bestPaths, maxLogProb
 
 def compute_hmm_cost(spikes, dt, PI, A, B, win_size=0.25, true_rates=None):
     if true_rates is None:
         true_rates = convert_spikes_to_rates(spikes, dt, win_size,
                                              step_size=win_size)
 
-    BIC, bestPaths, maxLogProb = compute_BIC(PI, A, B, spikes=spikes, dt=dt)
+    BIC, AIC, bestPaths, maxLogProb = compute_BIC(PI, A, B, spikes=spikes, dt=dt)
     hmm_rates = generate_rate_array_from_state_seq(bestPaths, B, dt, win_size,
                                                    step_size=win_size)
     RMSE = compute_rate_rmse(true_rates, hmm_rates)
-    return RMSE, BIC, bestPaths, maxLogProb
+    return RMSE, BIC, AIC, bestPaths, maxLogProb
 
 
 def compute_best_paths(spikes, dt, PI, A, B):
     if len(spikes.shape) == 2:
         spikes = np.array([spikes])
 
-    nTrials, nCells, nTimeSteps = spikes.shape
+    nTrials, nCells, nTimeSteps = spikes.shapeg
+    nTrials, nCells, nTimeSteps = spikes.shapeg
     bestPaths = np.zeros((nTrials, nTimeSteps))-1
     pathProbs = np.zeros((nTrials,))
 
@@ -781,6 +781,7 @@ def load_hmm_from_hdf5(h5_file, hmm_id):
             hmm.stat_arrays[k] = v
 
     hmm.BIC = params.pop('BIC')
+    hmm.AIC = params.pop('AIC')
     hmm.converged = params.pop('converged')
     hmm.fitted = params.pop('fitted')
     hmm.cost = params.pop('cost')
@@ -899,6 +900,7 @@ class PoissonHMM(object):
 
         self.cost = None
         self.BIC = None
+        self.AIC = None
         self.max_log_prob = None
         self.fit_LL = None
 
@@ -976,6 +978,7 @@ class PoissonHMM(object):
     def _init_history(self):
         self.stat_arrays['cost'] = []
         self.stat_arrays['BIC'] = []
+        self.stat_arrays['AIC'] = []
         self.stat_arrays['max_log_prob'] = []
         self.stat_arrays['fit_LL'] = []
         self.stat_arrays['iterations'] = []
@@ -990,6 +993,7 @@ class PoissonHMM(object):
 
         self.stat_arrays['cost'].append(self.cost)
         self.stat_arrays['BIC'].append(self.BIC)
+        self.stat_arrays['AIC'].append(self.AIC)
         self.stat_arrays['max_log_prob'].append(self.max_log_prob)
         self.stat_arrays['fit_LL'].append(self.fit_LL)
         self.stat_arrays['iterations'].append(itr)
@@ -1151,9 +1155,10 @@ class PoissonHMM(object):
         PI = self.initial_distribution
         A  = self.transition
         B  = self.emission
-        cost, BIC, bestPaths, maxLogProb = compute_hmm_cost(spikes, dt, PI, A, B)
+        cost, BIC, AIC, bestPaths, maxLogProb = compute_hmm_cost(spikes, dt, PI, A, B)
         self.cost = cost
         self.BIC = BIC
+        self.AIC = AIC
         self.max_log_prob = maxLogProb
         self.stat_arrays['best_sequences'] = bestPaths
 
@@ -1174,6 +1179,7 @@ class PoissonHMM(object):
         self.fit_LL = self.stat_arrays['fit_LL'][idx]
         self.max_log_prob = self.stat_arrays['max_log_prob'][idx]
         self.BIC = self.stat_arrays['BIC'][idx]
+        self.AIC = self.stat_arrays['AIC'][idx]
         self.cost = self.stat_arrays['cost'][idx]
         if spikes is not None and dt is not None:
             self.stat_arrays['gamma_probabilities'] = self.get_gamma_probabilities(spikes, dt)
