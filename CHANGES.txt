@@ -1,3 +1,11 @@
+v2.2.4 (2023-08-11)
+-------------------
+-patched a whoopsie in phmm.compute_BIC()
+
+v.2.2.3 (2023-08-11)
+-------------------
+-AIC calculation removed from standard processing and introduced as a post-processing step to ensure backwards-compatibility
+
 v2.2.2 (2023-07-31)
 -------------------
 - added AIC to hmms
