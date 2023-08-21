@@ -4,7 +4,7 @@ import numpy as np
 import itertools as it
 import pandas as pd
 import tables
-import pprint 
+import pprint
 import time as sys_time
 from numba import njit
 from copy import deepcopy
@@ -16,15 +16,13 @@ from blechpy.plotting import hmm_plot as hmmplt
 from blechpy.utils import math_tools as mt
 from joblib import Parallel, delayed, Memory, cpu_count
 from appdirs import user_cache_dir
+
 cachedir = user_cache_dir('blechpy')
 memory = Memory(cachedir, verbose=0)
-
-
 
 TEST_PARAMS = {'n_cells': 10, 'n_states': 4, 'state_seq_length': 5,
                'trial_time': 3.5, 'dt': 0.001, 'max_rate': 50, 'n_trials': 15,
                'min_state_dur': 0.05, 'noise': 0.01, 'baseline_dur': 1}
-
 
 HMM_PARAMS = {'hmm_id': None, 'taste': None, 'channel': None,
               'unit_type': 'single', 'dt': 0.001, 'threshold': 1e-7,
@@ -33,8 +31,7 @@ HMM_PARAMS = {'hmm_id': None, 'taste': None, 'channel': None,
               'n_states': 3, 'fitted': False, 'area': 'GC',
               'hmm_class': 'PoissonHMM', 'notes': ''}
 
-
-FACTORIAL_LOOKUP = np.array([math.factorial(x) for x in range(20)])
+FACTORIAL_LOOKUP = np.array([math.factorial(x) for x in range(50)])
 MIN_PROB = 1e-100
 
 
@@ -44,45 +41,50 @@ def fast_factorial(x):
         return FACTORIAL_LOOKUP[x]
     else:
         y = 1
-        for i in range(1,x+1):
-            y = y*i
+        for i in range(1, x + 1):
+            y = y * i
 
         return y
 
-@njit
-def poisson(rate, n, dt):
-    '''Gives probability of each neurons spike count assuming poisson spiking
-    '''
-    tmp = n*np.log(rate*dt) - np.array([np.log(fast_factorial(x)) for x in n])
-    tmp = tmp - rate*dt
-    tmp = np.exp(tmp)
-    tmp[rate > 150] = MIN_PROB
-    
-    return tmp
 
 @njit
-def log_emission(rate, n , dt):
+def poisson(rate, n, dt):
+    """Gives probability of each neurons spike count assuming poisson spiking
+    """
+    rdt = rate * dt
+    tmp = n * np.log(rdt) - np.array([np.log(fast_factorial(x)) for x in n])
+    tmp = tmp - rdt
+    tmp = np.exp(tmp)
+    tmp[rate > 150] = MIN_PROB  # cap rate at 150, since neurons don't really fire that fast
+    tmp[((rate == 0) & (n == 0))] = 1.0  # if rate is zero and n is zero, probability is 1
+    tmp[((rate == 0) & (n != 0))] = MIN_PROB  # if rate is zero and n is not zero, probability is 0
+
+    return tmp
+
+
+@njit
+def log_emission(rate, n, dt):
     return np.sum(np.log(poisson(rate, n, dt)))
 
 
 @njit
-def fix_arrays(PI,A,B):
-    '''copy and remove zero values so that log probabilities can be computed
-    '''
+def fix_arrays(PI, A, B):
+    """copy and remove zero values so that log probabilities can be computed
+    """
     PI = PI.copy()
     A = A.copy()
     B = B.copy()
     nx, ny = A.shape
     for i in range(nx):
         for j in range(ny):
-            if A[i,j] == 0.:
-                A[i,j] = MIN_PROB
+            if A[i, j] == 0.:
+                A[i, j] = MIN_PROB
 
     nx, ny = B.shape
     for i in range(nx):
         for j in range(ny):
-            if B[i,j] == 0.:
-                B[i,j] = MIN_PROB
+            if B[i, j] == 0.:
+                B[i, j] = MIN_PROB
 
     for i in range(len(PI)):
         if PI[i] == 0.:
@@ -129,25 +131,25 @@ def forward(spikes, dt, PI, A, B):
 
     # For each state, use the the initial state distribution and spike counts
     # to initialize alpha(:,1)
-    #row = np.array([PI[i] * np.prod(poisson(B[:,i], spikes[:,0], dt))
-    #row = np.array([np.log(PI[i]) + np.sum(np.log(poisson(B[:,i], spikes[:,0], dt)))
+    # row = np.array([PI[i] * np.prod(poisson(B[:,i], spikes[:,0], dt))
+    # row = np.array([np.log(PI[i]) + np.sum(np.log(poisson(B[:,i], spikes[:,0], dt)))
     #                for i in range(nStates)])
-    a0 = [np.exp(np.log(PI[i]) + log_emission(B[:,i], spikes[:,0], dt))
+    a0 = [np.exp(np.log(PI[i]) + log_emission(B[:, i], spikes[:, 0], dt))
           for i in range(nStates)]
     a0 = np.array(a0)
     alpha = np.zeros((nStates, nTimeSteps))
     norms = [np.sum(a0)]
-    alpha[:, 0] = a0/norms[0]
+    alpha[:, 0] = a0 / norms[0]
     for t in range(1, nTimeSteps):
         for s in range(nStates):
-            tmp_em = log_emission(B[:,s], spikes[:, t], dt)
-            tmp_a = np.sum(np.exp(np.log(alpha[:, t-1]) + np.log(A[:,s])))
+            tmp_em = log_emission(B[:, s], spikes[:, t], dt)
+            tmp_a = np.sum(np.exp(np.log(alpha[:, t - 1]) + np.log(A[:, s])))
             tmp = np.exp(tmp_em + np.log(tmp_a))
-            alpha[s,t] = tmp
+            alpha[s, t] = tmp
 
-        tmp_norm = np.sum(alpha[:,t])
+        tmp_norm = np.sum(alpha[:, t])
         norms.append(tmp_norm)
-        alpha[:, t] = alpha[:,t] / tmp_norm
+        alpha[:, t] = alpha[:, t] / tmp_norm
 
     return alpha, norms
 
@@ -175,15 +177,15 @@ def backward(spikes, dt, A, B, norms):
     nStates = A.shape[0]
     beta = np.zeros((nStates, nTimeSteps))
     beta[:, -1] = 1  # Initialize final beta to 1 for all states
-    tStep = list(range(nTimeSteps-1))
+    tStep = list(range(nTimeSteps - 1))
     tStep.reverse()
     for t in tStep:
         for s in range(nStates):
-            tmp_em = log_emission(B[:,s], spikes[:,t+1], dt)
-            tmp_b = np.log(beta[:,t+1]) + np.log(A[s,:]) + tmp_em
-            beta[s,t] = np.sum(np.exp(tmp_b))
+            tmp_em = log_emission(B[:, s], spikes[:, t + 1], dt)
+            tmp_b = np.log(beta[:, t + 1]) + np.log(A[s, :]) + tmp_em
+            beta[s, t] = np.sum(np.exp(tmp_b))
 
-        beta[:, t] = beta[:, t] / norms[t+1]
+        beta[:, t] = beta[:, t] / norms[t + 1]
 
     return beta
 
@@ -194,17 +196,17 @@ def compute_baum_welch(spikes, dt, A, B, alpha, beta):
     nTimeSteps = spikes.shape[1]
     nStates = A.shape[0]
     gamma = np.zeros((nStates, nTimeSteps))
-    epsilons = np.zeros((nStates, nStates, nTimeSteps-1))
+    epsilons = np.zeros((nStates, nStates, nTimeSteps - 1))
     for t in range(nTimeSteps):
         tmp_g = np.exp(np.log(alpha[:, t]) + np.log(beta[:, t]))
         gamma[:, t] = tmp_g / np.sum(tmp_g)
-        if t < nTimeSteps-1:
+        if t < nTimeSteps - 1:
             epsilonNumerator = np.zeros((nStates, nStates))
             for si in range(nStates):
                 for sj in range(nStates):
-                    probs = log_emission(B[:, sj], spikes[:, t+1], dt)
+                    probs = log_emission(B[:, sj], spikes[:, t + 1], dt)
                     tmp_en = (np.log(alpha[si, t]) + np.log(A[si, sj]) +
-                              np.log(beta[sj, t+1]) + probs)
+                              np.log(beta[sj, t + 1]) + probs)
                     epsilonNumerator[si, sj] = np.exp(tmp_en)
 
             epsilons[:, :, t] = epsilonNumerator / np.sum(epsilonNumerator)
@@ -223,7 +225,7 @@ def baum_welch(trial_dat, dt, PI, A, B):
 def compute_new_matrices(spikes, dt, gammas, epsilons):
     nTrials, nCells, nTimeSteps = spikes.shape
     n_states = gammas.shape[1]
-    minFR = 1/(nTimeSteps*dt)
+    minFR = 1 / (nTimeSteps * dt)
 
     PI = np.mean(gammas[:, :, 0], axis=0)
     A = np.zeros((n_states, n_states))
@@ -235,31 +237,30 @@ def compute_new_matrices(spikes, dt, gammas, epsilons):
             if np.isfinite(Adenom) and Adenom != 0.:
                 A[si, sj] = Anumer / Adenom
             else:
-                A[si, sj] = 0 # incase of floating point errors resulting in zeros
+                A[si, sj] = 0  # incase of floating point errors resulting in zeros
 
-        #A[si, A[si,:] < 1e-50] = 0
-        row = A[si,:]
+        # A[si, A[si,:] < 1e-50] = 0
+        row = A[si, :]
         if np.sum(row) == 0.0:
             A[si, sj] = 1.0
         else:
-            A[si, :] = A[si,:] / np.sum(row)
-
+            A[si, :] = A[si, :] / np.sum(row)
 
     for si in range(n_states):
         for tri in range(nTrials):
-            for t in range(nTimeSteps-1):
+            for t in range(nTimeSteps - 1):
                 for u in range(nCells):
-                    B[u,si] = B[u,si] + gammas[tri, si, t]*spikes[tri, u, t]
+                    B[u, si] = B[u, si] + gammas[tri, si, t] * spikes[tri, u, t]
 
     # Convert and really small transition values into zeros
-    #A[A < 1e-50] = 0
-    #sums = np.sum(A, axis=1)
-    #A = A/np.sum(A, axis=1) # This divides columns not rows
-    #Bnumer = np.sum(np.array([np.matmul(tmp_y, tmp_g.T)
+    # A[A < 1e-50] = 0
+    # sums = np.sum(A, axis=1)
+    # A = A/np.sum(A, axis=1) # This divides columns not rows
+    # Bnumer = np.sum(np.array([np.matmul(tmp_y, tmp_g.T)
     #                          for tmp_y, tmp_g in zip(spikes, gammas)]),
     #                axis=0)
-    Bdenom =  np.sum(np.sum(gammas, axis=2), axis=0)
-    B = (B / Bdenom)/dt
+    Bdenom = np.sum(np.sum(gammas, axis=2), axis=0)
+    B = (B / Bdenom) / dt
     B[B < minFR] = minFR
     A[A <= MIN_PROB] = 0.0
 
@@ -297,15 +298,15 @@ def poisson_viterbi_deprecated(spikes, dt, PI, A, B):
     nStates = A.shape[0]
     nCells, nTimeSteps = spikes.shape
     # get rid of zeros for computation 
-    A[np.where(A==0)] = 1e-300
+    A[np.where(A == 0)] = 1e-300
     T1 = np.zeros((nStates, nTimeSteps))
     T2 = np.zeros((nStates, nTimeSteps))
-    T1[:,0] = np.array([np.log(PI[i]) +
-                        np.log(np.prod(poisson(B[:,i], spikes[:, 1], dt)))
-                        for i in range(nStates)])
-    for t, s in it.product(range(1,nTimeSteps), range(nStates)):
+    T1[:, 0] = np.array([np.log(PI[i]) +
+                         np.log(np.prod(poisson(B[:, i], spikes[:, 1], dt)))
+                         for i in range(nStates)])
+    for t, s in it.product(range(1, nTimeSteps), range(nStates)):
         probs = np.log(np.prod(poisson(B[:, s], spikes[:, t], dt)))
-        vec2 = T1[:, t-1] + np.log(A[:,s])
+        vec2 = T1[:, t - 1] + np.log(A[:, s])
         vec1 = vec2 + probs
         T1[s, t] = np.max(vec1)
         idx = np.argmax(vec1)
@@ -315,10 +316,10 @@ def poisson_viterbi_deprecated(spikes, dt, PI, A, B):
     maxPathLogProb = T1[bestPathEndState, -1]
     bestPath = np.zeros((nTimeSteps,))
     bestPath[-1] = bestPathEndState
-    tStep = list(range(nTimeSteps-1))
+    tStep = list(range(nTimeSteps - 1))
     tStep.reverse()
     for t in tStep:
-        bestPath[t] = T2[int(bestPath[t+1]), t+1]
+        bestPath[t] = T2[int(bestPath[t + 1]), t + 1]
 
     return bestPath, maxPathLogProb, T1, T2
 
@@ -327,26 +328,26 @@ def poisson_viterbi(spikes, dt, PI, A, B):
     n_states = A.shape[0]
     PI, A, B = fix_arrays(PI, A, B)
     n_cells, n_steps = spikes.shape
-    T1 = np.ones((n_states, n_steps))*1e-300
+    T1 = np.ones((n_states, n_steps)) * 1e-300
     T2 = np.zeros((n_states, n_steps))
-    T1[:, 0] = [np.log(PI[i])+np.sum(np.log(poisson(B[:,i], spikes[:,0], dt)))
+    T1[:, 0] = [np.log(PI[i]) + np.sum(np.log(poisson(B[:, i], spikes[:, 0], dt)))
                 for i in range(n_states)]
-    #for t,s in it.product(range(1,n_steps), range(n_states)):
-    for t in range(1,n_steps):
+    # for t,s in it.product(range(1,n_steps), range(n_states)):
+    for t in range(1, n_steps):
         for s in range(n_states):
-            probs = np.sum(np.log(poisson(B[:,s], spikes[:,t], dt)))
-            vec1 = T1[:,t-1]+np.log(A[:,s])+probs
-            T1[s,t] = np.max(vec1)
-            T2[s,t] = np.argmax(vec1)
+            probs = np.sum(np.log(poisson(B[:, s], spikes[:, t], dt)))
+            vec1 = T1[:, t - 1] + np.log(A[:, s]) + probs
+            T1[s, t] = np.max(vec1)
+            T2[s, t] = np.argmax(vec1)
 
-    best_end_state = np.argmax(T1[:,-1])
+    best_end_state = np.argmax(T1[:, -1])
     max_log_prob = T1[best_end_state, -1]
     bestPath = np.zeros((n_steps,))
     bestPath[-1] = best_end_state
-    tStep = list(range(n_steps-1))
+    tStep = list(range(n_steps - 1))
     tStep.reverse()
     for t in tStep:
-        bestPath[t] = T2[int(bestPath[t+1]), t+1]
+        bestPath[t] = T2[int(bestPath[t + 1]), t + 1]
 
     return bestPath, max_log_prob, T1, T2
 
@@ -355,9 +356,9 @@ def compute_BIC(PI, A, B, spikes=None, dt=None, maxLogProb=None, n_time_steps=No
     if (maxLogProb is None or n_time_steps is None) and (spikes is None or dt is None):
         raise ValueError('Must provide max log prob and n_time_steps or spikes and dt')
 
-    nParams = (A.shape[0]*(A.shape[1]-1) +
-               (PI.shape[0]-1) +
-               B.shape[0]*(B.shape[1]-1))
+    nParams = (A.shape[0] * (A.shape[1] - 1) +
+               (PI.shape[0] - 1) +
+               B.shape[0] * (B.shape[1] - 1))
     if maxLogProb and n_time_steps:
         pass
     else:
@@ -368,6 +369,7 @@ def compute_BIC(PI, A, B, spikes=None, dt=None, maxLogProb=None, n_time_steps=No
     BIC = -2 * maxLogProb + nParams * np.log(n_time_steps)
 
     return BIC, bestPaths, maxLogProb
+
 
 def compute_hmm_cost(spikes, dt, PI, A, B, win_size=0.25, true_rates=None):
     if true_rates is None:
@@ -386,12 +388,12 @@ def compute_best_paths(spikes, dt, PI, A, B):
         spikes = np.array([spikes])
 
     nTrials, nCells, nTimeSteps = spikes.shape
-    bestPaths = np.zeros((nTrials, nTimeSteps))-1
+    bestPaths = np.zeros((nTrials, nTimeSteps)) - 1
     pathProbs = np.zeros((nTrials,))
 
     for i, trial in enumerate(spikes):
-        bestPaths[i,:], pathProbs[i], _, _ = poisson_viterbi(trial, dt, PI,
-                                                             A, B)
+        bestPaths[i, :], pathProbs[i], _, _ = poisson_viterbi(trial, dt, PI,
+                                                              A, B)
     return bestPaths, pathProbs
 
 
@@ -407,16 +409,16 @@ def compute_rate_rmse(rates1, rates2):
         # Compute RMSE from euclidean distances at each time point
         distances = np.zeros((n_steps,))
         for j in range(n_steps):
-            distances[j] =  mt.euclidean(t1[:,j], t2[:,j])
+            distances[j] = mt.euclidean(t1[:, j], t2[:, j])
 
-        RMSE[i] = np.sqrt(np.mean(np.power(distances,2)))
+        RMSE[i] = np.sqrt(np.mean(np.power(distances, 2)))
 
     return np.mean(RMSE)
 
 
 def convert_path_state_numbers(paths, state_map):
     newPaths = np.zeros(paths.shape)
-    for k,v in state_map.items():
+    for k, v in state_map.items():
         idx = np.where(paths == k)
         newPaths[idx] = v
 
@@ -435,7 +437,7 @@ def match_states(emission1, emission2):
     states = list(range(emission2.shape[1]))
     out = {}
     for i in range(emission2.shape[1]):
-        s = np.argmin(distances[:,i])
+        s = np.argmin(distances[:, i])
         r = np.argmin(distances[s, :])
         if r == i and s in states:
             out[i] = s
@@ -457,12 +459,12 @@ def convert_spikes_to_rates(spikes, dt, win_size, step_size=None):
         step_size = win_size
 
     n_trials, n_cells, n_steps = spikes.shape
-    n_pts = int(win_size/dt)
-    n_step_pts = int(step_size/dt)
+    n_pts = int(win_size / dt)
+    n_step_pts = int(step_size / dt)
     win_starts = np.arange(0, n_steps, n_step_pts)
     out = np.zeros((n_trials, n_cells, len(win_starts)))
     for i, w in enumerate(win_starts):
-        out[:, :, i] = np.sum(spikes[:, :, w:w+n_pts], axis=2) / win_size
+        out[:, :, i] = np.sum(spikes[:, :, w:w + n_pts], axis=2) / win_size
 
     return out
 
@@ -482,11 +484,11 @@ def generate_rate_array_from_state_seq(bestPaths, B, dt, win_size,
         rates[j, :, :] = B[:, seq]
 
     n_pts = int(win_size / dt)
-    n_step_pts = int(step_size/dt)
+    n_step_pts = int(step_size / dt)
     win_starts = np.arange(0, n_steps, n_step_pts)
     mean_rates = np.zeros((n_trials, n_cells, len(win_starts)))
     for i, w in enumerate(win_starts):
-        mean_rates[:, :, i] = np.sum(rates[:, : , w:w+n_pts], axis=2) / n_pts
+        mean_rates[:, :, i] = np.sum(rates[:, :, w:w + n_pts], axis=2) / n_pts
 
     return mean_rates
 
@@ -498,14 +500,14 @@ def rebin_spike_array(spikes, dt, time, new_dt):
         return spikes, time
 
     n_trials, n_cells, n_steps = spikes.shape
-    dbins = int(new_dt/dt) #keep in mind that "time" is actually an index of integers
+    dbins = int(new_dt / dt)  # keep in mind that "time" is actually an index of integers
     new_time = np.arange(time[0], time[-1], dbins)
     new_spikes = np.zeros((n_trials, n_cells, len(new_time)))
     for i, w in enumerate(new_time):
-        #I think I fixed a bug here, seems that it was summing spikes only over a small slice ahead of the current time, instead of the span between new steps
-        #changing from new_dt to dbins should fix this
-        idx = np.where((time >= w) & (time < w+dbins))[0] 
-        new_spikes[:,:,i] = np.sum(spikes[:,:,idx], axis=-1)
+        # I think I fixed a bug here, seems that it was summing spikes only over a small slice ahead of the current time, instead of the span between new steps
+        # changing from new_dt to dbins should fix this
+        idx = np.where((time >= w) & (time < w + dbins))[0]
+        new_spikes[:, :, i] = np.sum(spikes[:, :, idx], axis=-1)
 
     return new_spikes.astype(np.int32), new_time
 
@@ -553,12 +555,11 @@ def get_hmm_spike_data(rec_dir, unit_type, channel, time_start=None,
         units = unit_type
 
     time, spike_array = h5io.get_spike_data(rec_dir, units, channel, trials=trials)
-    
+
     if isinstance(channel, list):
         to_cat = [spike_array[key] for key in spike_array.keys()]
-        spike_array = np.concatenate(to_cat, axis = 0)
-        
-    
+        spike_array = np.concatenate(to_cat, axis=0)
+
     spike_array = spike_array.astype(np.int32)
     if len(units) == 1:
         spike_array = np.expand_dims(spike_array, 1)
@@ -675,15 +676,15 @@ def fit_hmm_mp(rec_dir, params, h5_file=None, constraint_func=None):
     for ch, tst in zip(channels, tastes):
         if custom_trial_nums is None:
             tmp_s, _, time = get_hmm_spike_data(rec_dir, unit_type, ch,
-                                                 time_start=time_start,
-                                                 time_end=time_end, dt=dt,
-                                                 trials=n_trials, area=area)
+                                                time_start=time_start,
+                                                time_end=time_end, dt=dt,
+                                                trials=n_trials, area=area)
             tmp_id = np.vstack([(hmm_id, ch, tst, x) for x in range(tmp_s.shape[0])])
         else:
             tmp_s, _, time = get_hmm_spike_data(rec_dir, unit_type, ch,
-                                                 time_start=time_start,
-                                                 time_end=time_end, dt=dt,
-                                                 trials=custom_trial_nums, area=area)
+                                                time_start=time_start,
+                                                time_end=time_end, dt=dt,
+                                                trials=custom_trial_nums, area=area)
             tmp_id = np.vstack([(hmm_id, ch, tst, x) for x in custom_trial_nums])
 
         spikes.append(tmp_s)
@@ -696,7 +697,7 @@ def fit_hmm_mp(rec_dir, params, h5_file=None, constraint_func=None):
         hmm = PoissonHMM(n_states, hmm_id=hmm_id)
     elif params['hmm_class'] == 'ConstrainedHMM':
         hmm = ConstrainedHMM(len(channels), hmm_id=hmm_id)
-    #TODO: Generalize to take a function/class as hmm_class and create text rep for hdf5
+    # TODO: Generalize to take a function/class as hmm_class and create text rep for hdf5
 
     hmm.randomize(spikes, dt, time, row_id=row_id, constraint_func=constraint_func)
     success = hmm.fit(spikes, dt, time, max_iter=max_iter, threshold=threshold)
@@ -728,7 +729,7 @@ def fit_hmm_mp(rec_dir, params, h5_file=None, constraint_func=None):
                 sys_time.sleep(10)
             else:
                 open(lock_file, 'w').close()
-                locked=False
+                locked = False
 
         try:
             old_hmm, _, old_params = load_hmm_from_hdf5(h5_file, hmm_id)
@@ -773,7 +774,7 @@ def load_hmm_from_hdf5(h5_file, hmm_id):
     hmm.transition = A
     hmm.emission = B
     hmm.iteration = params['n_iterations']
-    for k,v in stat_arrays.items():
+    for k, v in stat_arrays.items():
         if k in hmm.stat_arrays.keys() and isinstance(hmm.stat_arrays[k], list):
             hmm.stat_arrays[k] = list(v)
         else:
@@ -849,7 +850,7 @@ def roll_back_hmm_to_best(hmm, spikes, dt, thresh):
     iterations = iterations[idx]
     filt_ll = gaussian_filter1d(ll_hist, 4)
     diff_ll = np.diff(filt_ll)
-    below = np.where(np.abs(diff_ll) < thresh)[0] + 1 # since diff_ll is 1 smaller than ll_hist
+    below = np.where(np.abs(diff_ll) < thresh)[0] + 1  # since diff_ll is 1 smaller than ll_hist
     # Exclude maxima less than 50 iterations since its pretty spikey early on
     below = [x for x in below if (iterations[x] > 50)]
     # If there are none that fit criteria, just pick best past 50
@@ -859,14 +860,14 @@ def roll_back_hmm_to_best(hmm, spikes, dt, thresh):
     if len(below) == 0:
         below = np.arange(len(iterations))
 
-    below = below[below>2]
+    below = below[below > 2]
 
     tmp = [x for x in below if check_ll_trend(hmm, thresh, n_iter=iterations[x]) == 'plateau']
     if len(tmp) != 0:
         below = tmp
 
-    maxima = np.argmax(ll_hist[below]) # this gives the index in below
-    maxima = iterations[below[maxima]] # this is the iteration at which the maxima occurred
+    maxima = np.argmax(ll_hist[below])  # this gives the index in below
+    maxima = iterations[below[maxima]]  # this is the iteration at which the maxima occurred
     hmm.roll_back(maxima, spikes=spikes, dt=dt)
     return hmm
 
@@ -882,10 +883,10 @@ def get_new_id(ids=None):
 
 class PoissonHMM(object):
     def __init__(self, n_states, hmm_id=None):
-        self.stat_arrays = {} # dict of cumulative stats to keep while fitting
-                              # iterations, max_log_likelihood, fit log
-                              # likelihood, cost, best_sequences, gamma
-                              # probabilities, time, row_id
+        self.stat_arrays = {}  # dict of cumulative stats to keep while fitting
+        # iterations, max_log_likelihood, fit log
+        # likelihood, cost, best_sequences, gamma
+        # probabilities, time, row_id
         self.n_states = n_states
         self.hmm_id = hmm_id
 
@@ -937,17 +938,17 @@ class PoissonHMM(object):
         print('%s: Randomizing' % os.getpid())
         # Design transition matrix with large diagnonal and small everything else
         diag = np.abs(np.random.normal(.99, .01, n_states))
-        A = np.abs(np.random.normal(0.01/(n_states-1), 0.01, (n_states, n_states)))
+        A = np.abs(np.random.normal(0.01 / (n_states - 1), 0.01, (n_states, n_states)))
         for i in range(n_states):
             A[i, i] = diag[i]
-            A[i,:] = A[i,:] / np.sum(A[i,:]) # normalize row to sum to 1
+            A[i, :] = A[i, :] / np.sum(A[i, :])  # normalize row to sum to 1
 
         # Initialize rate matrix ("Emission" matrix)
-        spike_counts = np.sum(spikes, axis=2) / (len(time)*dt)
+        spike_counts = np.sum(spikes, axis=2) / (len(time) * dt)
         mean_rates = np.mean(spike_counts, axis=0)
         std_rates = np.std(spike_counts, axis=0)
         B = np.vstack([np.abs(np.random.normal(x, y, n_states))
-                       for x,y in zip(mean_rates, std_rates)])
+                       for x, y in zip(mean_rates, std_rates)])
         PI = np.ones((n_states,)) / n_states
 
         # RN10 preCTA fit better without constraining initial firing rate
@@ -978,7 +979,7 @@ class PoissonHMM(object):
         self.stat_arrays['max_log_prob'] = []
         self.stat_arrays['fit_LL'] = []
         self.stat_arrays['iterations'] = []
-        self.history = {'A': [], 'B': [], 'PI': [], 'iterations':[]}
+        self.history = {'A': [], 'B': [], 'PI': [], 'iterations': []}
 
     def _update_history(self):
         itr = self.iteration
@@ -993,15 +994,15 @@ class PoissonHMM(object):
         self.stat_arrays['fit_LL'].append(self.fit_LL)
         self.stat_arrays['iterations'].append(itr)
 
-    def fit(self, spikes, dt, time, max_iter = 500, threshold=1e-5, parallel=False):
+    def fit(self, spikes, dt, time, max_iter=500, threshold=1e-5, parallel=False):
         '''using parallels for processing trials actually seems to slow down
         processing (with 15 trials). Might still be useful if there is a very
         large nubmer of trials
         '''
         spikes = spikes.astype('int32')
         if (self.initial_distribution is None or
-            self.transition is None or
-            self.emission is None):
+                self.transition is None or
+                self.emission is None):
             raise ValueError('Must first initialize fit matrices either manually or via randomize')
 
         converged = False
@@ -1020,13 +1021,13 @@ class PoissonHMM(object):
             if last_logl is None:
                 delta_ll = np.abs(self.fit_LL)
             else:
-                delta_ll = np.abs((last_logl - self.fit_LL)/self.fit_LL)
+                delta_ll = np.abs((last_logl - self.fit_LL) / self.fit_LL)
 
             if (last_logl is not None and
-                np.isfinite(delta_ll) and
-                delta_ll < threshold and
-                np.isfinite(self.fit_LL) and
-                self.iteration>2):
+                    np.isfinite(delta_ll) and
+                    delta_ll < threshold and
+                    np.isfinite(self.fit_LL) and
+                    self.iteration > 2):
                 # This log likelihood measure doesn't look right, the change
                 # seems to always be 0
                 # 8/24/20: Fixed, this is now a good measure
@@ -1063,12 +1064,12 @@ class PoissonHMM(object):
             n_cores = 1
 
         results = Parallel(n_jobs=n_cores, backend='multiprocessing')(delayed(baum_welch)(trial, dt, PI, A, B)
-                                           for trial in spikes)
+                                                                      for trial in spikes)
         gammas, epsilons, norms = zip(*results)
         gammas = np.array(gammas)
         epsilons = np.array(epsilons)
         norms = np.array(norms)
-        #logl = np.sum(norms)
+        # logl = np.sum(norms)
         logl = np.sum(np.log(norms))
 
         PI, A, B = compute_new_matrices(spikes, dt, gammas, epsilons)
@@ -1076,7 +1077,7 @@ class PoissonHMM(object):
         # B[np.where(B==0)] = 1e-300
         A[A < 1e-50] = 0.0
         for i in range(self.n_states):
-            A[i,:] = A[i,:] / np.sum(A[i,:])
+            A[i, :] = A[i, :] / np.sum(A[i, :])
 
         self.transition = A
         self.emission = B
@@ -1087,7 +1088,7 @@ class PoissonHMM(object):
         return logl
 
     def get_best_paths(self, spikes, dt, recompute=False):
-        if 'best_sequences' is self.stat_arrays.keys() and recompute==False:
+        if 'best_sequences' is self.stat_arrays.keys() and recompute == False:
             return self.stat_arrays['best_sequences'], self.max_log_prob
 
         PI = self.initial_distribution
@@ -1102,13 +1103,13 @@ class PoissonHMM(object):
         A = self.transition
         B = self.emission
         if parallel:
-            n_cpu = cpu_count() -1
+            n_cpu = cpu_count() - 1
         else:
             n_cpu = 1
 
         a_results = Parallel(n_jobs=n_cpu, backend='multiprocessing')(delayed(forward)
-                                           (trial, dt, PI, A, B)
-                                           for trial in spikes)
+                                                                      (trial, dt, PI, A, B)
+                                                                      for trial in spikes)
         alphas, norms = zip(*a_results)
         return np.array(alphas), np.array(norms)
 
@@ -1118,15 +1119,15 @@ class PoissonHMM(object):
         B = self.emission
         betas = []
         if parallel:
-            n_cpu = cpu_count() -1
+            n_cpu = cpu_count() - 1
         else:
             n_cpu = 1
 
         a_results = Parallel(n_jobs=n_cpu, backend='multiprocessing')(delayed(forward)(trial, dt, PI, A, B)
-                                         for trial in spikes)
+                                                                      for trial in spikes)
         _, norms = zip(*a_results)
         b_results = Parallel(n_jobs=n_cpu, backend='multiprocessing')(delayed(backward)(trial, dt, A, B, n)
-                                           for trial, n in zip(spikes, norms))
+                                                                      for trial, n in zip(spikes, norms))
         betas = np.array(b_results)
 
         return betas
@@ -1136,20 +1137,20 @@ class PoissonHMM(object):
         A = self.transition
         B = self.emission
         if parallel:
-            n_cpu = cpu_count()-1
+            n_cpu = cpu_count() - 1
         else:
             n_cpu = 1
 
         results = Parallel(n_jobs=n_cpu, backend='multiprocessing')(delayed(baum_welch)(trial, dt, PI, A, B)
-                                         for trial in spikes)
+                                                                    for trial in spikes)
         gammas, _, _ = zip(*results)
         return np.array(gammas)
 
     def _update_cost(self, spikes, dt):
         spikes = spikes.astype('int')
         PI = self.initial_distribution
-        A  = self.transition
-        B  = self.emission
+        A = self.transition
+        B = self.emission
         cost, BIC, bestPaths, maxLogProb = compute_hmm_cost(spikes, dt, PI, A, B)
         self.cost = cost
         self.BIC = BIC
@@ -1262,7 +1263,7 @@ class HmmHandler(object):
     def get_overview_w_AIC(self):
         ov = self.get_data_overview().copy()
         ov['n_time_steps'] = ((ov['time_end'] - ov['time_start']) * 1000) / ov['dt']
-        ov['AIC'] = (ov['BIC'] + 2 * ov['max_log_prob'])/np.log(ov['n_time_steps']) - 2 * ov['max_log_prob']
+        ov['AIC'] = (ov['BIC'] + 2 * ov['max_log_prob']) / np.log(ov['n_time_steps']) - 2 * ov['max_log_prob']
         return ov
 
     def remove_params(self, index):
@@ -1278,13 +1279,13 @@ class HmmHandler(object):
         params = self._data_params[index]
         if params['fitted']:
             print(f'Parameter set {index} is already fitted. '
-                   'Please use delete_hmm to remove')
+                  'Please use delete_hmm to remove')
             return
 
         print(f'Deleting parameter set {index} from handler:')
         print(pprint.pprint(params))
         _ = self._data_params.pop(index)
-        
+
         self._fit_params = [x for x in self._fit_params
                             if not hmmIO.compare_hmm_params(params, x)]
         return
@@ -1303,7 +1304,7 @@ class HmmHandler(object):
         print('Running fittings')
         max_cpu = cpu_count()
         if parallel and n_cpu is None:
-            n_cpu = int(np.min((cpu_count()-1, len(fit_params))))
+            n_cpu = int(np.min((cpu_count() - 1, len(fit_params))))
         elif not parallel:
             n_cpu = 1
         else:
@@ -1312,22 +1313,21 @@ class HmmHandler(object):
         assert (1 <= n_cpu <= max_cpu), f'n_cpu must be a valid integer 1 <= n_cpu <= {max_cpu}'
 
         results = Parallel(n_jobs=n_cpu, verbose=100, backend='multiprocessing')(delayed(fit_hmm_mp)
-                                                     (rec_dir, p, h5_file,
-                                                      constraint_func)
-                                                     for p in fit_params)
-
+                                                                                 (rec_dir, p, h5_file,
+                                                                                  constraint_func)
+                                                                                 for p in fit_params)
 
         memory.clear(warn=False)
-        print('='*80)
+        print('=' * 80)
         print('Fitting Complete')
-        print('='*80)
+        print('=' * 80)
         print('HMMs written to hdf5:')
         for hmm_id, written in results:
             print('%s : %s' % (hmm_id, written))
 
-        #self.plot_saved_models()
+        # self.plot_saved_models()
         self.load_params()
-        
+
     def plot_spike_rasters(self):
         print('Plotting just rasters')
         data = self.get_data_overview().set_index('hmm_id')
@@ -1352,14 +1352,14 @@ class HmmHandler(object):
 
             save_file = os.path.join(plot_dir, 'trial_raster')
             print('Plotting HMM %s...' % i)
-            hmmplt.make_hmm_raster(spikes,time, save_file)
+            hmmplt.make_hmm_raster(spikes, time, save_file)
 
     def plot_saved_models(self, dinlabels=True):
         print('Plotting saved models')
         data = self.get_data_overview().set_index('hmm_id')
         rec_dir = self.root_dir
         for i, row in data.iterrows():
-            
+
             hmm, _, params = load_hmm_from_hdf5(self.h5_file, i)
             if params.get('trial_nums') is not None:
                 trials = params['trial_nums']
@@ -1379,7 +1379,7 @@ class HmmHandler(object):
 
             print('Plotting HMM %s...' % i)
 
-            if dinlabels==True:
+            if dinlabels == True:
                 hmm_id = f"Taste: {hmm.stat_arrays['row_id'][0][2]}, n states: {hmm.n_states}"
             else:
                 hmm_id = None
@@ -1501,13 +1501,13 @@ class HmmHandler(object):
                       'to re-fit run with overwrite=True')
                 return
 
-            channels = [dim.loc[x,'channel'] for x in tastes]
+            channels = [dim.loc[x, 'channel'] for x in tastes]
             p['channel'] = channels
 
             # this is basically meaningless right now, since this if clause
             # should only be used with ConstrainedHMM which will fit 5
             # baseline states and 2 states per taste
-            p['n_states'] = p['n_states']*len(tastes)
+            p['n_states'] = p['n_states'] * len(tastes)
 
             if p['hmm_id'] is None:
                 hid = get_new_id(hmm_ids)
@@ -1560,10 +1560,10 @@ def sequential_constraint(PI, A, B):
         if i > 0:
             A[i, :i] = 0.0
 
-        if i < n_states-2:
-            A[i, i+2:] = 0.0
+        if i < n_states - 2:
+            A[i, i + 2:] = 0.0
 
-        A[i, :] = A[i,:]/np.sum(A[i,:])
+        A[i, :] = A[i, :] / np.sum(A[i, :])
 
     A[-1, :] = 0.0
     A[-1, -1] = 1.0
@@ -1573,13 +1573,13 @@ def sequential_constraint(PI, A, B):
 
 class ConstrainedHMM(PoissonHMM):
     def __init__(self, n_tastes, n_baseline=3, hmm_id=None):
-        self.stat_arrays = {} # dict of cumulative stats to keep while fitting
-                              # iterations, max_log_likelihood, fit log
-                              # likelihood, cost, best_sequences, gamma
-                              # probabilities, time, row_id
+        self.stat_arrays = {}  # dict of cumulative stats to keep while fitting
+        # iterations, max_log_likelihood, fit log
+        # likelihood, cost, best_sequences, gamma
+        # probabilities, time, row_id
         self.n_tastes = n_tastes
         self.n_baseline = n_baseline
-        n_states = n_baseline + 2*n_tastes
+        n_states = n_baseline + 2 * n_tastes
         super().__init__(n_states, hmm_id=hmm_id)
 
     def randomize(self, spikes, dt, time, row_id=None, constraint_func=None):
@@ -1591,39 +1591,39 @@ class ConstrainedHMM(PoissonHMM):
         n_trials, n_cells, n_steps = spikes.shape
         n_tastes = self.n_tastes
         n_baseline = self.n_baseline
-        n_states = n_baseline + n_tastes*2
+        n_states = n_baseline + n_tastes * 2
 
         # Transition Matrix: state X state, A[i,j] is prob to go from state i to state j
-        unit = 1/(n_baseline + n_tastes)
+        unit = 1 / (n_baseline + n_tastes)
         A0 = np.random.normal(unit, 0.01, (n_baseline, n_baseline)).astype('float64')
-        A1 = np.vstack([[unit, 0]*n_tastes]*n_baseline).astype('float64')
-        A2 = np.zeros((n_tastes*2, n_baseline)).astype('float64')
-        A3 = np.zeros((n_tastes*2, n_tastes*2)).astype('float64')
+        A1 = np.vstack([[unit, 0] * n_tastes] * n_baseline).astype('float64')
+        A2 = np.zeros((n_tastes * 2, n_baseline)).astype('float64')
+        A3 = np.zeros((n_tastes * 2, n_tastes * 2)).astype('float64')
         for i in range(n_tastes):
-            j = 2*i
+            j = 2 * i
             A3[j, j] = np.min((0.999, np.random.normal(0.98, 0.01, 1)))
-            A3[j, j+1] = 1-A3[j,j]
-            A3[j+1, j] = 0
-            A3[j+1, j+1] = 1
+            A3[j, j + 1] = 1 - A3[j, j]
+            A3[j + 1, j] = 0
+            A3[j + 1, j + 1] = 1
 
         A = np.hstack((np.vstack((A0, A2)), np.vstack((A1, A3))))
 
         # Rate Matrix: cells X states, Bij is firing rate of cell i in state j
         b_idx = np.where(time < 0)[0]
-        e_idx = np.where((time >= 0) & (time < np.max(time)/2))[0]
-        l_idx = np.where(time >= np.max(time)/2)[0]
+        e_idx = np.where((time >= 0) & (time < np.max(time) / 2))[0]
+        l_idx = np.where(time >= np.max(time) / 2)[0]
         if len(b_idx) == 0:
             b_idx = np.arange(n_steps)
 
-        baseline = np.mean(np.sum(spikes[:, :, b_idx], axis=2), axis=0) / (len(b_idx)*dt)
-        b_sd = np.std(np.sum(spikes[:, :, b_idx], axis=2), axis=0) / (len(b_idx)*dt)
-        early = np.mean(np.sum(spikes[:, :, e_idx], axis=2), axis=0) / (len(e_idx)*dt)
-        e_sd = np.std(np.sum(spikes[:, :, e_idx], axis=2), axis=0) / (len(e_idx)*dt)
-        late = np.mean(np.sum(spikes[:, :, l_idx], axis=2), axis=0) / (len(l_idx)*dt)
-        l_sd = np.std(np.sum(spikes[:, :, l_idx], axis=2), axis=0) / (len(l_idx)*dt)
+        baseline = np.mean(np.sum(spikes[:, :, b_idx], axis=2), axis=0) / (len(b_idx) * dt)
+        b_sd = np.std(np.sum(spikes[:, :, b_idx], axis=2), axis=0) / (len(b_idx) * dt)
+        early = np.mean(np.sum(spikes[:, :, e_idx], axis=2), axis=0) / (len(e_idx) * dt)
+        e_sd = np.std(np.sum(spikes[:, :, e_idx], axis=2), axis=0) / (len(e_idx) * dt)
+        late = np.mean(np.sum(spikes[:, :, l_idx], axis=2), axis=0) / (len(l_idx) * dt)
+        l_sd = np.std(np.sum(spikes[:, :, l_idx], axis=2), axis=0) / (len(l_idx) * dt)
 
         rates = np.zeros((n_cells, n_states))
-        minFR = 1/n_steps
+        minFR = 1 / n_steps
         for i in range(n_cells):
             row = [np.random.normal(baseline[i], b_sd[i], n_baseline)]
             for j in range(n_tastes):
@@ -1635,11 +1635,11 @@ class ConstrainedHMM(PoissonHMM):
 
         # Initial probabilities
         # Equal prob of all baseline states
-        unit = 1/n_baseline
+        unit = 1 / n_baseline
         PI = np.hstack([[np.random.normal(unit, 0.02, 1)[0]
                          for x in range(n_baseline)],
-                        np.zeros((n_tastes*2,))])
-        PI = PI/np.sum(PI)
+                        np.zeros((n_tastes * 2,))])
+        PI = PI / np.sum(PI)
 
         self.transition = A
         self.emission = rates
@@ -1656,15 +1656,15 @@ class ConstrainedHMM(PoissonHMM):
         self._update_history()
         self._update_history()
 
-    def fit(self, spikes, dt, time, max_iter = 500, threshold=1e-5, parallel=False):
+    def fit(self, spikes, dt, time, max_iter=500, threshold=1e-5, parallel=False):
         '''using parallels for processing trials actually seems to slow down
         processing (with 15 trials). Might still be useful if there is a very
         large nubmer of trials
         '''
         spikes = spikes.astype('int32')
         if (self.initial_distribution is None or
-            self.transition is None or
-            self.emission is None):
+                self.transition is None or
+                self.emission is None):
             raise ValueError('Must first initialize fit matrices either manually or via randomize')
 
         converged = False
@@ -1683,13 +1683,13 @@ class ConstrainedHMM(PoissonHMM):
             if last_logl is None:
                 delta_ll = np.abs(self.fit_LL)
             else:
-                delta_ll = np.abs((last_logl - self.fit_LL)/self.fit_LL)
+                delta_ll = np.abs((last_logl - self.fit_LL) / self.fit_LL)
 
             if (last_logl is not None and
-                np.isfinite(delta_ll) and
-                delta_ll < threshold and
-                np.isfinite(self.fit_LL) and
-                self.iteration>2):
+                    np.isfinite(delta_ll) and
+                    delta_ll < threshold and
+                    np.isfinite(self.fit_LL) and
+                    self.iteration > 2):
                 converged = True
                 print('%s: %s: Change in log likelihood converged' % (os.getpid(), self.hmm_id))
 
@@ -1711,7 +1711,7 @@ class ConstrainedHMM(PoissonHMM):
         return np.arange(self.n_baseline, self.n_states, 2)
 
     def get_late_states(self):
-        return np.arange(self.n_baseline+1, self.n_states, 2)
+        return np.arange(self.n_baseline + 1, self.n_states, 2)
 
 
 def package_project_data(hmm_df, save_file, **kwargs):
@@ -1771,7 +1771,6 @@ def package_project_data(hmm_df, save_file, **kwargs):
                 hf5.create_array(path_str, 'spikes', spikes)
                 hf5.create_array(path_str, 'spike_time', spike_time)
 
-
             h_str = 'hmm_%i' % i
             hf5.create_group(path_str, h_str, 'Fitted Hidden Markov Model Parameters')
             path_str += '/' + h_str
@@ -1793,9 +1792,8 @@ def package_project_data(hmm_df, save_file, **kwargs):
 
         df['hmm_id'] = df.index
         df.to_hdf(save_file, 'hmm_overview')
-        for k,v in kwargs.items():
+        for k, v in kwargs.items():
             if isinstance(v, pd.DataFrame):
                 v.to_hdf(save_file, k)
             else:
-                print(f'Invalid datatype for {k}. Must be pandas.DataFrame. Not written to HDF5') 
-
+                print(f'Invalid datatype for {k}. Must be pandas.DataFrame. Not written to HDF5')
