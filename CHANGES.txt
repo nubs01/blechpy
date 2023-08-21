@@ -1,3 +1,8 @@
+v2.2.5 (2023-08-21)
+-------------------
+-patched bug in poissonHmm.poisson() where rate==0 would cause a divide by zero error
+-expanded factorial lookup table
+
 v2.2.4 (2023-08-11)
 -------------------
 -patched a whoopsie in phmm.compute_BIC()
