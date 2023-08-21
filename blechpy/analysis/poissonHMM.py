@@ -51,13 +51,12 @@ def fast_factorial(x):
 def poisson(rate, n, dt):
     """Gives probability of each neurons spike count assuming poisson spiking
     """
-    rdt = rate * dt
-    tmp = n * np.log(rdt) - np.array([np.log(fast_factorial(x)) for x in n])
-    tmp = tmp - rdt
+    tmp = n * np.log(rate * dt) - np.array([np.log(fast_factorial(x)) for x in n])
+    tmp = tmp - rate * dt
     tmp = np.exp(tmp)
     tmp[rate > 150] = MIN_PROB  # cap rate at 150, since neurons don't really fire that fast
-    tmp[((rate == 0) & (n == 0))] = 1.0  # if rate is zero and n is zero, probability is 1
-    tmp[((rate == 0) & (n != 0))] = MIN_PROB  # if rate is zero and n is not zero, probability is 0
+    tmp[((rate < MIN_PROB) & (n == 0))] = 1.0
+    tmp = np.nan_to_num(tmp, copy=False, nan=MIN_PROB, posinf=MIN_PROB, neginf=MIN_PROB)
 
     return tmp
 
