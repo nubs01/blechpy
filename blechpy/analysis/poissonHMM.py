@@ -31,9 +31,9 @@ HMM_PARAMS = {'hmm_id': None, 'taste': None, 'channel': None,
               'n_states': 3, 'fitted': False, 'area': 'GC',
               'hmm_class': 'PoissonHMM', 'notes': ''}
 
-FACTORIAL_LOOKUP = np.array([math.factorial(x) for x in range(50)])
-MIN_PROB = 1e-100
+FACTORIAL_LOOKUP = np.array([math.factorial(x) for x in range(20)]) #tried increasing to 50, something bad happened
 
+MIN_PROB = 1e-100
 
 @njit
 def fast_factorial(x):
@@ -43,7 +43,6 @@ def fast_factorial(x):
         y = 1
         for i in range(1, x + 1):
             y = y * i
-
         return y
 
 
@@ -56,8 +55,7 @@ def poisson(rate, n, dt):
     tmp = np.exp(tmp)
     tmp[rate > 150] = MIN_PROB  # cap rate at 150, since neurons don't really fire that fast
     tmp[((rate < MIN_PROB) & (n == 0))] = 1.0
-    tmp = np.nan_to_num(tmp, copy=False, nan=MIN_PROB, posinf=MIN_PROB, neginf=MIN_PROB)
-
+    tmp[((rate < MIN_PROB) & (n > 0))] = MIN_PROB
     return tmp
 
 
@@ -943,13 +941,15 @@ class PoissonHMM(object):
             A[i, :] = A[i, :] / np.sum(A[i, :])  # normalize row to sum to 1
 
         # Initialize rate matrix ("Emission" matrix)
+        # B is prob of observing a spike in each cell given the state
+        print('%s: initializing rate matrix' % os.getpid())
         spike_counts = np.sum(spikes, axis=2) / (len(time) * dt)
         mean_rates = np.mean(spike_counts, axis=0)
         std_rates = np.std(spike_counts, axis=0)
         B = np.vstack([np.abs(np.random.normal(x, y, n_states))
                        for x, y in zip(mean_rates, std_rates)])
         PI = np.ones((n_states,)) / n_states
-
+        print('%s: rate matrix initialized' % os.getpid())
         # RN10 preCTA fit better without constraining initial firing rate
         # mr = np.mean(np.sum(spikes[:, :, :int(500/dt)], axis=2), axis=0)
         # sr = np.std(np.sum(spikes[:, :, :int(500/dt)], axis=2), axis=0)
