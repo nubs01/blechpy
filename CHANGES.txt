@@ -1,3 +1,15 @@
+v2.2.8 (2024-08-21)
+-------------------
+- meatball surgery on poissonHMM to fix randomization freeze again
+
+v2.2.7 (2024-08-21)
+-------------------
+- meatball surgery on poissonHMM to fix randomization freeze
+
+v2.2.6 (2023-08-21)
+-------------------
+- attempt to patch bug where hmm freezes at randomization
+
 v2.2.5 (2023-08-21)
 -------------------
 -patched bug in poissonHmm.poisson() where rate==0 would cause a divide by zero error
