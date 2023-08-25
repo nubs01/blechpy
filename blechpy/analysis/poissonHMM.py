@@ -31,7 +31,7 @@ HMM_PARAMS = {'hmm_id': None, 'taste': None, 'channel': None,
               'n_states': 3, 'fitted': False, 'area': 'GC',
               'hmm_class': 'PoissonHMM', 'notes': ''}
 
-FACTORIAL_LOOKUP = np.array([math.factorial(x) for x in range(20)]) #tried increasing to 50, something bad happened
+FACTORIAL_LOOKUP = np.array([math.factorial(x) for x in range(20)])  # tried increasing to 50, something bad happened
 
 MIN_PROB = 1e-100
 
@@ -54,15 +54,24 @@ def poisson(rate, n, dt):
     tmp = tmp - rate * dt
     tmp = np.exp(tmp)
     tmp[rate > 150] = MIN_PROB  # cap rate at 150, since neurons don't really fire that fast
-    tmp[((rate < MIN_PROB) & (n == 0))] = 1.0
-    tmp[((rate < MIN_PROB) & (n > 0))] = MIN_PROB
+    # if rate is below 1e-300 it is effectively zero, need to handle manually
+    tmp[((rate < 1e-300) & (n == 0))] = 1.0
+    tmp[((rate < 1e-300) & (n > 0))] = MIN_PROB
     return tmp
 
+@njit
+def sum_log_probs(probs):
+    """log and sum probabilities while handling zeros
+    """
+    if np.all(probs):
+        tmp = np.sum(np.log(probs))
+    else:
+        tmp = 0
+    return tmp
 
 @njit
 def log_emission(rate, n, dt):
-    return np.sum(np.log(poisson(rate, n, dt)))
-
+    return sum_log_probs(poisson(rate, n, dt))
 
 @njit
 def fix_arrays(PI, A, B):
@@ -327,12 +336,13 @@ def poisson_viterbi(spikes, dt, PI, A, B):
     n_cells, n_steps = spikes.shape
     T1 = np.ones((n_states, n_steps)) * 1e-300
     T2 = np.zeros((n_states, n_steps))
-    T1[:, 0] = [np.log(PI[i]) + np.sum(np.log(poisson(B[:, i], spikes[:, 0], dt)))
+
+    T1[:, 0] = [np.log(PI[i]) + sum_log_probs(poisson(B[:, i], spikes[:, 0], dt))
                 for i in range(n_states)]
     # for t,s in it.product(range(1,n_steps), range(n_states)):
     for t in range(1, n_steps):
         for s in range(n_states):
-            probs = np.sum(np.log(poisson(B[:, s], spikes[:, t], dt)))
+            probs = sum_log_probs(poisson(B[:, s], spikes[:, t], dt))
             vec1 = T1[:, t - 1] + np.log(A[:, s]) + probs
             T1[s, t] = np.max(vec1)
             T2[s, t] = np.argmax(vec1)
@@ -1069,7 +1079,7 @@ class PoissonHMM(object):
         epsilons = np.array(epsilons)
         norms = np.array(norms)
         # logl = np.sum(norms)
-        logl = np.sum(np.log(norms))
+        logl = sum_log_probs(norms)
 
         PI, A, B = compute_new_matrices(spikes, dt, gammas, epsilons)
         # Make sure rates are non-zeros for computations
