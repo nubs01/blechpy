@@ -66,7 +66,7 @@ def sum_log_probs(probs):
     if np.all(probs):
         tmp = np.sum(np.log(probs))
     else:
-        tmp = 0
+        tmp = -np.inf
     return tmp
 
 @njit
@@ -279,7 +279,7 @@ def poisson_viterbi_deprecated(spikes, dt, PI, A, B):
     ----------
     spikes : np.array, Neuron X Time matrix of spike counts
     PI : np.array, nStates x 1 vector of initial state probabilities
-    A : np.array, nStates X nStates matric of state transition probabilities
+    A : np.array, nStates X nStates matrix of state transition probabilities
     B : np.array, Neuron X States matrix of estimated firing rates
     dt : float, time step size in seconds
 
