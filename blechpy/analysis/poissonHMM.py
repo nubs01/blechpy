@@ -1189,6 +1189,10 @@ class PoissonHMM(object):
             self._update_cost(spikes, dt)
 
         self._update_history()
+    def gamma_sequences(self):
+        gamma = self.stat_arrays['gamma_probabilities']
+        gamma_sequences = np.argmax(gamma, axis=1)
+        self.stat_arrays['gamma_sequences'] = gamma_sequences
 
 
 class HmmHandler(object):

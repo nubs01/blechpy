@@ -1,3 +1,7 @@
+v2.2.9 (2024-09-07)
+-------------------
+- fixed bug in poissonHMM where log likelihood was not being properly calculated
+
 v2.2.8 (2024-08-21)
 -------------------
 - meatball surgery on poissonHMM to fix randomization freeze again
