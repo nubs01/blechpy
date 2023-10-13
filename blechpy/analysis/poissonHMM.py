@@ -31,7 +31,7 @@ HMM_PARAMS = {'hmm_id': None, 'taste': None, 'channel': None,
               'unit_type': 'single', 'dt': 0.001, 'threshold': 1e-7,
               'max_iter': 200, 'n_cells': None, 'n_trials': None,
               'time_start': -250, 'time_end': 2000, 'n_repeats': 25,
-              'n_states': 3, 'fitted': False, 'area': 'GC',
+              'n_states': 3, 'fitted': False, 'converged': False, 'area': 'GC',
               'hmm_class': 'PoissonHMM', 'notes': ''}
 
 FACTORIAL_LOOKUP = np.array([math.factorial(x) for x in range(20)])  # tried increasing to 50, something bad happened
