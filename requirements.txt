@@ -23,4 +23,4 @@ prompt-toolkit==3.0.3
 pywavelets>=1.1.1
 imageio>=2.5.0
 PyYAML==5.4
-
+numexpr<=2.8.4
