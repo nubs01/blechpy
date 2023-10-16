@@ -1,3 +1,9 @@
+v2.2.11 (2023-10-16)
+-------------------
+- consolidating last fixes to poissonHMM
+- added method to proj to export "portable copy"
+- added method to proj to return list of rec_dirs
+
 v2.2.10 (2023-09-28)
 -------------------
 - fixed another bug in poissonHMM where log likelihood was not being properly calculated
