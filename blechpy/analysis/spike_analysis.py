@@ -1,16 +1,18 @@
 import numpy as np
+import pyBAKS
 import tables
+import pyBAKS
 from scipy.ndimage.filters import gaussian_filter1d
 from scipy.interpolate import interp1d
 from scipy.stats import mannwhitneyu, sem
-
+from joblib import Parallel, delayed
 
 def interpolate_waves(waves, fs, fs_new, axis=1):
     end_time = waves.shape[axis] / (fs/1000)
     x = np.arange(0, end_time, 1/(fs/1000))
     x_new = np.arange(0, end_time, 1/(fs_new/1000))
     f = interp1d(x, waves, axis=axis)
-    return f(x_new)  
+    return f(x_new)
 
 def make_single_trial_psth(spike_train, win_size, win_step, time=None):
     '''Takes a spike train and returns firing rate trace in Hz
@@ -45,7 +47,6 @@ def make_single_trial_psth(spike_train, win_size, win_step, time=None):
         psth[i] = np.sum(spike_train[idx]) / (win_size/1000.0)  # in Hz
 
     return psth, psth_time
-
 
 def make_mean_PSTHs(h5_file, win_size, win_step, dig_in_ch):
 
@@ -107,6 +108,41 @@ def make_psths_for_tastant(h5_file, win_size, win_step, dig_in_ch, smoothing_wid
         hf5.flush()
 
     return PSTHs, psth_time
+
+def make_rate_arrays(h5_file, dig_in_ch, mode='BAKS'):
+    if mode == 'BAKS':
+        dig_str = 'dig_in_%i' % dig_in_ch
+        with tables.open_file(h5_file, 'r+') as hf5:
+            spike_data = hf5.root.spike_trains[dig_str]
+            spike_array = spike_data.spike_array[:]
+            time = spike_data.array_time[:]
+
+            #make array "rates" with the same shape as spike_array
+            results=Parallel(n_jobs = -1)(
+                delayed(pyBAKS.optimize_alpha_MLE)(spike_array[:,i,:], time, output_df=False) for i in range(spike_array.shape[1])
+            )
+
+            rates = np.zeros(spike_array.shape)
+            i = 0
+            for tmp, _ in results:
+                rates[:,i,:] = tmp
+                i += 1
+            del results
+            if '/Rates' not in hf5:
+                hf5.create_group('/', 'Rates')
+
+            if '/Rates/%s' % dig_str in hf5:
+                hf5.remove_node('/Rates', dig_str, recursive=True)
+
+            hf5.create_group('/Rates', dig_str)
+            hf5.create_array('/Rates/%s' % dig_str, 'time', time)
+            hf5.create_array('/Rates/%s' % dig_str, 'rate_array', rates)
+
+            hf5.flush()
+        return rates, time
+    else:
+        raise ValueError('additional modes not yet developed, please use BAKS')
+
 
 def get_binned_firing_rate(time, spikes, bin_size=250, bin_step=25):
     '''Take a spike array and returns a firing rate array (row-wise)
