@@ -486,6 +486,90 @@ def plot_correlogram(hist_counts, bin_centers, bin_edges, title=None, save_file=
     else:
         return fig, ax
 
+def plot_raster(spikes, time=None, ax=None, y_min=0.05, y_max=0.95):
+    '''Plot 2D spike raster
+
+    Parameters
+    ----------
+    spikes : np.array
+        2D matrix M x N where N is the number of time steps and in each bin is
+        a 0 or 1, with 1 signifying the presence of a spike
+    '''
+    if not ax:
+        _, ax = plt.gca()
+
+    n_rows, n_steps = spikes.shape
+    if time is None:
+        time = np.arange(0, n_steps)
+
+    y_steps = np.linspace(y_min, y_max, n_rows)
+    for i, row in enumerate(spikes):
+        idx = np.where(row == 1)[0]
+        if len(idx) == 0:
+            continue
+
+        ax.scatter(time[idx], row[idx]*y_steps[i], color='black', marker='|')
+
+    return ax
+
+def plot_trial_raster(spikes, time=None, save_file=None): #TODO 11/10/23--test this function
+    '''Create figure of spikes rasters with each trial on a seperate axis
+    TODO: convert this from blechpy.plotting.hmm_plot to blechpy.plotting.data_plot
+    Parameters
+    ----------
+    spikes: np.array, Trials X Cells X Time array with 1s where spikes occur
+    time: np.array, 1D time vector
+    save_file: str, if provided figure is saved and not returned
+
+    Returns
+    -------
+    plt.Figure, list of plt.Axes
+    '''
+    if len(spikes) == 2:
+        spikes = np.array([spikes])
+
+    n_trials, n_cells, n_steps = spikes.shape #need to replace n_trials with n_cells
+    if time is None:
+        time = np.arange(0, n_steps)
+
+    fig, axes = plt.subplots(ncols=n_cells, figsize=(10, n_cells))
+    y_step = np.linspace(0.05, 0.95, n_trials)
+
+    #rearrange first and second dims of spikes
+    spikes = np.swapaxes(spikes, 0, 1)
+    counter = 1
+    for ax, cell in zip(axes, spikes):
+        tmp = plot_raster(cell, time=time, ax=ax)
+
+        for spine in ax.spines.values():
+            spine.set_visible(False)
+        ax.set_yticklabels([])
+        ax.set_yticks([])
+        # ax.get_yaxis().set_visible(False)
+        ax.get_xaxis().set_visible(False)
+        ax.set_ylabel(str(counter), labelpad=-1)
+        if time[0] < 0:
+            ax.axvline(0, color='red', linestyle='--', linewidth=5, alpha=0.8)
+
+        counter = counter + 1
+
+    axes[-1].get_xaxis().set_visible(True)
+    axes[-1].xaxis.set_tick_params(labelsize=25)
+    tmp_ax = fig.add_subplot('111', frameon=False)
+    tmp_ax.tick_params(labelcolor='none', top=False, bottom=False,
+                       left=False, right=False)
+    tmp_ax.set_ylabel('Trial', fontsize=35)
+    axes[-1].set_xlabel('Time', fontsize=35)
+    # axes[-1].set_ylabel('Cells', fontsize=50)
+
+    fig.tight_layout()
+    plt.subplots_adjust(top=0.95)
+    if save_file:
+        fig.savefig(save_file)
+        plt.close(fig)
+        return
+    else:
+        return fig, axes
 
 def plot_spike_raster(spike_times, waveforms,
                       cluster_ids=None, save_file=None):
