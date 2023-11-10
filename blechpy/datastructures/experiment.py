@@ -72,10 +72,14 @@ class experiment(data_object):
     def _change_root(self, new_root=None):
         old_root = self.root_dir
         new_root = super()._change_root(new_root)
+
+
         self.recording_dirs = [x.replace(old_root, new_root)
                                for x in self.recording_dirs]
         self.rec_labels = {k: v.replace(old_root, new_root)
                            for k,v in self.rec_labels.items()}
+
+        self.analysis_dir = self.analysis_dir.replace(old_root, new_root)
         return new_root
 
     def __str__(self):

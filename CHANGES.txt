@@ -1,8 +1,22 @@
-v2.2.8 (2024-08-21)
+v2.2.11 (2023-10-16)
+-------------------
+- consolidating last fixes to poissonHMM
+- added method to proj to export "portable copy"
+- added method to proj to return list of rec_dirs
+
+v2.2.10 (2023-09-28)
+-------------------
+- fixed another bug in poissonHMM where log likelihood was not being properly calculated
+
+v2.2.9 (2023-09-07)
+-------------------
+- fixed bug in poissonHMM where log likelihood was not being properly calculated
+
+v2.2.8 (2023-08-21)
 -------------------
 - meatball surgery on poissonHMM to fix randomization freeze again
 
-v2.2.7 (2024-08-21)
+v2.2.7 (2023-08-21)
 -------------------
 - meatball surgery on poissonHMM to fix randomization freeze
 

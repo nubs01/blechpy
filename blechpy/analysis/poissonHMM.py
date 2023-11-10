@@ -6,6 +6,7 @@ import pandas as pd
 import tables
 import pprint
 import time as sys_time
+import seaborn as sns
 from numba import njit
 from copy import deepcopy
 from scipy.ndimage.filters import gaussian_filter1d
@@ -16,6 +17,8 @@ from blechpy.plotting import hmm_plot as hmmplt
 from blechpy.utils import math_tools as mt
 from joblib import Parallel, delayed, Memory, cpu_count
 from appdirs import user_cache_dir
+from scipy.spatial.distance import pdist, squareform
+
 
 cachedir = user_cache_dir('blechpy')
 memory = Memory(cachedir, verbose=0)
@@ -28,7 +31,7 @@ HMM_PARAMS = {'hmm_id': None, 'taste': None, 'channel': None,
               'unit_type': 'single', 'dt': 0.001, 'threshold': 1e-7,
               'max_iter': 200, 'n_cells': None, 'n_trials': None,
               'time_start': -250, 'time_end': 2000, 'n_repeats': 25,
-              'n_states': 3, 'fitted': False, 'area': 'GC',
+              'n_states': 3, 'fitted': False, 'converged': False, 'area': 'GC',
               'hmm_class': 'PoissonHMM', 'notes': ''}
 
 FACTORIAL_LOOKUP = np.array([math.factorial(x) for x in range(20)])  # tried increasing to 50, something bad happened
@@ -1189,6 +1192,10 @@ class PoissonHMM(object):
             self._update_cost(spikes, dt)
 
         self._update_history()
+    def gamma_sequences(self):
+        gamma = self.stat_arrays['gamma_probabilities']
+        gamma_sequences = np.argmax(gamma, axis=1)
+        self.stat_arrays['gamma_sequences'] = gamma_sequences
 
 
 class HmmHandler(object):
@@ -1299,13 +1306,18 @@ class HmmHandler(object):
                             if not hmmIO.compare_hmm_params(params, x)]
         return
 
-    def run(self, parallel=True, overwrite=False, constraint_func=None, n_cpu=None):
+    def run(self, parallel=True, overwrite='unconverged', constraint_func=None, n_cpu=None):
         h5_file = self.h5_file
         rec_dir = self.root_dir
-        if overwrite:
+
+        if overwrite=='unconverged':
+            fit_params = [x for x in self._fit_params if not x['converged']]
+        elif overwrite=='all':
             fit_params = self._fit_params
-        else:
+        elif overwrite == False:
             fit_params = [x for x in self._fit_params if not x['fitted']]
+        else:
+            raise ValueError('overwrite must be False,  all or unconverged')
 
         if len(fit_params) == 0:
             return
@@ -1394,6 +1406,46 @@ class HmmHandler(object):
                 hmm_id = None
 
             hmmplt.plot_hmm_figures(hmm, spikes, dt, time, hmm_id=hmm_id, save_dir=plot_dir)
+
+    def plot_euclidean_distance_matrix(self):
+        print('Plotting euclidean distance matrix')
+        #get overview table, assign to ov
+        ov = self.get_overview_w_AIC()
+        #get rows of ov with lowest AIC for each taste and assign to best_aic
+        best_aic = ov.loc[ov.groupby('taste')['AIC'].idxmin()]
+        best_aic = best_aic.sort_values('channel')
+        #each row of best_aic is an index to an HMM,
+        #loop through best_aic to get firing rates from each emission state
+        #then calculate euclidean distance between each pair of states
+        emissions = []
+        for i, row in best_aic.iterrows():
+            hid = row['hmm_id']
+            hmm, _, params = load_hmm_from_hdf5(self.h5_file, hid)
+
+            if params.get('trial_nums') is not None:
+                trials = params['trial_nums']
+            else:
+                trials = params['n_trials']
+
+            emission = hmm.emission
+
+            # Sample numpy array with arbitrary shape
+            rows, cols = emission.shape
+            taste = row['taste']
+            # Create DataFrame
+            df = pd.DataFrame(emission,
+                              index=pd.RangeIndex(start=1, stop=rows + 1, name="unit number"),
+                              columns=[f'{taste} {i}' for i in range(1, cols + 1)])
+
+            emissions.append(df)
+        emissions = pd.concat(emissions, axis=1)
+        distance_matrix = squareform(pdist(emissions.T))
+        distance_df = pd.DataFrame(distance_matrix, index=emissions.columns, columns=emissions.columns)
+        sns.heatmap(distance_df, cmap='viridis', cbar_kws={'label': 'Euclidean distance'})
+
+
+        #plot distance matrix
+            #calculate euclidean distance between each pair of states using firing rates
 
     def add_params(self, params):
         '''params may include any subset of the parameters defined in

@@ -6,6 +6,12 @@ from blechpy.utils.decorators import Logger
 from blechpy.utils import userIO
 from blechpy.analysis import poissonHMM as phmm
 from joblib import Parallel, delayed
+import os
+import shutil
+from pathlib import Path
+import tkinter as tk
+from tkinter import filedialog
+
 #import glob
 
 class project(data_object):
@@ -221,4 +227,51 @@ class project(data_object):
         n_cpu = os.cpu_count()
             
         Parallel(n_jobs = n_cpu-1)(delayed(load_plot_hmm)(i) for i in rec_dirs)
-            
+
+    def export_portable_copy(self, dest_dir=None, extensions=None):
+        if extensions is None:
+            extensions = ['.hdf5', '.p', '.h5', '.log']
+
+        if dest_dir is None:
+            dest_dir = select_directory_via_gui("Select Destination Directory")
+
+        # Add '_copy' to the destination directory name
+        dest_dir = os.path.join(dest_dir, os.path.basename(self.root_dir) + "_copy")
+        print("Copying to %s" % dest_dir)
+
+        # Ask for user confirmation
+        confirmation = input("Do you want to copy the files to the above directory? (y/n): ").strip().lower()
+        if confirmation != 'y':
+            print("Copying operation aborted.")
+            return
+
+        if not os.path.exists(dest_dir):
+            os.makedirs(dest_dir)
+
+        for dirpath, dirnames, filenames in os.walk(self.root_dir):
+            for file in filenames:
+                if file.endswith(tuple(extensions)):
+                    source_file_path = os.path.join(dirpath, file)
+
+                    # Reconstruct the path in the destination directory
+                    relative_path = os.path.relpath(dirpath, self.root_dir)
+                    dest_file_path = Path(dest_dir) / relative_path / file
+
+                    # Ensure the directory exists
+                    dest_file_path.parent.mkdir(parents=True, exist_ok=True)
+
+                    # Copy the file
+                    shutil.copy2(source_file_path, dest_file_path)
+                    print("Copied %s to %s" % (source_file_path, dest_file_path))
+
+    def get_rec_dir_list(self):
+        rec_info = self.rec_info
+        rec_dirs = list(rec_info.rec_dir)
+        return rec_dirs
+# Example usage
+
+def select_directory_via_gui(title="Select a directory"):
+    root = tk.Tk()
+    root.withdraw()  # Hide the main window
+    directory = filedialog.askdirectory(title=title)  # Open the directory selection dialog
+    return directory

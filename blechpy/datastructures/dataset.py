@@ -21,6 +21,7 @@ from blechpy.utils import spike_sorting_GUI as ssg
 from scipy.ndimage import gaussian_filter1d
 import tables
 import scipy.io as sio
+import pyBAKS
 
 class dataset(data_object):
     '''Stores information related to an intan recording directory, allows
@@ -1016,6 +1017,7 @@ class dataset(data_object):
         self.process_status['make_unit_arrays'] = True
         self.save()
 
+
     @Logger('Making Unit Plots')
     def make_unit_plots(self):
         '''Make waveform plots for each sorted unit
@@ -1047,7 +1049,19 @@ class dataset(data_object):
 
         self.process_status['make_psth_arrays'] = True
         self.save()
-    
+
+    def make_rate_arrays(self):
+        '''
+        Make firing rate arrays for each unit and store in hdf5 store
+        '''
+        params = self.psth_params
+        dig_ins = self.dig_in_mapping.query('spike_array == True')
+        for idx, row in dig_ins.iterrows():
+            dig_in_ch = row['channel']
+            print(dig_in_ch)
+            spike_analysis.make_rate_arrays(self.h5_file, dig_in_ch)
+
+
     def make_psth_plots(self, sd = True, save_prefix = None):
         unit_table = self.get_unit_table()
         save_dir = os.path.join(self.root_dir,'unit_psth_plots')
@@ -1084,6 +1098,11 @@ class dataset(data_object):
             datplt.plot_spike_raster([spike_times], [waveforms], save_file = save_file)
             
         self.save()
+
+    def make_trial_raster_plots(self):
+        unit_table = self.get_unit_table()
+        save_dir = os.path.join(self.root_dir, 'trial_raster_plots')
+
 
     def make_ensemble_raster_plots(self):
         save_dir = os.path.join(self.root_dir, 'raster_plots')
