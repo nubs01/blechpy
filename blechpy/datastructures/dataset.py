@@ -1100,6 +1100,9 @@ class dataset(data_object):
         self.save()
 
     def make_trial_raster_plots(self):
+        """
+        make raster plots for each neuron across dig_in_trials
+        """
         unit_table = self.get_unit_table()
         save_dir = os.path.join(self.root_dir, 'trial_raster_plots')
 

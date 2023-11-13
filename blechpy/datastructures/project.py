@@ -77,7 +77,9 @@ class project(data_object):
 
         return out
 
-    def _change_root(self, new_root=None):
+    def _change_root(self, new_root=None, deep=True):
+        if new_root is None:
+            raise ValueError('Must specify new root directory')
         old_root = self.root_dir
         new_root = super()._change_root(new_root)
         def swap(x):
@@ -87,6 +89,12 @@ class project(data_object):
             self._files[k] = self._files[k].replace(old_root, new_root)
 
         self._exp_info['exp_dir'] = self._exp_info['exp_dir'].apply(swap)
+        self.rec_info['exp_dir'] = self.rec_info['exp_dir'].apply(swap)
+        self.rec_info['rec_dir'] = self.rec_info['rec_dir'].apply(swap)
+        if deep:
+            self.change_rec_roots()
+            self.change_exp_roots()
+
 
     def __str__(self):
         out = [super().__str__()]
@@ -185,14 +193,19 @@ class project(data_object):
                     print('error: session number not in experiment ', rec_name)
                 
         return rec_info
-    
+
     def change_rec_roots(self):
-        rec_info = self.rec_info
-        for i, row in rec_info.iterrows():
+        for i, row in self.rec_info.iterrows():
             dat = load_dataset(row['rec_dir'])
             dat._change_root(row['rec_dir'])
             dat.save()
-        
+
+    def change_exp_roots(self):
+        for i, row in self._exp_info.iterrows():
+            exp = load_experiment(row['exp_dir'])
+            exp._change_root(row['exp_dir'])
+            exp.save()
+
     def make_raster_plots(self):
         rec_info = self.rec_info
         for i, row in rec_info.iterrows():
@@ -204,6 +217,14 @@ class project(data_object):
         for i, row in rec_info.iterrows():
             dat = load_dataset(row['rec_dir'])
             dat.make_ensemble_raster_plots()
+
+    def make_rate_arrays(self):
+        rec_info = self.rec_info
+        for i, row in rec_info.iterrows():
+            print("Making rate arrays for %s" % row['rec_dir'])
+            dat = load_dataset(row['rec_dir'])
+            dat.make_rate_arrays()
+            print("Rate arrays made for %s" % row['rec_dir'])
             
     #idk if this would actually work, I will need to figure this one out
     def apply_dat_function(self, function):

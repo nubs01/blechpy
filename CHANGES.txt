@@ -1,3 +1,7 @@
+v2.2.12 (2023-11-9)
+-------------------
+- added rate smoothing to dataset object
+
 v2.2.11 (2023-10-16)
 -------------------
 - consolidating last fixes to poissonHMM
