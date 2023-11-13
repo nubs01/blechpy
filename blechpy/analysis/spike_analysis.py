@@ -109,7 +109,7 @@ def make_psths_for_tastant(h5_file, win_size, win_step, dig_in_ch, smoothing_wid
 
     return PSTHs, psth_time
 
-def make_rate_arrays(h5_file, dig_in_ch, mode='BAKS'):
+def make_rate_arrays(h5_file, dig_in_ch, mode='BAKS', output=False):
     if mode == 'BAKS':
         dig_str = 'dig_in_%i' % dig_in_ch
         with tables.open_file(h5_file, 'r+') as hf5:
@@ -127,7 +127,8 @@ def make_rate_arrays(h5_file, dig_in_ch, mode='BAKS'):
             for tmp, _ in results:
                 rates[:,i,:] = tmp
                 i += 1
-            del results
+            del results, tmp
+
             if '/Rates' not in hf5:
                 hf5.create_group('/', 'Rates')
 
@@ -139,9 +140,15 @@ def make_rate_arrays(h5_file, dig_in_ch, mode='BAKS'):
             hf5.create_array('/Rates/%s' % dig_str, 'rate_array', rates)
 
             hf5.flush()
-        return rates, time
     else:
         raise ValueError('additional modes not yet developed, please use BAKS')
+
+    if output:
+        return rates, time
+    else:
+        del rates, time
+
+
 
 
 def get_binned_firing_rate(time, spikes, bin_size=250, bin_step=25):
