@@ -1071,6 +1071,7 @@ class dataset(data_object):
                 Parallel(n_jobs=-1)(delayed(spike_analysis.make_rate_arrays)(self.h5_file, row['channel']) for idx, row in dig_ins.iterrows())
 
             self.process_status['make_rate_arrays'] = True
+            self.save()
         else:
             print('Rate arrays already exist, new rate arrays not created')
 
