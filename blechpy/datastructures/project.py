@@ -222,10 +222,10 @@ class project(data_object):
         rec_info = self.rec_info
 
         def run_make_rate_arrays(rec_dir):
-            print("Making rate arrays for %s" % row['rec_dir'])
+            print("Making rate arrays for %s" % rec_dir)
             dat = load_dataset(rec_dir)
             dat.make_rate_arrays()
-            print("Rate arrays made for %s" % row['rec_dir'])
+            print("Rate arrays made for %s" % rec_dir)
 
         rec_dirs = rec_info.rec_dir
         if parallel==False:
