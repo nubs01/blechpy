@@ -1066,10 +1066,11 @@ class dataset(data_object):
                 for idx, row in dig_ins.iterrows():
                     dig_in_ch = row['channel']
                     print(dig_in_ch)
-                    spike_analysis.make_rate_arrays(self.h5_file, dig_in_ch)
+                    res = spike_analysis.make_rate_arrays(self.h5_file, dig_in_ch)
             elif parallel == True:
-                Parallel(n_jobs=-1)(delayed(spike_analysis.make_rate_arrays)(self.h5_file, row['channel']) for idx, row in dig_ins.iterrows())
+                res = Parallel(n_jobs=-1)(delayed(spike_analysis.make_rate_arrays)(self.h5_file, row['channel']) for idx, row in dig_ins.iterrows())
 
+            del res
             self.process_status['make_rate_arrays'] = True
             self.save()
         else:
