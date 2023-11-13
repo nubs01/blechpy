@@ -227,11 +227,12 @@ class project(data_object):
             dat.make_rate_arrays()
             print("Rate arrays made for %s" % row['rec_dir'])
 
+        rec_dirs = rec_info.rec_dir
         if parallel==False:
-            for i, row in rec_info.iterrows():
-                run_make_rate_arrays(row['rec_dir'])
+            for i in rec_dirs:
+                run_make_rate_arrays(i)
         elif parallel==True:
-            Parallel(n_jobs=-1)(delayed(run_make_rate_arrays)(row['rec_dir']) for i, row in rec_info.iterrows())
+            Parallel(n_jobs=-1)(delayed(run_make_rate_arrays)(i) for i in rec_dirs)
             
     #idk if this would actually work, I will need to figure this one out
     def apply_dat_function(self, function):
@@ -254,7 +255,7 @@ class project(data_object):
             
         n_cpu = os.cpu_count()
             
-        Parallel(n_jobs = n_cpu-1)(delayed(load_plot_hmm)(i) for i in rec_dirs)
+        Parallel(n_jobs=n_cpu-1)(delayed(load_plot_hmm)(i) for i in rec_dirs)
 
     def export_portable_copy(self, dest_dir=None, extensions=None):
         if extensions is None:
