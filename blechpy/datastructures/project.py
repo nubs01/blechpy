@@ -218,7 +218,7 @@ class project(data_object):
             dat = load_dataset(row['rec_dir'])
             dat.make_ensemble_raster_plots()
 
-    def make_rate_arrays(self, overwrite=True, parallel=False):
+    def make_rate_arrays(self, overwrite=True, parallel=False, n_jobs=-1):
         rec_info = self.rec_info
         def run_make_rate_arrays(rec_dir):
             print("Making rate arrays for %s" % rec_dir)
@@ -231,7 +231,7 @@ class project(data_object):
             for i in rec_dirs:
                 run_make_rate_arrays(i)
         elif parallel==True:
-            Parallel(n_jobs=-1)(delayed(run_make_rate_arrays)(i) for i in rec_dirs)
+            Parallel(n_jobs=n_jobs)(delayed(run_make_rate_arrays)(i) for i in rec_dirs)
             
     #idk if this would actually work, I will need to figure this one out
     def apply_dat_function(self, function):

@@ -1050,7 +1050,7 @@ class dataset(data_object):
         self.process_status['make_psth_arrays'] = True
         self.save()
 
-    def make_rate_arrays(self, overwrite=True, parallel=False):
+    def make_rate_arrays(self, overwrite=True):
         '''
         Make firing rate arrays for each unit and store in hdf5 store
         '''
@@ -1062,13 +1062,10 @@ class dataset(data_object):
         if self.process_status['make_rate_arrays'] == False or overwrite == True:
             params = self.psth_params
             dig_ins = self.dig_in_mapping.query('spike_array == True')
-            if parallel == False:
-                for idx, row in dig_ins.iterrows():
-                    dig_in_ch = row['channel']
-                    print(dig_in_ch)
-                    spike_analysis.make_rate_arrays(self.h5_file, dig_in_ch)
-            elif parallel == True:
-                Parallel(n_jobs=-1)(delayed(spike_analysis.make_rate_arrays)(self.h5_file, row['channel']) for idx, row in dig_ins.iterrows())
+            for idx, row in dig_ins.iterrows():
+                dig_in_ch = row['channel']
+                print(dig_in_ch)
+                spike_analysis.make_rate_arrays(self.h5_file, dig_in_ch)
 
             del res
             self.process_status['make_rate_arrays'] = True
