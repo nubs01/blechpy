@@ -118,7 +118,7 @@ def make_rate_arrays(h5_file, dig_in_ch, mode='BAKS'):
             time = spike_data.array_time[:]
 
             #make array "rates" with the same shape as spike_array
-            results=Parallel(n_jobs = -1)(
+            results=Parallel(n_jobs=-1)(
                 delayed(pyBAKS.optimize_alpha_MLE)(spike_array[:,i,:], time, output_df=False) for i in range(spike_array.shape[1])
             )
 

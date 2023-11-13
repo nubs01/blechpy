@@ -218,13 +218,20 @@ class project(data_object):
             dat = load_dataset(row['rec_dir'])
             dat.make_ensemble_raster_plots()
 
-    def make_rate_arrays(self):
+    def make_rate_arrays(self, parallel=False):
         rec_info = self.rec_info
-        for i, row in rec_info.iterrows():
+
+        def run_make_rate_arrays(rec_dir):
             print("Making rate arrays for %s" % row['rec_dir'])
-            dat = load_dataset(row['rec_dir'])
+            dat = load_dataset(rec_dir)
             dat.make_rate_arrays()
             print("Rate arrays made for %s" % row['rec_dir'])
+
+        if parallel==False:
+            for i, row in rec_info.iterrows():
+                run_make_rate_arrays(row['rec_dir'])
+        elif parallel==True:
+            Parallel(n_jobs=-1)(delayed(run_make_rate_arrays)(row['rec_dir']) for i, row in rec_info.iterrows())
             
     #idk if this would actually work, I will need to figure this one out
     def apply_dat_function(self, function):
