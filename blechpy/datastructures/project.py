@@ -218,13 +218,12 @@ class project(data_object):
             dat = load_dataset(row['rec_dir'])
             dat.make_ensemble_raster_plots()
 
-    def make_rate_arrays(self, parallel=False):
+    def make_rate_arrays(self, overwrite=True, parallel=False):
         rec_info = self.rec_info
-
         def run_make_rate_arrays(rec_dir):
             print("Making rate arrays for %s" % rec_dir)
             dat = load_dataset(rec_dir)
-            dat.make_rate_arrays()
+            dat.make_rate_arrays(overwrite)
             print("Rate arrays made for %s" % rec_dir)
 
         rec_dirs = rec_info.rec_dir

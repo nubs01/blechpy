@@ -1050,21 +1050,27 @@ class dataset(data_object):
         self.process_status['make_psth_arrays'] = True
         self.save()
 
-    def make_rate_arrays(self, parallel=False):
+    def make_rate_arrays(self, overwrite=True, parallel=False):
         '''
         Make firing rate arrays for each unit and store in hdf5 store
         '''
-        params = self.psth_params
-        dig_ins = self.dig_in_mapping.query('spike_array == True')
-        if parallel == False:
-            for idx, row in dig_ins.iterrows():
-                dig_in_ch = row['channel']
-                print(dig_in_ch)
-                spike_analysis.make_rate_arrays(self.h5_file, dig_in_ch)
-        elif parallel == True:
-            Parallel(n_jobs=-1)(delayed(spike_analysis.make_rate_arrays)(self.h5_file, row['channel']) for idx, row in dig_ins.iterrows())
+        #check if self.rate_arrays exists
+        #if not, create it
+        if (self.process_status['make_rate_arrays'] != True) or overwrite == True:
 
-        #if parallel = True, then run the above loop in parallel using joblib
+            params = self.psth_params
+            dig_ins = self.dig_in_mapping.query('spike_array == True')
+            if parallel == False:
+                for idx, row in dig_ins.iterrows():
+                    dig_in_ch = row['channel']
+                    print(dig_in_ch)
+                    spike_analysis.make_rate_arrays(self.h5_file, dig_in_ch)
+            elif parallel == True:
+                Parallel(n_jobs=-1)(delayed(spike_analysis.make_rate_arrays)(self.h5_file, row['channel']) for idx, row in dig_ins.iterrows())
+
+            self.process_status['make_rate_arrays'] = True
+        else:
+            print('Rate arrays already exist, new rate arrays not created')
 
 
     def make_psth_plots(self, sd = True, save_prefix = None):
