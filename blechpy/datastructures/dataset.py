@@ -1056,8 +1056,10 @@ class dataset(data_object):
         '''
         #check if self.rate_arrays exists
         #if not, create it
-        if (self.process_status['make_rate_arrays'] != True) or overwrite == True:
+        if 'make_rate_arrays' not in self.process_status:
+            self.process_status['make_rate_arrays'] = False
 
+        if self.process_status['make_rate_arrays'] == False or overwrite == True:
             params = self.psth_params
             dig_ins = self.dig_in_mapping.query('spike_array == True')
             if parallel == False:
