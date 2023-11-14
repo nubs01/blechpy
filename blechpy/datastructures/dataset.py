@@ -1067,7 +1067,6 @@ class dataset(data_object):
                 print(dig_in_ch)
                 spike_analysis.make_rate_arrays(self.h5_file, dig_in_ch)
 
-            del res
             self.process_status['make_rate_arrays'] = True
             self.save()
         else:
