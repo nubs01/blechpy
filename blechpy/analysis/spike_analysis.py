@@ -117,9 +117,10 @@ def make_rate_arrays(h5_file, dig_in_ch, mode='BAKS', output=False):
             spike_array = spike_data.spike_array[:]
             time = spike_data.array_time[:]
 
+            spike_array = np.swapaxes(spike_array, 0,1)  # swap trials and units
             #make array "rates" with the same shape as spike_array
             results=Parallel(n_jobs=-1)(
-                delayed(pyBAKS.optimize_alpha_MLE)(spike_array[:,i,:], time, output_df=False) for i in range(spike_array.shape[1])
+                delayed(pyBAKS.optimize_alpha_MLE)(spike_array[i,:,:], time, output_df=False) for i in range(spike_array.shape[0])
             )
 
             rates = np.zeros(spike_array.shape)
@@ -147,8 +148,6 @@ def make_rate_arrays(h5_file, dig_in_ch, mode='BAKS', output=False):
         return rates, time
     else:
         del rates, time
-
-
 
 
 def get_binned_firing_rate(time, spikes, bin_size=250, bin_step=25):

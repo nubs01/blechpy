@@ -498,21 +498,115 @@ def plot_raster(spikes, time=None, ax=None, y_min=0.05, y_max=0.95):
     if not ax:
         _, ax = plt.gca()
 
-    n_rows, n_steps = spikes.shape
+    n_trials, n_steps = spikes.shape
     if time is None:
         time = np.arange(0, n_steps)
 
-    y_steps = np.linspace(y_min, y_max, n_rows)
-    for i, row in enumerate(spikes):
+    y_steps = np.linspace(y_min, y_max, n_trials)
+    #y_steps = np.arange(0, n_trials)
+    y_steps = np.flip(y_steps)
+    #turn y_steps from row to column vector
+    y_steps = y_steps.reshape(-1, 1)
+    spikes = spikes * y_steps
+    #tile time vector to match spikes
+    time = np.tile(time, (n_trials, 1))
+    #flatten time and spikes
+    time = time.flatten()
+    spikes = spikes.flatten()
+    ax.scatter(time, spikes, color='black', marker='|')
+    #ax.set_ylim(y_steps[-1]+1, y_steps[0]-1)
+    #set the y tick marks to be n_trials, n_trials/2, and 1 for 0, 0.5, and 1
+    #ax.set_yticklabels([n_trials+1,(n_trials+1)/2,1])
+    """
+        for i, row in enumerate(spikes):
         idx = np.where(row == 1)[0]
         if len(idx) == 0:
             continue
-
         ax.scatter(time[idx], row[idx]*y_steps[i], color='black', marker='|')
+
+    """
+    return ax
+
+def plot_heat(rates, time=None, ax=None, y_min=0.05, y_max=0.95):
+    '''Plot 2D spike raster
+
+    Parameters
+    ----------
+    spikes : np.array
+        2D matrix M x N where N is the number of time steps and in each bin is
+        a 0 or 1, with 1 signifying the presence of a spike
+    '''
+    if not ax:
+        _, ax = plt.gca()
+
+    n_trials, n_steps = rates.shape
+    if time is None:
+        time = np.arange(0, n_steps)
+
+    #tile time vector to match spikes
+    time = np.tile(time, (n_trials, 1))
+    #flatten time and spikes
+    #make a heatmap of rates
+    ax.imshow(rates, cmap='hot', interpolation='nearest', aspect=30)
 
     return ax
 
-def plot_trial_raster(spikes, time=None, save_file=None): #TODO 11/10/23--test this function
+
+def plot_trial_heat(rates, time=None, save_file=None, title = None): #TODO 11/10/23--test this function
+    '''Create figure of rates rasters with each trial on a seperate axis
+    TODO: convert this from blechpy.plotting.hmm_plot to blechpy.plotting.data_plot
+    Parameters
+    ----------
+    rates: np.array, Trials X Cells X Time array with 1s where rates occur
+    time: np.array, 1D time vector
+    save_file: str, if provided figure is saved and not returned
+
+    Returns
+    -------
+    plt.Figure, list of plt.Axes
+    '''
+    if len(rates) == 2:
+        rates = np.array([rates])
+    #rates = np.swapaxes(rates, 0, 1)
+
+    orderidx = rates.sum(axis=2).sum(axis=1).argsort()
+    srtrates = rates[orderidx,:,:]
+
+    n_units, n_trials, n_steps = srtrates.shape #need to replace n_trials with n_cells
+    if time is None:
+        time = np.arange(0, n_steps)
+
+    fig, axes = plt.subplots(ncols=n_units, figsize=(40,6), constrained_layout=True, sharex=True, sharey=True)
+
+    counter = 1
+    for ax, trial in zip(axes, srtrates):
+        print("trial")
+
+        tmp = plot_heat(trial, time=time, ax=ax)
+
+        for spine in ax.spines.values():
+            spine.set_visible(False)
+        #ax.set_yticklabels([])
+        #ax.set_yticks([])
+        #ax.get_yaxis().set_visible(False)
+        ax.set_xticks([])
+        ax.get_xaxis().set_visible(False)
+        counter = counter + 1
+
+    axes[0].set_ylabel("trial number", labelpad=-1)
+    #axes[0].set_yticklabels([n_trials+1,(n_trials+1)/2,1])
+    fig.set_constrained_layout_pads(w_pad=0.01, h_pad=0.01, hspace=0, wspace=0)
+    if title is not None:
+        fig.suptitle(title, fontsize=18)
+
+    if save_file:
+        fig.savefig(save_file)
+        plt.close(fig)
+        return
+    else:
+        return fig, axes
+
+def plot_trial_raster(spikes, time=None, save_file=None, title = None): #TODO 11/10/23--test this function
     '''Create figure of spikes rasters with each trial on a seperate axis
     TODO: convert this from blechpy.plotting.hmm_plot to blechpy.plotting.data_plot
     Parameters
@@ -527,43 +621,36 @@ def plot_trial_raster(spikes, time=None, save_file=None): #TODO 11/10/23--test t
     '''
     if len(spikes) == 2:
         spikes = np.array([spikes])
+    spikes = np.swapaxes(spikes, 0, 1)
 
-    n_trials, n_cells, n_steps = spikes.shape #need to replace n_trials with n_cells
+    orderidx = spikes.sum(axis=2).sum(axis=1).argsort()
+    srtspikes = spikes[orderidx,:,:]
+
+    n_units, n_trials, n_steps = srtspikes.shape #need to replace n_trials with n_cells
     if time is None:
         time = np.arange(0, n_steps)
 
-    fig, axes = plt.subplots(ncols=n_cells, figsize=(10, n_cells))
-    y_step = np.linspace(0.05, 0.95, n_trials)
+    fig, axes = plt.subplots(ncols=n_units, figsize=(40,6), constrained_layout=True, sharex=True, sharey=True)
 
-    #rearrange first and second dims of spikes
-    spikes = np.swapaxes(spikes, 0, 1)
     counter = 1
-    for ax, cell in zip(axes, spikes):
-        tmp = plot_raster(cell, time=time, ax=ax)
+    for ax, trial in zip(axes, srtspikes):
+        tmp = plot_raster(trial, time=time, ax=ax)
 
         for spine in ax.spines.values():
             spine.set_visible(False)
-        ax.set_yticklabels([])
-        ax.set_yticks([])
-        # ax.get_yaxis().set_visible(False)
+        #ax.set_yticklabels([])
+        #ax.set_yticks([])
+        #ax.get_yaxis().set_visible(False)
+        ax.set_xticks([])
         ax.get_xaxis().set_visible(False)
-        ax.set_ylabel(str(counter), labelpad=-1)
-        if time[0] < 0:
-            ax.axvline(0, color='red', linestyle='--', linewidth=5, alpha=0.8)
-
         counter = counter + 1
 
-    axes[-1].get_xaxis().set_visible(True)
-    axes[-1].xaxis.set_tick_params(labelsize=25)
-    tmp_ax = fig.add_subplot('111', frameon=False)
-    tmp_ax.tick_params(labelcolor='none', top=False, bottom=False,
-                       left=False, right=False)
-    tmp_ax.set_ylabel('Trial', fontsize=35)
-    axes[-1].set_xlabel('Time', fontsize=35)
-    # axes[-1].set_ylabel('Cells', fontsize=50)
+    axes[0].set_ylabel("trial number", labelpad=-1)
+    #axes[0].set_yticklabels([n_trials+1,(n_trials+1)/2,1])
+    fig.set_constrained_layout_pads(w_pad=0.01, h_pad=0.01, hspace=0, wspace=0)
+    if title is not None:
+        fig.suptitle(title, fontsize=18)
 
-    fig.tight_layout()
-    plt.subplots_adjust(top=0.95)
     if save_file:
         fig.savefig(save_file)
         plt.close(fig)
