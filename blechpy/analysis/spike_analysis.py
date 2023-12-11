@@ -120,8 +120,8 @@ def make_rate_arrays(h5_file, dig_in_ch, mode='BAKS', output=False):
             spike_array = np.swapaxes(spike_array, 0,1)  # swap trials and units
             #make array "rates" with the same shape as spike_array
             results=Parallel(n_jobs=-1)(
-                delayed(pyBAKS.optimize_alpha_MLE)(spike_array[i,:,:], time, output_df=False) for i in range(spike_array.shape[0])
-            )
+                delayed(pyBAKS.optimize_alpha_MLE)(spike_array[i,:,:], time, dt=0.001, output_df=False) for i in range(spike_array.shape[0])
+            ) #TODO remove hard coded dt
 
             rates = np.zeros(spike_array.shape)
             i = 0

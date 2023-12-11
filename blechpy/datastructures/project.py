@@ -239,7 +239,18 @@ class project(data_object):
         for i, row in rec_info.iterrows():
             dat = load_dataset(row['rec_dir'])
             dat.function()
-            
+
+    def plot_heatmaps(self):
+        rec_info = self.rec_info
+        for i, row in rec_info.iterrows():
+            dat = load_dataset(row['rec_dir'])
+            dat.make_trial_heat_plots()
+
+    def plot_trial_rasters(self):
+        rec_info = self.rec_info
+        for i, row in rec_info.iterrows():
+            dat = load_dataset(row['rec_dir'])
+            dat.make_trial_raster_plots()
     def plot_hmms(self):
         '''
         Plots hmms under each recording analysis directory in your project. Requires that you have already run HMMs

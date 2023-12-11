@@ -1,3 +1,7 @@
+v 2.2.13 (2023-12-11)
+-------------------
+- fixed rate smoothing bug in dataset object
+
 v2.2.12 (2023-11-9)
 -------------------
 - added rate smoothing to dataset object
