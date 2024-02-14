@@ -109,37 +109,52 @@ def make_psths_for_tastant(h5_file, win_size, win_step, dig_in_ch, smoothing_wid
 
     return PSTHs, psth_time
 
-def make_rate_arrays(h5_file, dig_in_ch, mode='BAKS', output=False):
+def make_rate_arrays(h5_file, dinlist, mode='BAKS', output=False):
     if mode == 'BAKS':
-        dig_str = 'dig_in_%i' % dig_in_ch
+        spike_arrays = []
+        dinidxs = []
+        with tables.open_file(h5_file, 'r') as hf5:
+            for i in dinlist:
+                dig_str = 'dig_in_%i' % i
+                spike_data = hf5.root.spike_trains[dig_str]
+                spike_array = spike_data.spike_array[:]
+                spike_array = np.swapaxes(spike_array, 0, 1)  # swap trials and units
+                spike_arrays.append(spike_array)
+                time = spike_data.array_time[:]
+                dinidx = np.ones(spike_array.shape[1]) * i
+                dinidxs.append(dinidx)
+
+        full_spike_array = np.concatenate((spike_arrays), axis=1)
+        full_dinidx = np.concatenate((dinidxs))
+        full_dinidx = full_dinidx.astype(int)
+
+        #make array "rates" with the same shape as spike_array
+        results=Parallel(n_jobs=-1)(
+            delayed(pyBAKS.optimize_alpha_MLE)(full_spike_array[i,:,:], time, dt=0.001, output_df=False) for i in range(full_spike_array.shape[0])
+        ) #TODO remove hard coded dt
+
+        rates = np.zeros(full_spike_array.shape)
+        i = 0
+        for tmp, _ in results:
+            rates[i,:,:] = tmp
+            i += 1
+        del results, tmp
+
         with tables.open_file(h5_file, 'r+') as hf5:
-            spike_data = hf5.root.spike_trains[dig_str]
-            spike_array = spike_data.spike_array[:]
-            time = spike_data.array_time[:]
-
-            spike_array = np.swapaxes(spike_array, 0,1)  # swap trials and units
-            #make array "rates" with the same shape as spike_array
-            results=Parallel(n_jobs=-1)(
-                delayed(pyBAKS.optimize_alpha_MLE)(spike_array[i,:,:], time, dt=0.001, output_df=False) for i in range(spike_array.shape[0])
-            ) #TODO remove hard coded dt
-
-            rates = np.zeros(spike_array.shape)
-            i = 0
-            for tmp, _ in results:
-                rates[:,i,:] = tmp
-                i += 1
-            del results, tmp
-
             if '/Rates' not in hf5:
                 hf5.create_group('/', 'Rates')
 
-            if '/Rates/%s' % dig_str in hf5:
-                hf5.remove_node('/Rates', dig_str, recursive=True)
+            for i in dinlist:
+                dig_str = 'dig_in_%i' % i
 
-            hf5.create_group('/Rates', dig_str)
-            hf5.create_array('/Rates/%s' % dig_str, 'time', time)
-            hf5.create_array('/Rates/%s' % dig_str, 'rate_array', rates)
+                if '/Rates/%s' % dig_str in hf5:
+                    hf5.remove_node('/Rates', dig_str, recursive=True)
 
+                idx = full_dinidx == int(i)
+                dinrates = rates[:, idx, :]
+                hf5.create_group('/Rates', dig_str)
+                hf5.create_array('/Rates/%s' % dig_str, 'time', time)
+                hf5.create_array('/Rates/%s' % dig_str, 'rate_array', dinrates)
             hf5.flush()
     else:
         raise ValueError('additional modes not yet developed, please use BAKS')

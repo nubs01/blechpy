@@ -818,19 +818,19 @@ def get_rate_data(rec_dir, units=None, din=None, trials=None, h5_file=None):
     time = None
     with tables.open_file(h5_file, 'r') as hf5:
         if din[0] is None and len(din) == 1:
-            dins = [x._v_name for x in hf5.list_nodes('/PSTHs')]
+            dins = [x._v_name for x in hf5.list_nodes('/Rates')]
         else:
             dins = ['dig_in_%i' % x for x in din if x is not None]
 
         for dig_str in dins:
-            st = hf5.root.PSTHs[dig_str]
+            st = hf5.root.Rates[dig_str]
             tmp_time = st['time'][:]
             if time is None:
                 time = tmp_time
             elif not np.array_equal(time, tmp_time):
                 raise ValueError('Misaligned time vectors encountered')
 
-            rate_array = st['psth_array'][unit_nums, :, :]
+            rate_array = st['rate_array'][unit_nums, :, :]
             out[dig_str] = rate_array
 
     if isinstance(trials, int) or isinstance(trials, np.int32) or isinstance(trials, np.int64):

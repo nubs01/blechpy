@@ -1375,7 +1375,7 @@ class HmmHandler(object):
             print('Plotting HMM %s...' % i)
             hmmplt.make_hmm_raster(spikes, time, save_file)
 
-    def plot_saved_models(self, dinlabels=True):
+    def plot_saved_models(self, dinlabels=True, file_ext='svg'):
         print('Plotting saved models')
         data = self.get_data_overview().set_index('hmm_id')
         rec_dir = self.root_dir
@@ -1405,7 +1405,7 @@ class HmmHandler(object):
             else:
                 hmm_id = None
 
-            hmmplt.plot_hmm_figures(hmm, spikes, dt, time, hmm_id=hmm_id, save_dir=plot_dir)
+            hmmplt.plot_hmm_figures(hmm, spikes, dt, time, hmm_id=hmm_id, save_dir=plot_dir, file_ext=file_ext)
 
     def plot_euclidean_distance_matrix(self):
         print('Plotting euclidean distance matrix')

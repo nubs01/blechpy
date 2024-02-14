@@ -15,6 +15,7 @@ from blechpy.plotting import blech_waveforms_datashader
 import matplotlib
 matplotlib.use('TkAgg')
 import pylab as plt
+from scipy.stats import zscore
 
 plot_params = {'xtick.labelsize': 14, 'ytick.labelsize': 14,
                'axes.titlesize': 26, 'figure.titlesize': 28,
@@ -528,14 +529,7 @@ def plot_raster(spikes, time=None, ax=None, y_min=0.05, y_max=0.95):
     return ax
 
 def plot_heat(rates, time=None, ax=None, y_min=0.05, y_max=0.95):
-    '''Plot 2D spike raster
 
-    Parameters
-    ----------
-    spikes : np.array
-        2D matrix M x N where N is the number of time steps and in each bin is
-        a 0 or 1, with 1 signifying the presence of a spike
-    '''
     if not ax:
         _, ax = plt.gca()
 
@@ -568,22 +562,28 @@ def plot_trial_heat(rates, time=None, save_file=None, title = None): #TODO 11/10
     if len(rates) == 2:
         rates = np.array([rates])
     #rates = np.swapaxes(rates, 0, 1)
-
-    orderidx = rates.sum(axis=2).sum(axis=1).argsort()
+    # z-score rates
+    rates = zscore(rates)
+    orderidx = rates[:,0:5,500:].sum(axis=2).sum(axis=1).argsort()
     srtrates = rates[orderidx,:,:]
 
     n_units, n_trials, n_steps = srtrates.shape #need to replace n_trials with n_cells
+
+    #switch dimensions 0 and 1 of srtrates
+    srtrates = np.swapaxes(srtrates, 0, 1)
+
     if time is None:
         time = np.arange(0, n_steps)
 
-    fig, axes = plt.subplots(ncols=n_units, figsize=(40,6), constrained_layout=True, sharex=True, sharey=True)
+    fig, axes = plt.subplots(ncols=n_trials, figsize=(20,10), constrained_layout=True, sharex=True, sharey=True)
 
-    counter = 1
+    trlbin_ratio = n_steps/n_trials * n_units
+
+    counter = 0
     for ax, trial in zip(axes, srtrates):
-        print("trial")
-
-        tmp = plot_heat(trial, time=time, ax=ax)
-
+        nnrn, nbin = trial.shape
+        tmp = ax.imshow(trial, cmap='hot', aspect='auto')
+        ax.set_title(counter, fontsize=10)
         for spine in ax.spines.values():
             spine.set_visible(False)
         #ax.set_yticklabels([])
@@ -593,7 +593,7 @@ def plot_trial_heat(rates, time=None, save_file=None, title = None): #TODO 11/10
         ax.get_xaxis().set_visible(False)
         counter = counter + 1
 
-    axes[0].set_ylabel("trial number", labelpad=-1)
+    axes[0].set_ylabel("neuron number", labelpad=-1)
     #axes[0].set_yticklabels([n_trials+1,(n_trials+1)/2,1])
     fig.set_constrained_layout_pads(w_pad=0.01, h_pad=0.01, hspace=0, wspace=0)
     if title is not None:

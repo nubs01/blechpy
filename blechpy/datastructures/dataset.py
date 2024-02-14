@@ -1062,10 +1062,8 @@ class dataset(data_object):
         if self.process_status['make_rate_arrays'] == False or overwrite == True:
             params = self.psth_params
             dig_ins = self.dig_in_mapping.query('spike_array == True')
-            for idx, row in dig_ins.iterrows():
-                dig_in_ch = row['channel']
-                print(dig_in_ch)
-                spike_analysis.make_rate_arrays(self.h5_file, dig_in_ch)
+            dinlist = dig_ins.channel.to_list()
+            spike_analysis.make_rate_arrays(self.h5_file, dinlist)
 
             self.process_status['make_rate_arrays'] = True
             self.save()
@@ -1126,6 +1124,7 @@ class dataset(data_object):
         os.mkdir(save_dir)
 
         dim = self.dig_in_mapping.query('spike_array == True')
+        dim = self.dig_in_mapping.query('spike_array == True')
 
         for j in spikes.keys():
             #for each j, get the dig_in channel number from the string
@@ -1173,7 +1172,7 @@ class dataset(data_object):
             taste = dim.query('channel == @res').name.values[0]
 
             dig_rates = rates[j]
-            sidxs = np.where((time < 3000) & (time >= 0))
+            sidxs = np.where((time < 2000) & (time >= -500))
             dig_rates = dig_rates[:, :, sidxs[0]]
 
             fn = taste + '_trial_heat.png'

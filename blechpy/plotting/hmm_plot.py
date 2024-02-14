@@ -534,7 +534,7 @@ def plot_hmm_overview(hmm, colors=None, hmm_id=None, save_file=None):
         return fig, axes
 
 
-def plot_hmm_figures(hmm, spikes, dt, time, hmm_id=None, save_dir=None):
+def plot_hmm_figures(hmm, spikes, dt, time, hmm_id=None, save_dir=None, file_ext='svg'):
     colors = get_hmm_plot_colors(hmm.n_states)
     if hmm_id is None:
         hmm_id = hmm.hmm_id
@@ -544,7 +544,7 @@ def plot_hmm_figures(hmm, spikes, dt, time, hmm_id=None, save_dir=None):
     fig_names = ['sequences', 'forward_probabilities',
                  'backward_probabilities', 'gamma_probabilities', 'overview']
     if save_dir:
-        files = {x : os.path.join(save_dir, '%s.svg' % x) for x in fig_names}
+        files = {x : os.path.join(save_dir, '%s.%s' % (x, file_ext)) for x in fig_names}
     else:
         files = dict.fromkeys(fig_names, None)
 

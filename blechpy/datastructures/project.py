@@ -307,6 +307,43 @@ class project(data_object):
         rec_info = self.rec_info
         rec_dirs = list(rec_info.rec_dir)
         return rec_dirs
+
+    def get_dig_in_trial_df(self, reformat=False):
+        rec_info = self.rec_info
+        dflist = []
+        for i, row in rec_info.iterrows():
+            rec_dir = row['rec_dir']
+            dat = load_dataset(rec_dir)
+            dit = dat.dig_in_trials
+            dit[['rec_dir', 'exp_group','exp_name','rec_num']] = [rec_dir, row['exp_group'], row['exp_name'], row['rec_num']]
+            dflist.append(dit)
+
+        outdf = pd.concat(dflist)
+
+        if reformat==True: #reformat the dataframe for Dan's post-processing pipeline
+            newdf = []
+            for i, dit in outdf.groupby(['rec_dir']):
+                # make a 'taste_trial' column where for each grouping of 'name' column, count the cumulative sum of 'name' column
+                dit['taste_trial'] = dit.groupby(['name']).cumcount() + 1
+
+                # renumber trial_num by subtracting the maximum trial number with name 'Spont'
+                # if any rows of 'name' column contain 'Spont'
+                if 'Spont' in dit['name'].values:
+                    max_spont_trial = dit[dit['name'] == 'Spont'].trial_num.max()
+                    dit['trial_num'] = dit['trial_num'] - max_spont_trial
+                newdf.append(dit)
+            outdf = pd.concat(newdf)
+            outdf = outdf[outdf.channel != -1]
+            outdf= outdf.rename(columns={'trial_num':'session_trial', 'name':'taste', 'rec_num':'session'})
+            #drop the on_index, off_index, and on_time columns
+            outdf = outdf.drop(columns=['on_index', 'off_index', 'on_time'])
+            #reorder the columns to follow: 'rec_dir', 'exp_group', 'exp_name', 'session', 'taste', 'channel', 'session_trial', 'taste_trial', 'off_time'
+            outdf = outdf[['rec_dir', 'exp_group', 'exp_name', 'session', 'taste', 'channel', 'session_trial', 'taste_trial', 'off_time']]
+            outdf['taste_trial'] = outdf['taste_trial'] - 1
+            outdf['session_trial'] = outdf['session_trial'] - 1
+
+        return outdf
+
 # Example usage
 
 def select_directory_via_gui(title="Select a directory"):
