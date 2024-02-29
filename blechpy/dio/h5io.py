@@ -774,6 +774,77 @@ def get_next_unit_name(rec_dir, h5_file=None):
 
     return out
 
+def get_psths(rec_dir, units=None, din=None, trials=None, h5_file=None):
+    '''Opens hf5 file in rec_dir and returns a Trial x Time PSTH array and a
+    1D time vector
+    Parameters
+    ----------
+    rec_dir : str, path to recording directory
+    units : str or int or list of str/int, unit names or unit numbers
+    din : int, digital input channel
+    trials: int or list-like
+        if None (default), returns all trials, if int N returns first N-trials
+        for each din, if list-like then returns those indices for each taste
+
+    Returns
+    -------
+    time : numpy.array
+    spike_array : numpy.array
+    '''
+    if h5_file is None:
+        h5_file = get_h5_filename(rec_dir)
+
+    if units is None:
+        units = get_unit_names(rec_dir)
+    elif not isinstance(units, list):
+        units = [units]
+
+    unit_nums = []
+    for u in units:
+        if isinstance(u, int):
+            unit_nums.append(u)
+        else:
+            unit_nums.append(parse_unit_number(u))
+
+    unit_nums = np.array(unit_nums)
+    if len(unit_nums) == 1:
+        unit_nums = unit_nums[0]
+
+    if not isinstance(din, list):
+        din = [din]
+
+    out = {}
+    time = None
+    with tables.open_file(h5_file, 'r') as hf5:
+        if din[0] is None and len(din) == 1:
+            dins = [x._v_name for x in hf5.list_nodes('/PSTHs')]
+        else:
+            dins = ['dig_in_%i' % x for x in din if x is not None]
+
+        for dig_str in dins:
+            st = hf5.root.PSTHs[dig_str]
+            tmp_time = st['time'][:]
+            if time is None:
+                time = tmp_time
+            elif not np.array_equal(time, tmp_time):
+                raise ValueError('Misaligned time vectors encountered')
+
+            rate_array = st['psth_array'][unit_nums, :, :]
+            out[dig_str] = rate_array
+
+    if isinstance(trials, int) or isinstance(trials, np.int32) or isinstance(trials, np.int64):
+        for k in out.keys():
+            out[k] = out[k][:trials]
+
+    elif trials is not None:
+        for k in out.keys():
+            out[k] = out[k][trials]
+
+    if len(out) == 1:
+        out = out.popitem()[1]
+
+    return time, out
+
 
 def get_rate_data(rec_dir, units=None, din=None, trials=None, h5_file=None):
     '''Opens hf5 file in rec_dir and returns a Trial x Time spike array and a
