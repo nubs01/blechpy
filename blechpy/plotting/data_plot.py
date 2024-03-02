@@ -273,7 +273,7 @@ def plot_held_units(rec_dirs, held_df, save_dir, rec_names=None):
                                                               single_str, J3_str)
 
 
-        fig, fig_ax = plt.subplots(ncols=n_subplots, figsize=(20, 10))
+        fig, fig_ax = plt.subplots(ncols=n_subplots, figsize=(20, 10), sharey=True, sharex=True)
         ylim = [0, 0]
         row_ax = []
 
@@ -306,11 +306,10 @@ def plot_held_units(rec_dirs, held_df, save_dir, rec_names=None):
             ax.set_xlabel('Time (ms)',
                           fontsize=35)
 
-            ax.set_title('%s %s\ntotal waveforms = %i'
-                         % (rl, u, waves.shape[0]),
-                         fontsize = 20)
+            ax.set_title('%s\n%s\ntotal waveforms = %i'
+                         % (rl, u, waves.shape[0]), fontsize=20)
             ax.autoscale(axis='x', tight=True)
-            plt.tick_params(axis='both', which='major', labelsize=32)
+            #plt.tick_params(axis='both', which='major', labelsize=32)
 
             if np.min(mean_wave - std_wave) - 20 < ylim[0]:
                 ylim[0] = np.min(mean_wave - std_wave) - 20
@@ -322,10 +321,14 @@ def plot_held_units(rec_dirs, held_df, save_dir, rec_names=None):
             ax.set_ylim(ylim)
 
         fig_ax[0].set_ylabel('Voltage (microvolts)', fontsize=35)
-        plt.subplots_adjust(top=.75)
         plt.suptitle(title_str)
+        plt.tight_layout()
+        plt.subplots_adjust(top=.725)
         fig.savefig(os.path.join(save_dir,
                                  'Unit%s_waveforms.png' % unit_name),
+                    bbox_inches='tight')
+        fig.savefig(os.path.join(save_dir,
+                                 'Unit%s_waveforms.svg' % unit_name),
                     bbox_inches='tight')
         plt.close('all')
 
