@@ -15,8 +15,8 @@ def calc_J1(wf_day1, wf_day2):
     day2_mean = np.mean(wf_day2, axis=0)
 
     # Get the Euclidean distances of each day from its daily mean
-    day1_dists = cdist(wf_day1, day1_mean.reshape((-1, 3)), metric='euclidean')
-    day2_dists = cdist(wf_day2, day2_mean.reshape((-1, 3)), metric='euclidean')
+    day1_dists = cdist(wf_day1, day1_mean.reshape((-1, 4)), metric='euclidean')
+    day2_dists = cdist(wf_day2, day2_mean.reshape((-1, 4)), metric='euclidean')
 
     # Sum up the distances to get J1
     J1 = np.sum(day1_dists) + np.sum(day2_dists)
@@ -32,8 +32,8 @@ def calc_J2(wf_day1, wf_day2):
     overall_mean = np.mean(np.concatenate((wf_day1, wf_day2), axis=0), axis=0)
 
     # Get the distances of the daily means from the inter-day mean
-    dist1 = cdist(day1_mean.reshape((-1, 3)), overall_mean.reshape((-1, 3)))
-    dist2 = cdist(day2_mean.reshape((-1, 3)), overall_mean.reshape((-1, 3)))
+    dist1 = cdist(day1_mean.reshape((-1, 4)), overall_mean.reshape((-1, 4)))
+    dist2 = cdist(day2_mean.reshape((-1, 4)), overall_mean.reshape((-1, 4)))
 
     # Multiply the distances by the number of points on both days and sum to
     # get J2
@@ -76,8 +76,11 @@ def get_intra_J3(rec_dirs, raw_waves=False):
             else:
                 waves, descrip, fs = h5io.get_unit_waveforms(rd, un)
 
+            #normalize the varaince of the waveforms
+            waves = waves / np.std(waves)
+
             if descrip['single_unit'] == 1:
-                pca = PCA(n_components=3)
+                pca = PCA(n_components=4)
                 pca.fit(waves)
                 pca_waves = pca.transform(waves)
                 idx1 = int(waves.shape[0] * (1.0 / 3.0))
@@ -121,6 +124,7 @@ def find_held_units(rec_dirs, percent_criterion=95, rec_names=None, raw_waves=Fa
         h5_file2 = h5io.get_h5_filename(rd2)
         print('Comparing %s vs %s' % (rec1, rec2))
         found_cells = []
+        tossed_cells = []
 
         unit_names1 = h5io.get_unit_names(rd1)
         unit_names2 = h5io.get_unit_names(rd2)
@@ -130,6 +134,8 @@ def find_held_units(rec_dirs, percent_criterion=95, rec_names=None, raw_waves=Fa
                 wf1, descrip1, fs1 = h5io.get_raw_unit_waveforms(rd1, unit1)
             else:
                 wf1, descrip1, fs1 = h5io.get_unit_waveforms(rd1, unit1)
+
+            wf1 = wf1 / np.std(wf1)
 
             electrode = descrip1['electrode_number']
             single_unit = bool(descrip1['single_unit'])
@@ -145,7 +151,9 @@ def find_held_units(rec_dirs, percent_criterion=95, rec_names=None, raw_waves=Fa
                         wf2, descrip2, fs2 = h5io.get_unit_waveforms(rd2, unit2,
                                                                      required_descrip=descrip1)
 
+
                     if descrip1 == descrip2 and wf2 is not None:
+                        wf2 = wf2 / np.std(wf2)
 
                         print('Comparing %s %s vs %s %s' %
                               (rec1, unit1, rec2, unit2))
@@ -159,7 +167,7 @@ def find_held_units(rec_dirs, percent_criterion=95, rec_names=None, raw_waves=Fa
                             wf2 = sas.interpolate_waves(wf2, fs2,
                                                         fs1)
 
-                        pca = PCA(n_components=3)
+                        pca = PCA(n_components=4)
                         pca.fit(np.concatenate((wf1, wf2), axis=0))
                         pca_wf1 = pca.transform(wf1)
                         pca_wf2 = pca.transform(wf2)
@@ -202,6 +210,7 @@ def find_held_units(rec_dirs, percent_criterion=95, rec_names=None, raw_waves=Fa
 
             if idx1.size == 0 and idx2.size == 0:
                 tmp = {'unit': uL,
+                       'electrode': electrode,
                        'single_unit': single_unit,
                        'unit_type': row[4],
                        rec1: unit1,

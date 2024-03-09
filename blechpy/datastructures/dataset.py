@@ -1050,16 +1050,25 @@ class dataset(data_object):
         self.process_status['make_psth_arrays'] = True
         self.save()
 
-    def make_rate_arrays(self):
+    def make_rate_arrays(self, overwrite=True):
         '''
         Make firing rate arrays for each unit and store in hdf5 store
         '''
-        params = self.psth_params
-        dig_ins = self.dig_in_mapping.query('spike_array == True')
-        for idx, row in dig_ins.iterrows():
-            dig_in_ch = row['channel']
-            print(dig_in_ch)
-            spike_analysis.make_rate_arrays(self.h5_file, dig_in_ch)
+        #check if self.rate_arrays exists
+        #if not, create it
+        if 'make_rate_arrays' not in self.process_status:
+            self.process_status['make_rate_arrays'] = False
+
+        if self.process_status['make_rate_arrays'] == False or overwrite == True:
+            params = self.psth_params
+            dig_ins = self.dig_in_mapping.query('spike_array == True')
+            dinlist = dig_ins.channel.to_list()
+            spike_analysis.make_rate_arrays(self.h5_file, dinlist)
+
+            self.process_status['make_rate_arrays'] = True
+            self.save()
+        else:
+            print('Rate arrays already exist, new rate arrays not created')
 
 
     def make_psth_plots(self, sd = True, save_prefix = None):
@@ -1104,7 +1113,75 @@ class dataset(data_object):
         make raster plots for each neuron across dig_in_trials
         """
         unit_table = self.get_unit_table()
+        spikemat = []
+
+        time, spikes = dio.h5io.get_spike_data(self.root_dir)
+        #get boolean index of time for all values between 0 and 2000:
         save_dir = os.path.join(self.root_dir, 'trial_raster_plots')
+        # check if save_dir exists, if not, create it
+        if os.path.isdir(save_dir):
+            shutil.rmtree(save_dir)
+        os.mkdir(save_dir)
+
+        dim = self.dig_in_mapping.query('spike_array == True')
+        dim = self.dig_in_mapping.query('spike_array == True')
+
+        for j in spikes.keys():
+            #for each j, get the dig_in channel number from the string
+            res = list(filter(lambda x: x.isdigit(), j.split('_')))
+            # use a list comprehension to convert the remaining elements to integers
+            res = int(res[0])
+
+            #now get the corresponding taste from dim that matches res
+            taste = dim.query('channel == @res').name.values[0]
+
+            dig_spikes = spikes[j]
+            sidxs = np.where((time < 2000) & (time >= 0))
+            dig_spikes = dig_spikes[:, :, sidxs[0]]
+
+            fn = taste + '_trial_raster.png'
+            title = "taste" + " " + "trial raster"
+
+            save_file = os.path.join(save_dir, fn)
+            datplt.plot_trial_raster(dig_spikes, time, save_file = save_file, title = taste)
+
+    def make_trial_heat_plots(self):
+        """
+        make raster plots for each neuron across dig_in_trials
+        """
+        unit_table = self.get_unit_table()
+        spikemat = []
+
+        time, rates = dio.h5io.get_rate_data(self.root_dir)
+        #get boolean index of time for all values between 0 and 2000:
+        save_dir = os.path.join(self.root_dir, 'trial_rate_plots')
+        # check if save_dir exists, if not, create it
+        if not os.path.isdir(save_dir):
+            print('making new directory')
+            os.mkdir(save_dir)
+
+        dim = self.dig_in_mapping.query('spike_array == True')
+
+        for j in rates.keys():
+            #for each j, get the dig_in channel number from the string
+            res = list(filter(lambda x: x.isdigit(), j.split('_')))
+            # use a list comprehension to convert the remaining elements to integers
+            res = int(res[0])
+
+            #now get the corresponding taste from dim that matches res
+            taste = dim.query('channel == @res').name.values[0]
+
+            dig_rates = rates[j]
+            sidxs = np.where((time < 2000) & (time >= -500))
+            dig_rates = dig_rates[:, :, sidxs[0]]
+
+            fn = taste + '_trial_heat.png'
+            title = "taste" + " " + "trial heatmap"
+
+            save_file = os.path.join(save_dir, fn)
+            datplt.plot_trial_heat(dig_rates, time, save_file = save_file, title = taste)
+
+
 
 
     def make_ensemble_raster_plots(self):

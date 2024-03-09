@@ -218,13 +218,20 @@ class project(data_object):
             dat = load_dataset(row['rec_dir'])
             dat.make_ensemble_raster_plots()
 
-    def make_rate_arrays(self):
+    def make_rate_arrays(self, overwrite=True, parallel=False, n_jobs=-1):
         rec_info = self.rec_info
-        for i, row in rec_info.iterrows():
-            print("Making rate arrays for %s" % row['rec_dir'])
-            dat = load_dataset(row['rec_dir'])
-            dat.make_rate_arrays()
-            print("Rate arrays made for %s" % row['rec_dir'])
+        def run_make_rate_arrays(rec_dir):
+            print("Making rate arrays for %s" % rec_dir)
+            dat = load_dataset(rec_dir)
+            dat.make_rate_arrays(overwrite)
+            print("Rate arrays made for %s" % rec_dir)
+
+        rec_dirs = rec_info.rec_dir
+        if parallel==False:
+            for i in rec_dirs:
+                run_make_rate_arrays(i)
+        elif parallel==True:
+            Parallel(n_jobs=n_jobs)(delayed(run_make_rate_arrays)(i) for i in rec_dirs)
             
     #idk if this would actually work, I will need to figure this one out
     def apply_dat_function(self, function):
@@ -232,7 +239,18 @@ class project(data_object):
         for i, row in rec_info.iterrows():
             dat = load_dataset(row['rec_dir'])
             dat.function()
-            
+
+    def plot_heatmaps(self):
+        rec_info = self.rec_info
+        for i, row in rec_info.iterrows():
+            dat = load_dataset(row['rec_dir'])
+            dat.make_trial_heat_plots()
+
+    def plot_trial_rasters(self):
+        rec_info = self.rec_info
+        for i, row in rec_info.iterrows():
+            dat = load_dataset(row['rec_dir'])
+            dat.make_trial_raster_plots()
     def plot_hmms(self):
         '''
         Plots hmms under each recording analysis directory in your project. Requires that you have already run HMMs
@@ -247,7 +265,7 @@ class project(data_object):
             
         n_cpu = os.cpu_count()
             
-        Parallel(n_jobs = n_cpu-1)(delayed(load_plot_hmm)(i) for i in rec_dirs)
+        Parallel(n_jobs=n_cpu-1)(delayed(load_plot_hmm)(i) for i in rec_dirs)
 
     def export_portable_copy(self, dest_dir=None, extensions=None):
         if extensions is None:
@@ -289,6 +307,43 @@ class project(data_object):
         rec_info = self.rec_info
         rec_dirs = list(rec_info.rec_dir)
         return rec_dirs
+
+    def get_dig_in_trial_df(self, reformat=False):
+        rec_info = self.rec_info
+        dflist = []
+        for i, row in rec_info.iterrows():
+            rec_dir = row['rec_dir']
+            dat = load_dataset(rec_dir)
+            dit = dat.dig_in_trials
+            dit[['rec_dir', 'exp_group','exp_name','rec_num']] = [rec_dir, row['exp_group'], row['exp_name'], row['rec_num']]
+            dflist.append(dit)
+
+        outdf = pd.concat(dflist)
+
+        if reformat==True: #reformat the dataframe for Dan's post-processing pipeline
+            newdf = []
+            for i, dit in outdf.groupby(['rec_dir']):
+                # make a 'taste_trial' column where for each grouping of 'name' column, count the cumulative sum of 'name' column
+                dit['taste_trial'] = dit.groupby(['name']).cumcount() + 1
+
+                # renumber trial_num by subtracting the maximum trial number with name 'Spont'
+                # if any rows of 'name' column contain 'Spont'
+                if 'Spont' in dit['name'].values:
+                    max_spont_trial = dit[dit['name'] == 'Spont'].trial_num.max()
+                    dit['trial_num'] = dit['trial_num'] - max_spont_trial
+                newdf.append(dit)
+            outdf = pd.concat(newdf)
+            outdf = outdf[outdf.channel != -1]
+            outdf= outdf.rename(columns={'trial_num':'session_trial', 'name':'taste', 'rec_num':'session'})
+            #drop the on_index, off_index, and on_time columns
+            outdf = outdf.drop(columns=['on_index', 'off_index', 'on_time'])
+            #reorder the columns to follow: 'rec_dir', 'exp_group', 'exp_name', 'session', 'taste', 'channel', 'session_trial', 'taste_trial', 'off_time'
+            outdf = outdf[['rec_dir', 'exp_group', 'exp_name', 'session', 'taste', 'channel', 'session_trial', 'taste_trial', 'off_time']]
+            outdf['taste_trial'] = outdf['taste_trial'] - 1
+            outdf['session_trial'] = outdf['session_trial'] - 1
+
+        return outdf
+
 # Example usage
 
 def select_directory_via_gui(title="Select a directory"):
