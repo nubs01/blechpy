@@ -684,6 +684,8 @@ def fit_hmm_mp(rec_dir, params, h5_file=None, constraint_func=None):
     row_id = []
     time = None
     for ch, tst in zip(channels, tastes):
+        print(ch)
+        print(tst)
         if custom_trial_nums is None:
             tmp_s, _, time = get_hmm_spike_data(rec_dir, unit_type, ch,
                                                 time_start=time_start,

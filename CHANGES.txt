@@ -1,4 +1,8 @@
-v 2.2.13 (2023-12-11)
+v2.2.14 (2024-05-01)
+-------------------
+- many small changes and bug fixes, check git log for details
+
+v2.2.13 (2023-12-11)
 -------------------
 - fixed rate smoothing bug in dataset object
 
