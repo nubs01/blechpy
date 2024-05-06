@@ -1620,10 +1620,10 @@ def sequential_constraint(PI, A, B):
     PI[0] = 1.0
     PI[1:] = 0.0
     for i in np.arange(n_states):
-        if i > 0:
+        if i > 0: #this part sets the probability of going backwards to 0
             A[i, :i] = 0.0
 
-        if i < n_states - 2:
+        if i < n_states - 2: #this part sets the probability of going to a state more than 1 step ahead to 0
             A[i, i + 2:] = 0.0
 
         A[i, :] = A[i, :] / np.sum(A[i, :])
@@ -1633,6 +1633,74 @@ def sequential_constraint(PI, A, B):
 
     return PI, A, B
 
+def forward_constraint(PI, A, B):
+    '''Forces all states to occur forward
+    Can be passed to HmmHandler.run() or fit_hmm_mp as the constraint_func
+    argument
+
+    Parameters
+    ----------
+    PI: np.ndarray, initial state probability vector
+    A: np.ndarray, transition matrix
+    B: np.ndarray, emission or rate matrix
+
+    Returns
+    -------
+    np, ndarray, np.ndarray, np.ndarray : PI, A, B
+    '''
+    n_states = len(PI)
+    PI[0] = 1.0
+    PI[1:] = 0.0
+    for i in np.arange(n_states):
+        if i > 0: #this part sets the probability of going backwards to 0
+            A[i, :i] = 0.0
+
+        A[i, :] = A[i, :] / np.sum(A[i, :])
+
+    A[-1, :] = 0.0
+    A[-1, -1] = 1.0
+
+    return PI, A, B
+
+def boundary_forward_constraint(PI, A, B, n_forward):
+    '''Forces all states to occur forward towards any states up to n_forward states
+
+    Can be passed to HmmHandler.run() or fit_hmm_mp as the constraint_func
+    argument
+
+    The initial group can go into any group forward, but each group after the initial group is constrained to go into the next group forward
+
+    Parameters
+    ----------
+    PI: np.ndarray, initial state probability vector
+    A: np.ndarray, transition matrix
+    B: np.ndarray, emission or rate matrix
+    n_forward: int, number of possible states forward
+
+    Returns
+    -------
+    np, ndarray, np.ndarray, np.ndarray : PI, A, B
+    '''
+    n_states = len(PI)
+    PI[0] = 1.0
+    PI[1:] = 0.0
+    n_forward = n_forward+1
+    if n_forward >= n_states:
+        print('warning: all states are in forward repertoire because n_forward+1 >= n_states')
+
+    for i in np.arange(n_states):
+        if i > 0:  # this part sets the probability of going backwards to 0
+            A[i, :i] = 0.0
+
+        if i < n_states - n_forward:  # this part sets the probability of going to a state more than 1 step ahead to 0
+            A[i, i + n_forward:] = 0.0
+
+        A[i, :] = A[i, :] / np.sum(A[i, :])
+
+    A[-1, :] = 0.0
+    A[-1, -1] = 1.0
+
+    return PI, A, B
 
 class ConstrainedHMM(PoissonHMM):
     def __init__(self, n_tastes, n_baseline=3, hmm_id=None):
