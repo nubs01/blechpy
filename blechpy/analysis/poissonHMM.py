@@ -1684,6 +1684,10 @@ def boundary_forward_constraint(PI, A, B, n_forward):
     n_states = len(PI)
     PI[0] = 1.0
     PI[1:] = 0.0
+    n_forward = n_forward+1
+    if n_forward >= n_states:
+        print('warning: all states are in forward repertoire because n_forward+1 >= n_states')
+
     for i in np.arange(n_states):
         if i > 0:  # this part sets the probability of going backwards to 0
             A[i, :i] = 0.0
